@@ -1,0 +1,41 @@
+# Archivos de configuración con información sensible
+config/config.php
+
+# Dependencias de Composer
+/vendor/
+
+# Dependencias de Node
+node_modules/
+package-lock.json
+
+# Archivos del sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Archivos de IDEs
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Archivos de sesión y temporales
+*.log
+*.tmp
+/tmp/
+/temp/
+sessions/
+
+# Archivos de entorno
+.env
+.env.local
+.env.*.local
+
+# Archivos de backup
+*.bak
+*.backup
+*~
+
+# Carpetas de cache
+cache/
+/storage/
