@@ -10,127 +10,433 @@ AuthController::requireAuth();
 
 $userModel = new User();
 $user = $userModel->findById((int) $_SESSION['user_id']);
-if (!$user) { AuthController::logout(); header('Location: login.php'); exit; }
+
+if (!$user) {
+    AuthController::logout();
+    header('Location: login.php');
+    exit;
+}
 
 $lifeAreaModel = new LifeArea();
-$areas = array_slice($lifeAreaModel->getAllByUser((int)$user['id']), 0, 6);
+$areas = array_slice($lifeAreaModel->getAllByUser((int) $user['id']), 0, 6);
+
 $goalModel = new Goal();
-$mainGoals = $goalModel->getMainByUser((int)$user['id'], 3);
+$mainGoals = $goalModel->getMainByUser((int) $user['id'], 4);
+
 $projectModel = new Project();
-$activeProjects = $projectModel->getActiveByUser((int)$user['id'], 3);
+$activeProjects = $projectModel->getActiveByUser((int) $user['id'], 4);
 
-$xpCurrent = (int)$user['xp'];
-$xpNext = 100;
-$xpPercent = min(100, (int)(($xpCurrent / $xpNext) * 100));
+$xpCurrent = (int) $user['xp'];
+$xpNext = 2000;
+$xpPercent = min(100, (int) (($xpCurrent / max(1, $xpNext)) * 100));
 
-function e(string|null $value): string { return htmlspecialchars($value ?? '', ENT_QUOTES, 'UTF-8'); }
-function statusLabelDashboard(string $status): string { return ['not_started'=>'No iniciada','in_progress'=>'En progreso','paused'=>'Pausada','completed'=>'Completada','cancelled'=>'Cancelada'][$status] ?? $status; }
+$level = max(1, (int) $user['level']);
+$points = (int) $user['points'];
+$gems = max(0, intdiv($points, 20));
+$currentStreak = (int) $user['current_streak'];
+
+$dailyCompleted = min(4, count(array_filter($mainGoals, static fn($goal) => (int) ($goal['progress'] ?? 0) >= 100)));
+$dailyTotal = max(4, min(6, count($mainGoals) + 1));
+$objectivePercent = (int) (($dailyCompleted / max(1, $dailyTotal)) * 100);
+
+function e(string|null $value): string
+{
+    return htmlspecialchars($value ?? '', ENT_QUOTES, 'UTF-8');
+}
+
+function statusLabelDashboard(string $status): string
+{
+    return [
+        'not_started' => 'No iniciada',
+        'in_progress' => 'En progreso',
+        'paused' => 'Pausada',
+        'completed' => 'Completada',
+        'cancelled' => 'Cancelada',
+    ][$status] ?? $status;
+}
+
+function shortText(string|null $value, int $limit = 42): string
+{
+    $value = trim((string) $value);
+    if (mb_strlen($value) <= $limit) {
+        return $value;
+    }
+
+    return mb_substr($value, 0, $limit - 1) . '…';
+}
 ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Dashboard | <?= APP_NAME ?></title>
+    <title>Inicio | <?= APP_NAME ?></title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="../assets/css/styles.css">
 </head>
-<body class="app-body">
-    <aside class="sidebar">
-        <div class="sidebar-brand">LifeQuest</div>
-        <nav class="sidebar-nav">
-            <a href="dashboard.php" class="active">Inicio</a>
-            <a href="areas.php">Áreas</a>
-            <a href="goals.php">Metas</a>
-            <a href="projects.php">Proyectos</a>
-            <a href="#">Tareas</a>
-            <a href="#">Hábitos</a>
-            <a href="#">Stats</a>
+<body class="lifequest-app">
+    <aside class="lq-sidebar">
+        <a href="dashboard.php" class="lq-logo">
+            <span>Life<span>Quest</span><i>✦</i></span>
+        </a>
+
+        <nav class="lq-nav">
+            <a href="dashboard.php" class="active">
+                <span>🏠</span>
+                Inicio
+            </a>
+            <a href="goals.php">
+                <span>🎯</span>
+                Objetivos
+            </a>
+            <a href="projects.php">
+                <span>🚀</span>
+                Misiones
+            </a>
+            <a href="areas.php">
+                <span>🧩</span>
+                Áreas
+            </a>
+            <a href="#">
+                <span>💚</span>
+                Hábitos
+            </a>
+            <a href="#">
+                <span>🛍️</span>
+                Tienda
+            </a>
+            <a href="#">
+                <span>📊</span>
+                Progreso
+            </a>
         </nav>
-        <a href="logout.php" class="logout">Cerrar sesión</a>
+
+        <section class="lq-sidebar-card streak">
+            <div class="streak-icon">🔥</div>
+            <p>Racha actual</p>
+            <strong><?= $currentStreak ?> días</strong>
+            <small>¡Sigue así!</small>
+            <div class="week-dots">
+                <span class="done">L</span>
+                <span class="done">M</span>
+                <span class="done">X</span>
+                <span class="done">J</span>
+                <span class="done">V</span>
+                <span>S</span>
+                <span>D</span>
+            </div>
+        </section>
+
+        <section class="lq-sidebar-card unlock">
+            <div>
+                <strong>¡Desbloquea más!</strong>
+                <p>Completa misiones y consigue recompensas exclusivas.</p>
+                <a href="#" class="mini-btn">Ver tienda</a>
+            </div>
+            <span class="bag">🎒</span>
+        </section>
+
+        <section class="lq-user-mini">
+            <div class="mini-avatar"><?= mb_strtoupper(mb_substr($user['name'], 0, 1)) ?></div>
+            <div>
+                <strong><?= e(shortText($user['name'], 18)) ?></strong>
+                <small>Ver perfil</small>
+            </div>
+            <span>⌄</span>
+        </section>
+
+        <div class="lq-sidebar-bottom">
+            <a href="#">⚙️</a>
+            <a href="#">?</a>
+            <a href="logout.php">↪</a>
+        </div>
     </aside>
 
-    <main class="dashboard">
-        <header class="dashboard-header">
-            <div>
-                <p class="eyebrow">Panel principal</p>
-                <h1>Buenos días, <?= e($user['name']) ?>.</h1>
-                <p class="muted">Convierte tus metas en resultados. Prioriza, ejecuta y mide.</p>
+    <main class="lq-main">
+        <header class="lq-topbar">
+            <button class="icon-btn">☰</button>
+
+            <div class="search-box">
+                <span>🔎</span>
+                <input type="search" placeholder="Buscar misiones, hábitos o recompensas..." disabled>
+                <kbd>⌘ K</kbd>
             </div>
-            <a href="goals.php" class="btn btn-primary">+ Nueva meta</a>
+
+            <div class="top-stats">
+                <div class="xp-pill">
+                    <span>✦</span>
+                    <strong><?= number_format($xpCurrent, 0, ',', '.') ?> XP</strong>
+                    <div class="mini-progress"><i style="width: <?= $xpPercent ?>%"></i></div>
+                    <small>Nivel <?= $level ?></small>
+                </div>
+
+                <div class="currency-pill coin">
+                    <span>🪙</span>
+                    <strong><?= number_format($points, 0, ',', '.') ?></strong>
+                </div>
+
+                <div class="currency-pill gem">
+                    <span>💎</span>
+                    <strong><?= $gems ?></strong>
+                </div>
+
+                <button class="icon-btn">🔔</button>
+
+                <div class="profile-pill">
+                    <div class="mini-avatar image-like"><?= mb_strtoupper(mb_substr($user['name'], 0, 1)) ?></div>
+                    <strong>¡Hola, <?= e(shortText($user['name'], 12)) ?>! 👋</strong>
+                </div>
+            </div>
         </header>
 
-        <section class="summary-grid">
-            <article class="card">
-                <span class="card-label">Nivel</span>
-                <div class="level-row"><strong><?= (int)$user['level'] ?></strong><span><?= $xpCurrent ?> / <?= $xpNext ?> XP</span></div>
-                <div class="progress"><div style="width: <?= $xpPercent ?>%"></div></div>
-            </article>
-            <article class="card"><span class="card-label">Puntos</span><strong class="metric"><?= (int)$user['points'] ?></strong><p class="muted">Disponibles para La Tiendita.</p></article>
-            <article class="card"><span class="card-label">Racha</span><strong class="metric"><?= (int)$user['current_streak'] ?> días</strong><p class="muted">Todavía no hay hábitos registrados.</p></article>
-            <article class="card priority-card"><span class="card-label">Prioridad del día</span><strong>Define tu primera tarea importante.</strong><p class="muted">Este bloque se conectará con tareas y Modo Batalla.</p></article>
-        </section>
-
-        <section class="content-grid">
-            <article class="card large">
-                <div class="card-header"><h2>Áreas de vida</h2><a href="areas.php">Ver todas</a></div>
-                <?php if (empty($areas)): ?>
-                    <div class="empty-state"><p>Aún no tienes áreas creadas.</p><a href="areas.php" class="btn btn-secondary">Crear área</a></div>
-                <?php else: ?>
-                    <div class="dashboard-areas">
-                        <?php foreach ($areas as $area): ?>
-                            <div class="dashboard-area-item"><span style="background: <?= e($area['color'] ?: '#16A34A') ?>;"><?= e($area['icon'] ?: '●') ?></span><strong><?= e($area['name']) ?></strong></div>
-                        <?php endforeach; ?>
+        <div class="lq-dashboard-grid">
+            <section class="lq-center">
+                <section class="hero-panel">
+                    <div class="hero-avatar-wrap">
+                        <div class="hero-glow"></div>
+                        <div class="hero-avatar">
+                            <div class="avatar-hair"></div>
+                            <div class="avatar-face">😊</div>
+                            <div class="avatar-body">LQ</div>
+                        </div>
                     </div>
-                <?php endif; ?>
-            </article>
 
-            <article class="card large">
-                <div class="card-header"><h2>Metas principales</h2><a href="goals.php">Ver todas</a></div>
-                <?php if (empty($mainGoals)): ?>
-                    <div class="empty-state"><p>Aún no tienes metas. Empieza creando una meta clara.</p><a href="goals.php" class="btn btn-secondary">Crear meta</a></div>
-                <?php else: ?>
-                    <div class="dashboard-goals">
-                        <?php foreach ($mainGoals as $goal): ?>
-                            <div class="dashboard-goal-item">
-                                <strong><?= e($goal['title']) ?></strong>
-                                <div class="dashboard-goal-meta"><span><?= statusLabelDashboard($goal['status']) ?></span><span><?= (int)$goal['progress'] ?>%</span></div>
-                                <div class="progress"><div style="width: <?= (int)$goal['progress'] ?>%"></div></div>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-                <?php endif; ?>
-            </article>
+                    <div class="hero-content">
+                        <h1>¡Sigue así, <?= e(shortText($user['name'], 18)) ?>!</h1>
+                        <p>Cada misión completada te acerca a tu mejor versión.</p>
 
-            <article class="card large">
-                <div class="card-header"><h2>Proyectos activos</h2><a href="projects.php">Ver todos</a></div>
-                <?php if (empty($activeProjects)): ?>
-                    <div class="empty-state"><p>Aún no tienes proyectos activos.</p><a href="projects.php" class="btn btn-secondary">Crear proyecto</a></div>
-                <?php else: ?>
-                    <div class="dashboard-goals">
-                        <?php foreach ($activeProjects as $project): ?>
-                            <div class="dashboard-goal-item">
-                                <strong><?= e($project['title']) ?></strong>
-                                <div class="dashboard-goal-meta">
-                                    <span><?= !empty($project['goal_title']) ? '🎯 ' . e($project['goal_title']) : 'Sin meta' ?></span>
-                                    <span><?= (int)$project['progress'] ?>%</span>
+                        <div class="hero-stats">
+                            <article>
+                                <small>Nivel</small>
+                                <strong><?= $level ?></strong>
+                                <span>Camino a nivel <?= $level + 1 ?></span>
+                                <div class="mini-progress"><i style="width: <?= $xpPercent ?>%"></i></div>
+                                <em><?= number_format($xpCurrent, 0, ',', '.') ?> / <?= number_format($xpNext, 0, ',', '.') ?> XP</em>
+                            </article>
+
+                            <article>
+                                <small>XP actual</small>
+                                <strong><?= number_format($xpCurrent, 0, ',', '.') ?></strong>
+                                <span>+200 XP para subir</span>
+                                <div class="mini-progress"><i style="width: <?= $xpPercent ?>%"></i></div>
+                            </article>
+
+                            <article>
+                                <small>LifeCoins</small>
+                                <strong><?= number_format($points, 0, ',', '.') ?></strong>
+                                <span>Úsalos en la tienda</span>
+                            </article>
+
+                            <article>
+                                <small>Gemas</small>
+                                <strong><?= $gems ?></strong>
+                                <span>Para objetos únicos</span>
+                            </article>
+                        </div>
+
+                        <div class="hero-bottom">
+                            <div class="streak-row">
+                                <span>🔥</span>
+                                <div>
+                                    <small>Racha actual</small>
+                                    <strong><?= $currentStreak ?> días</strong>
                                 </div>
-                                <div class="progress"><div style="width: <?= (int)$project['progress'] ?>%"></div></div>
+                                <div class="week-mini">
+                                    <i class="done">L</i><i class="done">M</i><i class="done">X</i><i class="done">J</i><i class="done">V</i><i>S</i><i>D</i>
+                                </div>
+                            </div>
+
+                            <div class="motivation-chip">
+                                <strong>¡Increíble disciplina!</strong>
+                                <span>Tu constancia te llevará lejos. 🎉</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="lq-card missions-card">
+                    <div class="lq-card-header">
+                        <h2>Misiones de hoy <span><?= count($activeProjects) ?></span></h2>
+                        <a href="projects.php">Ver todas</a>
+                    </div>
+
+                    <?php if (empty($activeProjects)): ?>
+                        <div class="friendly-empty">
+                            <strong>No hay misiones activas todavía.</strong>
+                            <p>Crea un proyecto para convertir tus metas en acciones reales.</p>
+                            <a href="projects.php" class="mini-btn">Crear misión</a>
+                        </div>
+                    <?php else: ?>
+                        <div class="mission-list">
+                            <?php foreach ($activeProjects as $index => $project): ?>
+                                <?php
+                                $progress = (int) ($project['progress'] ?? 0);
+                                $missionIcons = ['📚', '🏋️', '✍️', '📈'];
+                                $categoryColors = ['green', 'purple', 'orange', 'blue'];
+                                ?>
+                                <article class="mission-item">
+                                    <label class="check-wrap">
+                                        <input type="checkbox" <?= $progress >= 100 ? 'checked' : '' ?> disabled>
+                                        <span></span>
+                                    </label>
+
+                                    <div class="mission-icon <?= $categoryColors[$index % count($categoryColors)] ?>">
+                                        <?= $missionIcons[$index % count($missionIcons)] ?>
+                                    </div>
+
+                                    <div class="mission-info">
+                                        <strong><?= e(shortText($project['title'], 36)) ?></strong>
+                                        <small><?= !empty($project['goal_title']) ? e(shortText($project['goal_title'], 42)) : 'Misión independiente' ?></small>
+                                    </div>
+
+                                    <span class="mission-tag <?= $categoryColors[$index % count($categoryColors)] ?>">
+                                        <?= !empty($project['area_name']) ? e(shortText($project['area_name'], 14)) : 'General' ?>
+                                    </span>
+
+                                    <div class="mission-progress">
+                                        <small><?= $progress ?> / 100</small>
+                                        <div class="mini-progress"><i style="width: <?= $progress ?>%"></i></div>
+                                    </div>
+
+                                    <strong class="reward">✦ +<?= 80 + ($index * 20) ?> XP</strong>
+                                    <span class="flag">⚑</span>
+                                </article>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </section>
+
+                <section class="bottom-widgets">
+                    <article class="lq-card compact">
+                        <div class="lq-card-header">
+                            <h2>Metas del día</h2>
+                            <span><?= count($mainGoals) ?>/4</span>
+                        </div>
+
+                        <?php if (empty($mainGoals)): ?>
+                            <div class="mini-empty">
+                                <p>Crea metas para empezar tu camino.</p>
+                                <a href="goals.php">Crear meta →</a>
+                            </div>
+                        <?php else: ?>
+                            <?php foreach ($mainGoals as $goal): ?>
+                                <div class="mini-goal">
+                                    <span>🎯</span>
+                                    <strong><?= e(shortText($goal['title'], 28)) ?></strong>
+                                    <div class="mini-progress"><i style="width: <?= (int) $goal['progress'] ?>%"></i></div>
+                                    <small><?= (int) $goal['progress'] ?>%</small>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </article>
+
+                    <article class="lq-card compact chart-card">
+                        <div class="lq-card-header">
+                            <h2>Progreso semanal</h2>
+                            <select disabled>
+                                <option>Esta semana</option>
+                            </select>
+                        </div>
+                        <div class="fake-chart">
+                            <span style="height: 28%"></span>
+                            <span style="height: 42%"></span>
+                            <span style="height: 39%"></span>
+                            <span style="height: 58%"></span>
+                            <span style="height: 72%"></span>
+                            <span style="height: 84%"></span>
+                            <span style="height: 96%"></span>
+                        </div>
+                        <strong><?= number_format($xpCurrent + 1250, 0, ',', '.') ?> XP</strong>
+                        <small>de <?= number_format($xpNext, 0, ',', '.') ?> XP</small>
+                    </article>
+
+                    <article class="lq-card compact summary-card">
+                        <div class="lq-card-header">
+                            <h2>Resumen general</h2>
+                        </div>
+                        <div class="summary-mini-grid">
+                            <div><span>✅</span><strong><?= count($mainGoals) + count($activeProjects) ?></strong><small>Misiones</small></div>
+                            <div><span>⚡</span><strong><?= $xpCurrent ?></strong><small>XP</small></div>
+                            <div><span>🪙</span><strong><?= $points ?></strong><small>Coins</small></div>
+                            <div><span>⏱️</span><strong>0h</strong><small>Enfoque</small></div>
+                        </div>
+                    </article>
+                </section>
+            </section>
+
+            <aside class="lq-right">
+                <section class="lq-card objective-card">
+                    <div class="lq-card-header">
+                        <h2>Objetivo diario</h2>
+                    </div>
+                    <p>Completa <?= $dailyTotal ?> misiones al día</p>
+                    <div class="circle-progress" style="--value: <?= $objectivePercent ?>;">
+                        <strong><?= $dailyCompleted ?>/<?= $dailyTotal ?></strong>
+                        <span>misiones</span>
+                    </div>
+                    <small>✦ +200 XP</small>
+                </section>
+
+                <section class="lq-card upcoming-card">
+                    <div class="lq-card-header">
+                        <h2>Próximas misiones</h2>
+                    </div>
+
+                    <?php if (empty($mainGoals)): ?>
+                        <p class="muted">Crea metas para generar próximas misiones.</p>
+                    <?php else: ?>
+                        <?php foreach (array_slice($mainGoals, 0, 3) as $goal): ?>
+                            <div class="upcoming-item">
+                                <span>🎯</span>
+                                <div>
+                                    <strong><?= e(shortText($goal['title'], 24)) ?></strong>
+                                    <small><?= statusLabelDashboard($goal['status']) ?></small>
+                                </div>
+                                <em>+<?= (int) $goal['xp_reward'] ?> XP</em>
                             </div>
                         <?php endforeach; ?>
+                    <?php endif; ?>
+
+                    <a href="goals.php" class="center-link">Ver calendario</a>
+                </section>
+
+                <section class="lq-card shop-card">
+                    <div class="lq-card-header">
+                        <h2>Tienda destacada</h2>
+                        <a href="#">Ver todo</a>
                     </div>
-                <?php endif; ?>
-            </article>
+                    <div class="shop-grid">
+                        <article class="shop-item neon">
+                            <strong>Tema<br>Neon Wave</strong>
+                            <span>🪙 500</span>
+                        </article>
+                        <article class="shop-item ring">
+                            <strong>Marco<br>Holo Circle</strong>
+                            <span>🪙 250</span>
+                        </article>
+                        <article class="shop-item mood">
+                            <b>NUEVO</b>
+                            <strong>Sticker<br>Mood Set</strong>
+                            <span>🪙 200</span>
+                        </article>
+                    </div>
+                </section>
 
-            <article class="card"><div class="card-header"><h2>Hábitos de hoy</h2><a href="#">Ver</a></div><p class="muted">Aquí aparecerán tus hábitos diarios.</p></article>
-            <article class="card"><div class="card-header"><h2>Tareas pendientes</h2><a href="#">Ver</a></div><p class="muted">Aquí aparecerán tus próximas acciones.</p></article>
-            <article class="card"><div class="card-header"><h2>Stats rápidas</h2><a href="#">Ver</a></div><p class="muted">Todavía no hay datos suficientes.</p></article>
-        </section>
-
-        <section class="action-grid">
-            <article class="action-card battle"><h3>Modo Batalla</h3><p>Entra en enfoque total y ejecuta una tarea sin distracciones.</p></article>
-            <article class="action-card shop"><h3>La Tiendita</h3><p>Canjea tus puntos por recompensas personales.</p></article>
-            <article class="action-card danger"><h3>Zona Peligrosa</h3><p>Acciones críticas con confirmación doble.</p></article>
-        </section>
+                <section class="lq-card donut-card">
+                    <div class="lq-card-header">
+                        <h2>Distribución de misiones</h2>
+                    </div>
+                    <div class="donut-wrap">
+                        <div class="donut"></div>
+                        <div class="donut-legend">
+                            <span><i class="green-dot"></i>Salud 28%</span>
+                            <span><i class="blue-dot"></i>Aprendizaje 28%</span>
+                            <span><i class="purple-dot"></i>Hábitos 22%</span>
+                            <span><i class="orange-dot"></i>Enfoque 18%</span>
+                        </div>
+                    </div>
+                </section>
+            </aside>
+        </div>
     </main>
 </body>
 </html>

@@ -1,11 +1,11 @@
 <?php
-
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../app/Controllers/AuthController.php';
 require_once __DIR__ . '/../app/Controllers/ProjectController.php';
 require_once __DIR__ . '/../app/Models/Project.php';
 require_once __DIR__ . '/../app/Models/Goal.php';
 require_once __DIR__ . '/../app/Models/LifeArea.php';
+require_once __DIR__ . '/../app/Models/User.php';
 
 AuthController::requireAuth();
 
@@ -14,6 +14,9 @@ $controller = new ProjectController();
 $projectModel = new Project();
 $goalModel = new Goal();
 $lifeAreaModel = new LifeArea();
+$userModel = new User();
+$user = $userModel->findById($userId);
+
 $message = null;
 $messageType = null;
 $editingProject = null;
@@ -24,10 +27,16 @@ if (isset($_GET['edit'])) {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
-    if ($action === 'create') $result = $controller->store($userId, $_POST);
-    elseif ($action === 'update') $result = $controller->update($userId, $_POST);
-    elseif ($action === 'delete') $result = $controller->destroy($userId, (int)($_POST['id'] ?? 0));
-    else $result = ['success' => false, 'message' => 'Acción no válida.'];
+
+    if ($action === 'create') {
+        $result = $controller->store($userId, $_POST);
+    } elseif ($action === 'update') {
+        $result = $controller->update($userId, $_POST);
+    } elseif ($action === 'delete') {
+        $result = $controller->destroy($userId, (int)($_POST['id'] ?? 0));
+    } else {
+        $result = ['success' => false, 'message' => 'Acción no válida.'];
+    }
 
     $message = $result['message'];
     $messageType = $result['success'] ? 'success' : 'error';
@@ -49,158 +58,234 @@ $areas = $lifeAreaModel->getAllByUser($userId);
 
 function e(string|null $value): string { return htmlspecialchars($value ?? '', ENT_QUOTES, 'UTF-8'); }
 function selected(mixed $a, mixed $b): string { return (string)$a === (string)$b ? 'selected' : ''; }
-function activeNav(string $page): string { return basename($_SERVER['PHP_SELF']) === $page ? 'active' : ''; }
-function statusLabel(string $status): string { return ['active'=>'Activo','completed'=>'Completado','paused'=>'Pausado','cancelled'=>'Cancelado'][$status] ?? $status; }
+function shortText(string|null $value, int $limit = 42): string {
+    $value = trim((string) $value);
+    return mb_strlen($value) <= $limit ? $value : mb_substr($value, 0, $limit - 1) . '…';
+}
+function statusLabel(string $status): string { return ['active'=>'Activa','completed'=>'Completada','paused'=>'Pausada','cancelled'=>'Cancelada'][$status] ?? $status; }
+function statusClass(string $status): string { return ['active'=>'green','completed'=>'purple','paused'=>'orange','cancelled'=>'red'][$status] ?? 'blue'; }
 ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Proyectos | <?= APP_NAME ?></title>
+    <title>Misiones | <?= APP_NAME ?></title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="../assets/css/styles.css">
 </head>
-<body class="app-body">
-    <aside class="sidebar">
-        <div class="sidebar-brand">LifeQuest</div>
-        <nav class="sidebar-nav">
-            <a href="dashboard.php" class="<?= activeNav('dashboard.php') ?>">Inicio</a>
-            <a href="areas.php" class="<?= activeNav('areas.php') ?>">Áreas</a>
-            <a href="goals.php" class="<?= activeNav('goals.php') ?>">Metas</a>
-            <a href="projects.php" class="<?= activeNav('projects.php') ?>">Proyectos</a>
-            <a href="#">Tareas</a>
-            <a href="#">Hábitos</a>
-            <a href="#">Stats</a>
-        </nav>
-        <a href="logout.php" class="logout">Cerrar sesión</a>
+<body class="lifequest-app">
+    <aside class="lq-sidebar">
+        <a href="dashboard.php" class="lq-logo"><span>Life<span>Quest</span><i>✦</i></span></a>
+        <nav class="lq-nav">
+<a href="dashboard.php"><span>🏠</span>Inicio</a>
+<a href="goals.php"><span>🎯</span>Objetivos</a>
+<a href="projects.php" class="active"><span>🚀</span>Misiones</a>
+<a href="areas.php"><span>🧩</span>Áreas</a>
+<a href="#"><span>💚</span>Hábitos</a>
+<a href="#"><span>🛍️</span>Tienda</a>
+<a href="#"><span>📊</span>Progreso</a>
+</nav>
+
+        <section class="lq-sidebar-card unlock">
+            <div>
+                <strong>Modo misión</strong>
+                <p>Divide tus objetivos en bloques ejecutables.</p>
+                <a href="goals.php" class="mini-btn">Ver objetivos</a>
+            </div>
+            <span class="bag">🚀</span>
+        </section>
+
+        <section class="lq-user-mini">
+            <div class="mini-avatar"><?= mb_strtoupper(mb_substr($user['name'] ?? 'U', 0, 1)) ?></div>
+            <div>
+                <strong><?= e(shortText($user['name'] ?? 'Usuario', 18)) ?></strong>
+                <small>Ver perfil</small>
+            </div>
+            <span>⌄</span>
+        </section>
+
+        <div class="lq-sidebar-bottom">
+            <a href="#">⚙️</a>
+            <a href="#">?</a>
+            <a href="logout.php">↪</a>
+        </div>
     </aside>
 
-    <main class="dashboard">
-        <header class="dashboard-header">
-            <div>
-                <p class="eyebrow">Organización y ejecución</p>
-                <h1>Proyectos</h1>
-                <p class="muted">Divide tus metas en proyectos ejecutables. Cada proyecto contiene tareas específicas.</p>
+    <main class="lq-main">
+        <header class="lq-topbar">
+            <button class="icon-btn">☰</button>
+            <div class="search-box">
+                <span>🔎</span>
+                <input type="search" placeholder="Buscar misiones..." disabled>
+                <kbd>⌘ K</kbd>
             </div>
-            <a href="dashboard.php" class="btn btn-secondary">Volver al dashboard</a>
+            <div class="top-stats">
+                <div class="xp-pill">
+                    <span>✦</span>
+                    <strong><?= number_format((int)($user['xp'] ?? 0), 0, ',', '.') ?> XP</strong>
+                    <div class="mini-progress"><i style="width: 35%"></i></div>
+                    <small>Nivel <?= (int)($user['level'] ?? 1) ?></small>
+                </div>
+                <div class="currency-pill coin"><span>🪙</span><strong><?= number_format((int)($user['points'] ?? 0), 0, ',', '.') ?></strong></div>
+                <div class="profile-pill">
+                    <div class="mini-avatar image-like"><?= mb_strtoupper(mb_substr($user['name'] ?? 'U', 0, 1)) ?></div>
+                    <strong>¡Hola, <?= e(shortText($user['name'] ?? 'Usuario', 12)) ?>! 👋</strong>
+                </div>
+            </div>
         </header>
 
-        <?php if ($message): ?>
-            <div class="alert alert-<?= e($messageType) ?>"><?= e($message) ?></div>
-        <?php endif; ?>
-
-        <section class="areas-layout">
-            <article class="card">
-                <div class="card-header">
-                    <h2><?= $editingProject ? 'Editar proyecto' : 'Crear nuevo proyecto' ?></h2>
-                    <?php if ($editingProject): ?><a href="projects.php">Cancelar</a><?php endif; ?>
+        <section class="lq-page-shell">
+            <header class="lq-page-hero">
+                <div>
+                    <p class="eyebrow">Ejecución real</p>
+                    <h1>Misiones</h1>
+                    <p>Convierte tus objetivos en proyectos ejecutables. Cada misión será la base para crear tareas y activar el Modo Batalla.</p>
                 </div>
+                <div class="lq-page-actions">
+                    <a href="dashboard.php" class="btn btn-secondary">Volver al inicio</a>
+                    <a href="goals.php" class="btn btn-primary">Crear objetivo</a>
+                </div>
+            </header>
 
-                <form method="POST" class="form compact-form">
-                    <input type="hidden" name="action" value="<?= $editingProject ? 'update' : 'create' ?>">
-                    <?php if ($editingProject): ?><input type="hidden" name="id" value="<?= (int)$editingProject['id'] ?>"><?php endif; ?>
+            <?php if ($message): ?>
+                <div class="lq-alert <?= e($messageType) ?>"><?= e($message) ?></div>
+            <?php endif; ?>
 
-                    <label>Título
-                        <input type="text" name="title" placeholder="Ej: Desarrollar módulo de usuarios" value="<?= e($editingProject['title'] ?? '') ?>" required>
-                    </label>
+            <section class="lq-crud-layout">
+                <article class="lq-form-panel">
+                    <div class="lq-panel-header">
+                        <div>
+                            <h2><?= $editingProject ? 'Editar misión' : 'Nueva misión' ?></h2>
+                            <p><?= $editingProject ? 'Actualiza esta misión.' : 'Crea un bloque de trabajo conectado a un objetivo.' ?></p>
+                        </div>
+                        <?php if ($editingProject): ?><a href="projects.php">Cancelar</a><?php endif; ?>
+                    </div>
 
-                    <label>Descripción
-                        <textarea name="description" rows="3" placeholder="Describe el alcance y entregables del proyecto."><?= e($editingProject['description'] ?? '') ?></textarea>
-                    </label>
+                    <form method="POST" class="lq-form">
+                        <input type="hidden" name="action" value="<?= $editingProject ? 'update' : 'create' ?>">
+                        <?php if ($editingProject): ?><input type="hidden" name="id" value="<?= (int)$editingProject['id'] ?>"><?php endif; ?>
 
-                    <label>Meta relacionada
-                        <select name="goal_id">
-                            <option value="">Sin meta</option>
-                            <?php foreach ($goals as $goal): ?>
-                                <option value="<?= (int)$goal['id'] ?>" <?= selected($editingProject['goal_id'] ?? '', $goal['id']) ?>>
-                                    <?= e($goal['title']) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </label>
+                        <label>Título
+                            <input type="text" name="title" placeholder="Ej: Desarrollar módulo de usuarios" value="<?= e($editingProject['title'] ?? '') ?>" required>
+                        </label>
 
-                    <label>Área de vida
-                        <select name="area_id">
-                            <option value="">Sin área</option>
-                            <?php foreach ($areas as $area): ?>
-                                <option value="<?= (int)$area['id'] ?>" <?= selected($editingProject['area_id'] ?? '', $area['id']) ?>>
-                                    <?= e(($area['icon'] ? $area['icon'] . ' ' : '') . $area['name']) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </label>
+                        <label>Descripción
+                            <textarea name="description" rows="3" placeholder="Describe el alcance de esta misión."><?= e($editingProject['description'] ?? '') ?></textarea>
+                        </label>
 
-                    <div class="form-row">
-                        <label>Estado
-                            <select name="status">
-                                <option value="active" <?= selected($editingProject['status'] ?? 'active', 'active') ?>>Activo</option>
-                                <option value="paused" <?= selected($editingProject['status'] ?? 'active', 'paused') ?>>Pausado</option>
-                                <option value="completed" <?= selected($editingProject['status'] ?? 'active', 'completed') ?>>Completado</option>
-                                <option value="cancelled" <?= selected($editingProject['status'] ?? 'active', 'cancelled') ?>>Cancelado</option>
+                        <label>Objetivo relacionado
+                            <select name="goal_id">
+                                <option value="">Sin objetivo</option>
+                                <?php foreach ($goals as $goal): ?>
+                                    <option value="<?= (int)$goal['id'] ?>" <?= selected($editingProject['goal_id'] ?? '', $goal['id']) ?>>
+                                        <?= e($goal['title']) ?>
+                                    </option>
+                                <?php endforeach; ?>
                             </select>
                         </label>
-                        <label>Progreso %
-                            <input type="number" name="progress" min="0" max="100" value="<?= e((string)($editingProject['progress'] ?? 0)) ?>">
+
+                        <label>Área de vida
+                            <select name="area_id">
+                                <option value="">Sin área</option>
+                                <?php foreach ($areas as $area): ?>
+                                    <option value="<?= (int)$area['id'] ?>" <?= selected($editingProject['area_id'] ?? '', $area['id']) ?>>
+                                        <?= e(($area['icon'] ? $area['icon'] . ' ' : '') . $area['name']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
                         </label>
+
+                        <div class="lq-form-row">
+                            <label>Estado
+                                <select name="status">
+                                    <option value="active" <?= selected($editingProject['status'] ?? 'active', 'active') ?>>Activa</option>
+                                    <option value="paused" <?= selected($editingProject['status'] ?? 'active', 'paused') ?>>Pausada</option>
+                                    <option value="completed" <?= selected($editingProject['status'] ?? 'active', 'completed') ?>>Completada</option>
+                                    <option value="cancelled" <?= selected($editingProject['status'] ?? 'active', 'cancelled') ?>>Cancelada</option>
+                                </select>
+                            </label>
+
+                            <label>Progreso %
+                                <input type="number" name="progress" min="0" max="100" value="<?= e((string)($editingProject['progress'] ?? 0)) ?>">
+                            </label>
+                        </div>
+
+                        <div class="lq-form-row">
+                            <label>Fecha inicio <input type="date" name="start_date" value="<?= e($editingProject['start_date'] ?? '') ?>"></label>
+                            <label>Fecha límite <input type="date" name="due_date" value="<?= e($editingProject['due_date'] ?? '') ?>"></label>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary full"><?= $editingProject ? 'Guardar cambios' : 'Crear misión' ?></button>
+                    </form>
+                </article>
+
+                <section class="lq-list-panel">
+                    <div class="lq-panel-header">
+                        <div>
+                            <h2>Tus misiones</h2>
+                            <p><?= count($projects) ?> misiones creadas</p>
+                        </div>
                     </div>
 
-                    <div class="form-row">
-                        <label>Fecha inicio <input type="date" name="start_date" value="<?= e($editingProject['start_date'] ?? '') ?>"></label>
-                        <label>Fecha límite <input type="date" name="due_date" value="<?= e($editingProject['due_date'] ?? '') ?>"></label>
+                    <div class="lq-list-grid">
+                        <?php if (empty($projects)): ?>
+                            <article class="lq-empty">
+                                <h2>No hay misiones todavía</h2>
+                                <p>Crea tu primera misión y conecta tus objetivos con acciones concretas.</p>
+                            </article>
+                        <?php endif; ?>
+
+                        <?php foreach ($projects as $project): ?>
+                            <article class="lq-object-card">
+                                <div class="lq-object-top">
+                                    <div class="lq-object-icon" style="background: <?= e($project['area_color'] ?: '#16C79A') ?>;">
+                                        <?= e($project['area_icon'] ?: '🚀') ?>
+                                    </div>
+
+                                    <div class="lq-object-title">
+                                        <h2><?= e($project['title']) ?></h2>
+                                        <p><?= e($project['description'] ?: 'Sin descripción.') ?></p>
+                                    </div>
+
+                                    <div class="lq-object-badges">
+                                        <span class="lq-badge <?= statusClass($project['status']) ?>"><?= statusLabel($project['status']) ?></span>
+                                    </div>
+                                </div>
+
+                                <div class="lq-progress-block">
+                                    <div class="lq-progress-info">
+                                        <span>Progreso</span>
+                                        <span><?= (int)$project['progress'] ?>%</span>
+                                    </div>
+                                    <div class="lq-progress"><span style="width: <?= (int)$project['progress'] ?>%"></span></div>
+                                </div>
+
+                                <div class="lq-object-footer">
+                                    <div class="lq-object-meta">
+                                        <?php if (!empty($project['goal_title'])): ?>
+                                            <span class="lq-badge blue">🎯 <?= e(shortText($project['goal_title'], 32)) ?></span>
+                                        <?php endif; ?>
+                                        <?php if (!empty($project['area_name'])): ?>
+                                            <span class="lq-badge green"><?= e(($project['area_icon'] ? $project['area_icon'] . ' ' : '') . $project['area_name']) ?></span>
+                                        <?php endif; ?>
+                                        <?php if (!empty($project['due_date'])): ?>
+                                            <span class="lq-badge orange">📅 <?= e(date('d/m/Y', strtotime($project['due_date']))) ?></span>
+                                        <?php endif; ?>
+                                    </div>
+
+                                    <div class="lq-object-actions">
+                                        <a href="projects.php?edit=<?= (int)$project['id'] ?>" class="btn btn-secondary">Editar</a>
+                                        <form method="POST" onsubmit="return confirm('¿Seguro que quieres eliminar esta misión?');">
+                                            <input type="hidden" name="action" value="delete">
+                                            <input type="hidden" name="id" value="<?= (int)$project['id'] ?>">
+                                            <button type="submit" class="btn lq-btn-danger">Eliminar</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </article>
+                        <?php endforeach; ?>
                     </div>
-
-                    <button type="submit" class="btn btn-primary full"><?= $editingProject ? 'Guardar cambios' : 'Crear proyecto' ?></button>
-                </form>
-            </article>
-
-            <section class="areas-list">
-                <?php if (empty($projects)): ?>
-                    <article class="card empty-state">
-                        <h2>No hay proyectos todavía</h2>
-                        <p>Crea tu primer proyecto y conecta tus metas con acciones concretas.</p>
-                    </article>
-                <?php endif; ?>
-
-                <?php foreach ($projects as $project): ?>
-                    <article class="goal-card">
-                        <div class="goal-top">
-                            <div class="goal-title-group">
-                                <h2><?= e($project['title']) ?></h2>
-                                <p><?= e($project['description'] ?: 'Sin descripción.') ?></p>
-                            </div>
-                            <div class="goal-badges">
-                                <span class="badge badge-status"><?= statusLabel($project['status']) ?></span>
-                            </div>
-                        </div>
-
-                        <div class="goal-progress-row">
-                            <div class="goal-progress-info"><span>Progreso</span><span><?= (int)$project['progress'] ?>%</span></div>
-                            <div class="progress"><div style="width: <?= (int)$project['progress'] ?>%"></div></div>
-                        </div>
-
-                        <div class="goal-footer">
-                            <div class="goal-meta">
-                                <?php if (!empty($project['goal_title'])): ?>
-                                    <span class="badge">🎯 <?= e($project['goal_title']) ?></span>
-                                <?php endif; ?>
-                                <?php if (!empty($project['area_name'])): ?>
-                                    <span class="badge"><?= e(($project['area_icon'] ? $project['area_icon'] . ' ' : '') . $project['area_name']) ?></span>
-                                <?php endif; ?>
-                                <?php if (!empty($project['due_date'])): ?>
-                                    <span class="badge">📅 <?= e(date('d/m/Y', strtotime($project['due_date']))) ?></span>
-                                <?php endif; ?>
-                            </div>
-                            <div class="goal-actions">
-                                <a href="projects.php?edit=<?= (int)$project['id'] ?>" class="btn btn-secondary">Editar</a>
-                                <form method="POST" onsubmit="return confirm('¿Seguro que quieres eliminar este proyecto?');">
-                                    <input type="hidden" name="action" value="delete">
-                                    <input type="hidden" name="id" value="<?= (int)$project['id'] ?>">
-                                    <button type="submit" class="btn btn-danger">Eliminar</button>
-                                </form>
-                            </div>
-                        </div>
-                    </article>
-                <?php endforeach; ?>
+                </section>
             </section>
         </section>
     </main>

@@ -20,7 +20,7 @@ final class Connection
                     PDO::ATTR_EMULATE_PREPARES => false,
                 ]);
             } catch (PDOException $exception) {
-                die('Error de conexión con la base de datos.');
+                die('Error de conexión con la base de datos: ' . $exception->getMessage());
             }
         }
 
