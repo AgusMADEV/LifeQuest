@@ -5,6 +5,7 @@ require_once __DIR__ . '/../app/Models/User.php';
 require_once __DIR__ . '/../app/Models/LifeArea.php';
 require_once __DIR__ . '/../app/Models/Goal.php';
 require_once __DIR__ . '/../app/Models/Project.php';
+require_once __DIR__ . '/../app/Models/Task.php';
 
 AuthController::requireAuth();
 
@@ -26,6 +27,9 @@ $mainGoals = $goalModel->getMainByUser((int) $user['id'], 4);
 $projectModel = new Project();
 $activeProjects = $projectModel->getActiveByUser((int) $user['id'], 4);
 
+$taskModel = new Task();
+$todayTasks = $taskModel->getTodayByUser((int) $user['id'], 4);
+
 $xpCurrent = (int) $user['xp'];
 $xpNext = 2000;
 $xpPercent = min(100, (int) (($xpCurrent / max(1, $xpNext)) * 100));
@@ -35,8 +39,8 @@ $points = (int) $user['points'];
 $gems = max(0, intdiv($points, 20));
 $currentStreak = (int) $user['current_streak'];
 
-$dailyCompleted = min(4, count(array_filter($mainGoals, static fn($goal) => (int) ($goal['progress'] ?? 0) >= 100)));
-$dailyTotal = max(4, min(6, count($mainGoals) + 1));
+$dailyCompleted = count(array_filter($todayTasks, static fn($task) => ($task['status'] ?? '') === 'completed'));
+$dailyTotal = max(4, count($todayTasks));
 $objectivePercent = (int) (($dailyCompleted / max(1, $dailyTotal)) * 100);
 
 function e(string|null $value): string
@@ -80,34 +84,14 @@ function shortText(string|null $value, int $limit = 42): string
         </a>
 
         <nav class="lq-nav">
-            <a href="dashboard.php" class="active">
-                <span>🏠</span>
-                Inicio
-            </a>
-            <a href="goals.php">
-                <span>🎯</span>
-                Objetivos
-            </a>
-            <a href="projects.php">
-                <span>🚀</span>
-                Misiones
-            </a>
-            <a href="areas.php">
-                <span>🧩</span>
-                Áreas
-            </a>
-            <a href="#">
-                <span>💚</span>
-                Hábitos
-            </a>
-            <a href="#">
-                <span>🛍️</span>
-                Tienda
-            </a>
-            <a href="#">
-                <span>📊</span>
-                Progreso
-            </a>
+            <a href="dashboard.php" class="active"><span>🏠</span>Inicio</a>
+            <a href="goals.php"><span>🎯</span>Metas</a>
+            <a href="projects.php"><span>🚀</span>Retos</a>
+            <a href="tasks.php"><span>✅</span>Misiones</a>
+            <a href="areas.php"><span>🧩</span>Áreas</a>
+            <a href="#"><span>💚</span>Hábitos</a>
+            <a href="#"><span>🛍️</span>Tienda</a>
+            <a href="#"><span>📊</span>Progreso</a>
         </nav>
 
         <section class="lq-sidebar-card streak">
@@ -255,27 +239,27 @@ function shortText(string|null $value, int $limit = 42): string
 
                 <section class="lq-card missions-card">
                     <div class="lq-card-header">
-                        <h2>Misiones de hoy <span><?= count($activeProjects) ?></span></h2>
-                        <a href="projects.php">Ver todas</a>
+                        <h2>Misiones de hoy <span><?= count($todayTasks) ?></span></h2>
+                        <a href="tasks.php">Ver todas</a>
                     </div>
 
-                    <?php if (empty($activeProjects)): ?>
+                    <?php if (empty($todayTasks)): ?>
                         <div class="friendly-empty">
-                            <strong>No hay misiones activas todavía.</strong>
-                            <p>Crea un proyecto para convertir tus metas en acciones reales.</p>
-                            <a href="projects.php" class="mini-btn">Crear misión</a>
+                            <strong>No hay misiones para hoy todavía.</strong>
+                            <p>Crea tareas concretas para avanzar en tus retos y metas.</p>
+                            <a href="tasks.php" class="mini-btn">Crear misión</a>
                         </div>
                     <?php else: ?>
                         <div class="mission-list">
-                            <?php foreach ($activeProjects as $index => $project): ?>
+                            <?php foreach ($todayTasks as $index => $task): ?>
                                 <?php
-                                $progress = (int) ($project['progress'] ?? 0);
                                 $missionIcons = ['📚', '🏋️', '✍️', '📈'];
                                 $categoryColors = ['green', 'purple', 'orange', 'blue'];
+                                $done = $task['status'] === 'completed';
                                 ?>
                                 <article class="mission-item">
                                     <label class="check-wrap">
-                                        <input type="checkbox" <?= $progress >= 100 ? 'checked' : '' ?> disabled>
+                                        <input type="checkbox" <?= $done ? 'checked' : '' ?> disabled>
                                         <span></span>
                                     </label>
 
@@ -284,21 +268,21 @@ function shortText(string|null $value, int $limit = 42): string
                                     </div>
 
                                     <div class="mission-info">
-                                        <strong><?= e(shortText($project['title'], 36)) ?></strong>
-                                        <small><?= !empty($project['goal_title']) ? e(shortText($project['goal_title'], 42)) : 'Misión independiente' ?></small>
+                                        <strong><?= e(shortText($task['title'], 36)) ?></strong>
+                                        <small><?= !empty($task['project_title']) ? e(shortText($task['project_title'], 42)) : 'Misión independiente' ?></small>
                                     </div>
 
                                     <span class="mission-tag <?= $categoryColors[$index % count($categoryColors)] ?>">
-                                        <?= !empty($project['area_name']) ? e(shortText($project['area_name'], 14)) : 'General' ?>
+                                        <?= !empty($task['area_name']) ? e(shortText($task['area_name'], 14)) : 'General' ?>
                                     </span>
 
                                     <div class="mission-progress">
-                                        <small><?= $progress ?> / 100</small>
-                                        <div class="mini-progress"><i style="width: <?= $progress ?>%"></i></div>
+                                        <small><?= (int) $task['estimated_minutes'] ?> min</small>
+                                        <div class="mini-progress"><i style="width: <?= $done ? 100 : 35 ?>%"></i></div>
                                     </div>
 
-                                    <strong class="reward">✦ +<?= 80 + ($index * 20) ?> XP</strong>
-                                    <span class="flag">⚑</span>
+                                    <strong class="reward">✦ +<?= (int) $task['xp_reward'] ?> XP</strong>
+                                    <span class="flag"><?= $done ? '✅' : '⚑' ?></span>
                                 </article>
                             <?php endforeach; ?>
                         </div>
@@ -366,7 +350,7 @@ function shortText(string|null $value, int $limit = 42): string
             <aside class="lq-right">
                 <section class="lq-card objective-card">
                     <div class="lq-card-header">
-                        <h2>Objetivo diario</h2>
+                        <h2>Meta diario</h2>
                     </div>
                     <p>Completa <?= $dailyTotal ?> misiones al día</p>
                     <div class="circle-progress" style="--value: <?= $objectivePercent ?>;">

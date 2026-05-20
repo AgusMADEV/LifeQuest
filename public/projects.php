@@ -69,7 +69,7 @@ function statusClass(string $status): string { return ['active'=>'green','comple
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Misiones | <?= APP_NAME ?></title>
+    <title>Retos | <?= APP_NAME ?></title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="../assets/css/styles.css">
 </head>
@@ -77,20 +77,21 @@ function statusClass(string $status): string { return ['active'=>'green','comple
     <aside class="lq-sidebar">
         <a href="dashboard.php" class="lq-logo"><span>Life<span>Quest</span><i>✦</i></span></a>
         <nav class="lq-nav">
-<a href="dashboard.php"><span>🏠</span>Inicio</a>
-<a href="goals.php"><span>🎯</span>Objetivos</a>
-<a href="projects.php" class="active"><span>🚀</span>Misiones</a>
-<a href="areas.php"><span>🧩</span>Áreas</a>
-<a href="#"><span>💚</span>Hábitos</a>
-<a href="#"><span>🛍️</span>Tienda</a>
-<a href="#"><span>📊</span>Progreso</a>
-</nav>
+            <a href="dashboard.php"><span>🏠</span>Inicio</a>
+            <a href="goals.php"><span>🎯</span>Metas</a>
+            <a href="projects.php" class="active"><span>🚀</span>Retos</a>
+            <a href="tasks.php"><span>✅</span>Misiones</a>
+            <a href="areas.php"><span>🧩</span>Áreas</a>
+            <a href="#"><span>💚</span>Hábitos</a>
+            <a href="#"><span>🛍️</span>Tienda</a>
+            <a href="#"><span>📊</span>Progreso</a>
+        </nav>
 
         <section class="lq-sidebar-card unlock">
             <div>
-                <strong>Modo misión</strong>
-                <p>Divide tus objetivos en bloques ejecutables.</p>
-                <a href="goals.php" class="mini-btn">Ver objetivos</a>
+                <strong>Modo reto</strong>
+                <p>Divide tus metas en retos claros.</p>
+                <a href="goals.php" class="mini-btn">Ver metas</a>
             </div>
             <span class="bag">🚀</span>
         </section>
@@ -116,7 +117,7 @@ function statusClass(string $status): string { return ['active'=>'green','comple
             <button class="icon-btn">☰</button>
             <div class="search-box">
                 <span>🔎</span>
-                <input type="search" placeholder="Buscar misiones..." disabled>
+                <input type="search" placeholder="Buscar retos..." disabled>
                 <kbd>⌘ K</kbd>
             </div>
             <div class="top-stats">
@@ -137,13 +138,13 @@ function statusClass(string $status): string { return ['active'=>'green','comple
         <section class="lq-page-shell">
             <header class="lq-page-hero">
                 <div>
-                    <p class="eyebrow">Ejecución real</p>
-                    <h1>Misiones</h1>
-                    <p>Convierte tus objetivos en proyectos ejecutables. Cada misión será la base para crear tareas y activar el Modo Batalla.</p>
+                    <p class="eyebrow">Bloques de avance</p>
+                    <h1>Retos</h1>
+                    <p>Divide tus metas en retos concretos. Cada reto agrupa varias misiones diarias para avanzar sin perder claridad.</p>
                 </div>
                 <div class="lq-page-actions">
                     <a href="dashboard.php" class="btn btn-secondary">Volver al inicio</a>
-                    <a href="goals.php" class="btn btn-primary">Crear objetivo</a>
+                    <a href="goals.php" class="btn btn-primary">Crear meta</a>
                 </div>
             </header>
 
@@ -155,8 +156,8 @@ function statusClass(string $status): string { return ['active'=>'green','comple
                 <article class="lq-form-panel">
                     <div class="lq-panel-header">
                         <div>
-                            <h2><?= $editingProject ? 'Editar misión' : 'Nueva misión' ?></h2>
-                            <p><?= $editingProject ? 'Actualiza esta misión.' : 'Crea un bloque de trabajo conectado a un objetivo.' ?></p>
+                            <h2><?= $editingProject ? 'Editar reto' : 'Nueva reto' ?></h2>
+                            <p><?= $editingProject ? 'Actualiza esta reto.' : 'Crea un bloque de trabajo conectado a un meta.' ?></p>
                         </div>
                         <?php if ($editingProject): ?><a href="projects.php">Cancelar</a><?php endif; ?>
                     </div>
@@ -170,12 +171,12 @@ function statusClass(string $status): string { return ['active'=>'green','comple
                         </label>
 
                         <label>Descripción
-                            <textarea name="description" rows="3" placeholder="Describe el alcance de esta misión."><?= e($editingProject['description'] ?? '') ?></textarea>
+                            <textarea name="description" rows="3" placeholder="Describe el alcance de esta reto."><?= e($editingProject['description'] ?? '') ?></textarea>
                         </label>
 
-                        <label>Objetivo relacionado
+                        <label>Meta relacionado
                             <select name="goal_id">
-                                <option value="">Sin objetivo</option>
+                                <option value="">Sin meta</option>
                                 <?php foreach ($goals as $goal): ?>
                                     <option value="<?= (int)$goal['id'] ?>" <?= selected($editingProject['goal_id'] ?? '', $goal['id']) ?>>
                                         <?= e($goal['title']) ?>
@@ -215,23 +216,23 @@ function statusClass(string $status): string { return ['active'=>'green','comple
                             <label>Fecha límite <input type="date" name="due_date" value="<?= e($editingProject['due_date'] ?? '') ?>"></label>
                         </div>
 
-                        <button type="submit" class="btn btn-primary full"><?= $editingProject ? 'Guardar cambios' : 'Crear misión' ?></button>
+                        <button type="submit" class="btn btn-primary full"><?= $editingProject ? 'Guardar cambios' : 'Crear reto' ?></button>
                     </form>
                 </article>
 
                 <section class="lq-list-panel">
                     <div class="lq-panel-header">
                         <div>
-                            <h2>Tus misiones</h2>
-                            <p><?= count($projects) ?> misiones creadas</p>
+                            <h2>Tus retos</h2>
+                            <p><?= count($projects) ?> retos creadas</p>
                         </div>
                     </div>
 
                     <div class="lq-list-grid">
                         <?php if (empty($projects)): ?>
                             <article class="lq-empty">
-                                <h2>No hay misiones todavía</h2>
-                                <p>Crea tu primera misión y conecta tus objetivos con acciones concretas.</p>
+                                <h2>No hay retos todavía</h2>
+                                <p>Crea tu primera reto y conecta tus metas con acciones concretas.</p>
                             </article>
                         <?php endif; ?>
 
@@ -275,7 +276,7 @@ function statusClass(string $status): string { return ['active'=>'green','comple
 
                                     <div class="lq-object-actions">
                                         <a href="projects.php?edit=<?= (int)$project['id'] ?>" class="btn btn-secondary">Editar</a>
-                                        <form method="POST" onsubmit="return confirm('¿Seguro que quieres eliminar esta misión?');">
+                                        <form method="POST" onsubmit="return confirm('¿Seguro que quieres eliminar esta reto?');">
                                             <input type="hidden" name="action" value="delete">
                                             <input type="hidden" name="id" value="<?= (int)$project['id'] ?>">
                                             <button type="submit" class="btn lq-btn-danger">Eliminar</button>

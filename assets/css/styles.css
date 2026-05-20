@@ -2046,3 +2046,65 @@ a {
         justify-content: flex-start;
     }
 }
+
+
+/* =========================================================
+   LifeQuest Tasks / Daily Missions module
+   ========================================================= */
+
+.task-status-selector {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.task-status-selector .lq-badge {
+    cursor: default;
+}
+
+.lq-task-complete {
+    background: linear-gradient(135deg, var(--primary), #18d7af);
+    color: #fff;
+    box-shadow: 0 12px 25px rgba(22,199,154,.20);
+}
+
+.task-today-strip {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.task-today-strip .lq-mini-stat {
+    background: rgba(255,255,255,.88);
+}
+
+.task-main-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.task-main-actions form {
+    display: inline-flex;
+}
+
+.task-due {
+    color: var(--muted);
+    font-weight: 800;
+}
+
+.task-status-pending { background: #e7f0ff; color: #2563eb; }
+.task-status-in_progress { background: #fff3d6; color: #f08c00; }
+.task-status-completed { background: #dcfff5; color: #087f5b; }
+.task-status-cancelled { background: #ffe9e9; color: #c92a2a; }
+
+.task-priority-low { background: #dcfff5; color: #087f5b; }
+.task-priority-medium { background: #fff3d6; color: #f08c00; }
+.task-priority-high,
+.task-priority-critical { background: #ffe9e9; color: #c92a2a; }
+
+@media (max-width: 760px) {
+    .task-today-strip {
+        grid-template-columns: 1fr;
+    }
+}

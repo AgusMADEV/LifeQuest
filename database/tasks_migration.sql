@@ -1,0 +1,21 @@
+CREATE TABLE IF NOT EXISTS tasks (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    project_id INT,
+    goal_id INT,
+    area_id INT,
+    title VARCHAR(150) NOT NULL,
+    description TEXT,
+    priority ENUM('low', 'medium', 'high', 'critical') DEFAULT 'medium',
+    status ENUM('pending', 'in_progress', 'completed', 'cancelled') DEFAULT 'pending',
+    estimated_minutes INT DEFAULT 0,
+    due_date DATE,
+    xp_reward INT DEFAULT 10,
+    points_reward INT DEFAULT 5,
+    completed_at DATETIME NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL,
+    FOREIGN KEY (goal_id) REFERENCES goals(id) ON DELETE SET NULL,
+    FOREIGN KEY (area_id) REFERENCES life_areas(id) ON DELETE SET NULL
+);
