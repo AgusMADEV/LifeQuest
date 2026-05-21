@@ -79,77 +79,27 @@ function statusClass(string $status): string {
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Metas | <?= APP_NAME ?></title>
+    <title>Objetivos | <?= APP_NAME ?></title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="../assets/css/styles.css">
 </head>
 <body class="lifequest-app">
-    <aside class="lq-sidebar">
-        <a href="dashboard.php" class="lq-logo"><span>Life<span>Quest</span><i>✦</i></span></a>
-        <nav class="lq-nav">
-            <a href="dashboard.php"><span>🏠</span>Inicio</a>
-            <a href="goals.php" class="active"><span>🎯</span>Metas</a>
-            <a href="projects.php"><span>🚀</span>Retos</a>
-            <a href="tasks.php"><span>✅</span>Misiones</a>
-            <a href="areas.php"><span>🧩</span>Áreas</a>
-            <a href="#"><span>💚</span>Hábitos</a>
-            <a href="#"><span>🛍️</span>Tienda</a>
-            <a href="#"><span>📊</span>Progreso</a>
-        </nav>
+    <?php
+    $activePage = 'goals';
+    require __DIR__ . '/../app/Views/partials/sidebar.php';
+    ?>
 
-        <section class="lq-sidebar-card unlock">
-            <div>
-                <strong>Metas claros</strong>
-                <p>Convierte metas grandes en misiones diarias.</p>
-                <a href="projects.php" class="mini-btn">Crear misión</a>
-            </div>
-            <span class="bag">🎯</span>
-        </section>
+<main class="lq-main">
+        <?php
+        $searchPlaceholder = 'Buscar metas...';
+        require __DIR__ . '/../app/Views/partials/topbar.php';
+        ?>
 
-        <section class="lq-user-mini">
-            <div class="mini-avatar"><?= mb_strtoupper(mb_substr($user['name'] ?? 'U', 0, 1)) ?></div>
-            <div>
-                <strong><?= e(shortText($user['name'] ?? 'Usuario', 18)) ?></strong>
-                <small>Ver perfil</small>
-            </div>
-            <span>⌄</span>
-        </section>
-
-        <div class="lq-sidebar-bottom">
-            <a href="#">⚙️</a>
-            <a href="#">?</a>
-            <a href="logout.php">↪</a>
-        </div>
-    </aside>
-
-    <main class="lq-main">
-        <header class="lq-topbar">
-            <button class="icon-btn">☰</button>
-            <div class="search-box">
-                <span>🔎</span>
-                <input type="search" placeholder="Buscar metas..." disabled>
-                <kbd>⌘ K</kbd>
-            </div>
-            <div class="top-stats">
-                <div class="xp-pill">
-                    <span>✦</span>
-                    <strong><?= number_format((int)($user['xp'] ?? 0), 0, ',', '.') ?> XP</strong>
-                    <div class="mini-progress"><i style="width: 35%"></i></div>
-                    <small>Nivel <?= (int)($user['level'] ?? 1) ?></small>
-                </div>
-                <div class="currency-pill coin"><span>🪙</span><strong><?= number_format((int)($user['points'] ?? 0), 0, ',', '.') ?></strong></div>
-                <div class="profile-pill">
-                    <div class="mini-avatar image-like"><?= mb_strtoupper(mb_substr($user['name'] ?? 'U', 0, 1)) ?></div>
-                    <strong>¡Hola, <?= e(shortText($user['name'] ?? 'Usuario', 12)) ?>! 👋</strong>
-                </div>
-            </div>
-        </header>
-
-        <section class="lq-page-shell">
+<section class="lq-page-shell">
             <header class="lq-page-hero">
                 <div>
                     <p class="eyebrow">Dirección y progreso</p>
-                    <h1>Metas</h1>
+                    <h1>Objetivos</h1>
                     <p>Define lo que quieres conseguir y mide tu avance con progreso, prioridad, recompensas y áreas de vida.</p>
                 </div>
                 <div class="lq-page-actions">
@@ -166,8 +116,8 @@ function statusClass(string $status): string {
                 <article class="lq-form-panel">
                     <div class="lq-panel-header">
                         <div>
-                            <h2><?= $editingGoal ? 'Editar meta' : 'Nuevo meta' ?></h2>
-                            <p><?= $editingGoal ? 'Ajusta el progreso y la prioridad.' : 'Crea una meta clara, medible y conectada con retos.' ?></p>
+                            <h2><?= $editingGoal ? 'Editar objetivo' : 'Nuevo objetivo' ?></h2>
+                            <p><?= $editingGoal ? 'Ajusta el progreso y la prioridad.' : 'Crea una meta clara y medible.' ?></p>
                         </div>
                         <?php if ($editingGoal): ?><a href="goals.php">Cancelar</a><?php endif; ?>
                     </div>
@@ -243,23 +193,23 @@ function statusClass(string $status): string {
                             <label>LifeCoins <input type="number" name="points_reward" min="0" value="<?= e((string) ($editingGoal['points_reward'] ?? 25)) ?>"></label>
                         </div>
 
-                        <button type="submit" class="btn btn-primary full"><?= $editingGoal ? 'Guardar cambios' : 'Crear meta' ?></button>
+                        <button type="submit" class="btn btn-primary full"><?= $editingGoal ? 'Guardar cambios' : 'Crear objetivo' ?></button>
                     </form>
                 </article>
 
                 <section class="lq-list-panel">
                     <div class="lq-panel-header">
                         <div>
-                            <h2>Tus metas</h2>
-                            <p><?= count($goals) ?> metas creados</p>
+                            <h2>Tus objetivos</h2>
+                            <p><?= count($goals) ?> objetivos creados</p>
                         </div>
                     </div>
 
                     <div class="lq-list-grid">
                         <?php if (empty($goals)): ?>
                             <article class="lq-empty">
-                                <h2>No hay metas todavía</h2>
-                                <p>Crea tu primer meta. Después podrás conectarlo con misiones y hábitos.</p>
+                                <h2>No hay objetivos todavía</h2>
+                                <p>Crea tu primer objetivo. Después podrás conectarlo con misiones y hábitos.</p>
                             </article>
                         <?php endif; ?>
 
@@ -301,7 +251,7 @@ function statusClass(string $status): string {
 
                                     <div class="lq-object-actions">
                                         <a href="goals.php?edit=<?= (int) $goal['id'] ?>" class="btn btn-secondary">Editar</a>
-                                        <form method="POST" onsubmit="return confirm('¿Seguro que quieres eliminar este meta?');">
+                                        <form method="POST" onsubmit="return confirm('¿Seguro que quieres eliminar este objetivo?');">
                                             <input type="hidden" name="action" value="delete">
                                             <input type="hidden" name="id" value="<?= (int) $goal['id'] ?>">
                                             <button type="submit" class="btn lq-btn-danger">Eliminar</button>

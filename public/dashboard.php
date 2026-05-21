@@ -1,16 +1,18 @@
 <?php
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../app/Controllers/AuthController.php';
+require_once __DIR__ . '/../app/Controllers/MissionController.php';
 require_once __DIR__ . '/../app/Models/User.php';
-require_once __DIR__ . '/../app/Models/LifeArea.php';
 require_once __DIR__ . '/../app/Models/Goal.php';
 require_once __DIR__ . '/../app/Models/Project.php';
 require_once __DIR__ . '/../app/Models/Task.php';
+require_once __DIR__ . '/../app/Models/Mission.php';
 
 AuthController::requireAuth();
 
+$userId = (int)$_SESSION['user_id'];
 $userModel = new User();
-$user = $userModel->findById((int) $_SESSION['user_id']);
+$user = $userModel->findById($userId);
 
 if (!$user) {
     AuthController::logout();
@@ -18,56 +20,48 @@ if (!$user) {
     exit;
 }
 
-$lifeAreaModel = new LifeArea();
-$areas = array_slice($lifeAreaModel->getAllByUser((int) $user['id']), 0, 6);
-
+// Obtener datos
+$missionController = new MissionController();
 $goalModel = new Goal();
-$mainGoals = $goalModel->getMainByUser((int) $user['id'], 4);
-
 $projectModel = new Project();
-$activeProjects = $projectModel->getActiveByUser((int) $user['id'], 4);
-
 $taskModel = new Task();
-$todayTasks = $taskModel->getTodayByUser((int) $user['id'], 4);
 
-$xpCurrent = (int) $user['xp'];
-$xpNext = 2000;
-$xpPercent = min(100, (int) (($xpCurrent / max(1, $xpNext)) * 100));
+$dailyMissions = $missionController->index($userId, 'daily');
+$completedMissions = array_filter($dailyMissions, fn($m) => (int)$m['completed'] === 1);
+$allMissions = array_slice($dailyMissions, 0, 4);
 
-$level = max(1, (int) $user['level']);
-$points = (int) $user['points'];
-$gems = max(0, intdiv($points, 20));
-$currentStreak = (int) $user['current_streak'];
+$activeGoals = array_filter($goalModel->getAllByUser($userId), fn($g) => 
+    in_array($g['status'], ['in_progress', 'not_started'])
+);
+$activeGoals = array_slice($activeGoals, 0, 4);
 
-$dailyCompleted = count(array_filter($todayTasks, static fn($task) => ($task['status'] ?? '') === 'completed'));
-$dailyTotal = max(4, count($todayTasks));
-$objectivePercent = (int) (($dailyCompleted / max(1, $dailyTotal)) * 100);
+$activeProjects = $projectModel->getActiveByUser($userId, 4);
 
-function e(string|null $value): string
-{
+$missionStats = $missionController->getStats($userId);
+$currentLevel = (int)$user['level'];
+$currentXp = (int)$user['xp'];
+$xpForNextLevel = $currentLevel * 100;
+$xpPercentage = min(100, (int)(($currentXp / $xpForNextLevel) * 100));
+$lifeCoins = (int)$user['points'];
+$gems = (int)($user['gems'] ?? 0);
+$currentStreak = (int)$user['current_streak'];
+
+// Objetivo diario
+$dailyGoal = count($dailyMissions);
+$dailyCompleted = count($completedMissions);
+
+function e(?string $value): string {
     return htmlspecialchars($value ?? '', ENT_QUOTES, 'UTF-8');
 }
 
-function statusLabelDashboard(string $status): string
-{
-    return [
-        'not_started' => 'No iniciada',
-        'in_progress' => 'En progreso',
-        'paused' => 'Pausada',
-        'completed' => 'Completada',
-        'cancelled' => 'Cancelada',
-    ][$status] ?? $status;
+function shortText(?string $value, int $limit = 40): string {
+    $value = trim((string)$value);
+    return mb_strlen($value) <= $limit ? $value : mb_substr($value, 0, $limit - 1) . '…';
 }
 
-function shortText(string|null $value, int $limit = 42): string
-{
-    $value = trim((string) $value);
-    if (mb_strlen($value) <= $limit) {
-        return $value;
-    }
-
-    return mb_substr($value, 0, $limit - 1) . '…';
-}
+// Días de la semana para la racha
+$streakDays = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+$completedDays = min($currentStreak, 7);
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -76,351 +70,369 @@ function shortText(string|null $value, int $limit = 42): string
     <title>Inicio | <?= APP_NAME ?></title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="../assets/css/styles.css">
+    <link rel="stylesheet" href="../assets/css/dashboard-visual.css">
 </head>
 <body class="lifequest-app">
-    <aside class="lq-sidebar">
-        <a href="dashboard.php" class="lq-logo">
-            <span>Life<span>Quest</span><i>✦</i></span>
-        </a>
-
-        <nav class="lq-nav">
-            <a href="dashboard.php" class="active"><span>🏠</span>Inicio</a>
-            <a href="goals.php"><span>🎯</span>Metas</a>
-            <a href="projects.php"><span>🚀</span>Retos</a>
-            <a href="tasks.php"><span>✅</span>Misiones</a>
-            <a href="areas.php"><span>🧩</span>Áreas</a>
-            <a href="#"><span>💚</span>Hábitos</a>
-            <a href="#"><span>🛍️</span>Tienda</a>
-            <a href="#"><span>📊</span>Progreso</a>
-        </nav>
-
-        <section class="lq-sidebar-card streak">
-            <div class="streak-icon">🔥</div>
-            <p>Racha actual</p>
-            <strong><?= $currentStreak ?> días</strong>
-            <small>¡Sigue así!</small>
-            <div class="week-dots">
-                <span class="done">L</span>
-                <span class="done">M</span>
-                <span class="done">X</span>
-                <span class="done">J</span>
-                <span class="done">V</span>
-                <span>S</span>
-                <span>D</span>
-            </div>
-        </section>
-
-        <section class="lq-sidebar-card unlock">
-            <div>
-                <strong>¡Desbloquea más!</strong>
-                <p>Completa misiones y consigue recompensas exclusivas.</p>
-                <a href="#" class="mini-btn">Ver tienda</a>
-            </div>
-            <span class="bag">🎒</span>
-        </section>
-
-        <section class="lq-user-mini">
-            <div class="mini-avatar"><?= mb_strtoupper(mb_substr($user['name'], 0, 1)) ?></div>
-            <div>
-                <strong><?= e(shortText($user['name'], 18)) ?></strong>
-                <small>Ver perfil</small>
-            </div>
-            <span>⌄</span>
-        </section>
-
-        <div class="lq-sidebar-bottom">
-            <a href="#">⚙️</a>
-            <a href="#">?</a>
-            <a href="logout.php">↪</a>
-        </div>
-    </aside>
+    <?php
+    $activePage = 'dashboard';
+    require __DIR__ . '/../app/Views/partials/sidebar.php';
+    ?>
 
     <main class="lq-main">
-        <header class="lq-topbar">
-            <button class="icon-btn">☰</button>
+        <?php
+        $searchPlaceholder = 'Buscar misiones, hábitos o recompensas...';
+        require __DIR__ . '/../app/Views/partials/topbar.php';
+        ?>
 
-            <div class="search-box">
-                <span>🔎</span>
-                <input type="search" placeholder="Buscar misiones, hábitos o recompensas..." disabled>
-                <kbd>⌘ K</kbd>
-            </div>
-
-            <div class="top-stats">
-                <div class="xp-pill">
-                    <span>✦</span>
-                    <strong><?= number_format($xpCurrent, 0, ',', '.') ?> XP</strong>
-                    <div class="mini-progress"><i style="width: <?= $xpPercent ?>%"></i></div>
-                    <small>Nivel <?= $level ?></small>
+        <div class="dashboard-visual">
+            <!-- Hero Section Grande con Personaje -->
+            <section class="hero-mega">
+                <div class="hero-character">
+                    <div class="character-glow"></div>
+                    <div class="character-avatar">
+                        <div class="avatar-circle">
+                            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=<?= urlencode($user['name']) ?>&style=circle" alt="Avatar">
+                        </div>
+                    </div>
                 </div>
 
-                <div class="currency-pill coin">
-                    <span>🪙</span>
-                    <strong><?= number_format($points, 0, ',', '.') ?></strong>
-                </div>
+                <div class="hero-content">
+                    <h1 class="hero-title">¡Sigue así, <?= e(explode(' ', $user['name'])[0]) ?>!</h1>
+                    <p class="hero-subtitle">Cada misión completada te acerca a tu mejor versión.</p>
 
-                <div class="currency-pill gem">
-                    <span>💎</span>
-                    <strong><?= $gems ?></strong>
-                </div>
+                    <div class="hero-stats-grid">
+                        <div class="hero-stat">
+                            <div class="stat-label">Nivel</div>
+                            <div class="stat-value"><?= $currentLevel ?></div>
+                            <div class="stat-mini">Camino a nivel <?= $currentLevel + 1 ?></div>
+                            <div class="stat-progress">
+                                <div class="progress-fill" style="width: <?= $xpPercentage . '%' ?>"></div>
+                            </div>
+                            <div class="stat-subtext"><?= number_format($currentXp) ?> / <?= number_format($xpForNextLevel) ?> XP</div>
+                        </div>
 
-                <button class="icon-btn">🔔</button>
+                        <div class="hero-stat">
+                            <div class="stat-label">XP actual</div>
+                            <div class="stat-value"><?= number_format($currentXp) ?></div>
+                            <div class="stat-mini">+<?= $xpForNextLevel - $currentXp ?> XP para subir</div>
+                            <div class="stat-progress">
+                                <div class="progress-fill" style="width: <?= $xpPercentage . '%' ?>"></div>
+                            </div>
+                        </div>
 
-                <div class="profile-pill">
-                    <div class="mini-avatar image-like"><?= mb_strtoupper(mb_substr($user['name'], 0, 1)) ?></div>
-                    <strong>¡Hola, <?= e(shortText($user['name'], 12)) ?>! 👋</strong>
-                </div>
-            </div>
-        </header>
+                        <div class="hero-stat">
+                            <div class="stat-label">LifeCoins</div>
+                            <div class="stat-value"><?= number_format($lifeCoins) ?></div>
+                            <div class="stat-mini">Úsalos en la tienda</div>
+                        </div>
 
-        <div class="lq-dashboard-grid">
-            <section class="lq-center">
-                <section class="hero-panel">
-                    <div class="hero-avatar-wrap">
-                        <div class="hero-glow"></div>
-                        <div class="hero-avatar">
-                            <div class="avatar-hair"></div>
-                            <div class="avatar-face">😊</div>
-                            <div class="avatar-body">LQ</div>
+                        <div class="hero-stat">
+                            <div class="stat-label">Gemas</div>
+                            <div class="stat-value"><?= $gems ?></div>
+                            <div class="stat-mini">Para objetos únicos</div>
                         </div>
                     </div>
 
-                    <div class="hero-content">
-                        <h1>¡Sigue así, <?= e(shortText($user['name'], 18)) ?>!</h1>
-                        <p>Cada misión completada te acerca a tu mejor versión.</p>
-
-                        <div class="hero-stats">
-                            <article>
-                                <small>Nivel</small>
-                                <strong><?= $level ?></strong>
-                                <span>Camino a nivel <?= $level + 1 ?></span>
-                                <div class="mini-progress"><i style="width: <?= $xpPercent ?>%"></i></div>
-                                <em><?= number_format($xpCurrent, 0, ',', '.') ?> / <?= number_format($xpNext, 0, ',', '.') ?> XP</em>
-                            </article>
-
-                            <article>
-                                <small>XP actual</small>
-                                <strong><?= number_format($xpCurrent, 0, ',', '.') ?></strong>
-                                <span>+200 XP para subir</span>
-                                <div class="mini-progress"><i style="width: <?= $xpPercent ?>%"></i></div>
-                            </article>
-
-                            <article>
-                                <small>LifeCoins</small>
-                                <strong><?= number_format($points, 0, ',', '.') ?></strong>
-                                <span>Úsalos en la tienda</span>
-                            </article>
-
-                            <article>
-                                <small>Gemas</small>
-                                <strong><?= $gems ?></strong>
-                                <span>Para objetos únicos</span>
-                            </article>
+                    <div class="hero-footer">
+                        <div class="streak-display">
+                            <span class="streak-icon">🔥</span>
+                            <div class="streak-info">
+                                <div class="streak-label">Racha actual</div>
+                                <div class="streak-value"><?= $currentStreak ?> días</div>
+                            </div>
+                            <div class="streak-calendar">
+                                <?php foreach ($streakDays as $index => $day): ?>
+                                    <div class="streak-day <?= $index < $completedDays ? 'completed' : '' ?>">
+                                        <?= $day ?>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
                         </div>
 
-                        <div class="hero-bottom">
-                            <div class="streak-row">
-                                <span>🔥</span>
-                                <div>
-                                    <small>Racha actual</small>
-                                    <strong><?= $currentStreak ?> días</strong>
-                                </div>
-                                <div class="week-mini">
-                                    <i class="done">L</i><i class="done">M</i><i class="done">X</i><i class="done">J</i><i class="done">V</i><i>S</i><i>D</i>
-                                </div>
-                            </div>
-
-                            <div class="motivation-chip">
-                                <strong>¡Increíble disciplina!</strong>
-                                <span>Tu constancia te llevará lejos. 🎉</span>
-                            </div>
+                        <div class="motivation-message">
+                            <strong>¡Increíble disciplina!</strong>
+                            <span>Tu constancia te llevará lejos. 🎉</span>
                         </div>
                     </div>
-                </section>
-
-                <section class="lq-card missions-card">
-                    <div class="lq-card-header">
-                        <h2>Misiones de hoy <span><?= count($todayTasks) ?></span></h2>
-                        <a href="tasks.php">Ver todas</a>
-                    </div>
-
-                    <?php if (empty($todayTasks)): ?>
-                        <div class="friendly-empty">
-                            <strong>No hay misiones para hoy todavía.</strong>
-                            <p>Crea tareas concretas para avanzar en tus retos y metas.</p>
-                            <a href="tasks.php" class="mini-btn">Crear misión</a>
-                        </div>
-                    <?php else: ?>
-                        <div class="mission-list">
-                            <?php foreach ($todayTasks as $index => $task): ?>
-                                <?php
-                                $missionIcons = ['📚', '🏋️', '✍️', '📈'];
-                                $categoryColors = ['green', 'purple', 'orange', 'blue'];
-                                $done = $task['status'] === 'completed';
-                                ?>
-                                <article class="mission-item">
-                                    <label class="check-wrap">
-                                        <input type="checkbox" <?= $done ? 'checked' : '' ?> disabled>
-                                        <span></span>
-                                    </label>
-
-                                    <div class="mission-icon <?= $categoryColors[$index % count($categoryColors)] ?>">
-                                        <?= $missionIcons[$index % count($missionIcons)] ?>
-                                    </div>
-
-                                    <div class="mission-info">
-                                        <strong><?= e(shortText($task['title'], 36)) ?></strong>
-                                        <small><?= !empty($task['project_title']) ? e(shortText($task['project_title'], 42)) : 'Misión independiente' ?></small>
-                                    </div>
-
-                                    <span class="mission-tag <?= $categoryColors[$index % count($categoryColors)] ?>">
-                                        <?= !empty($task['area_name']) ? e(shortText($task['area_name'], 14)) : 'General' ?>
-                                    </span>
-
-                                    <div class="mission-progress">
-                                        <small><?= (int) $task['estimated_minutes'] ?> min</small>
-                                        <div class="mini-progress"><i style="width: <?= $done ? 100 : 35 ?>%"></i></div>
-                                    </div>
-
-                                    <strong class="reward">✦ +<?= (int) $task['xp_reward'] ?> XP</strong>
-                                    <span class="flag"><?= $done ? '✅' : '⚑' ?></span>
-                                </article>
-                            <?php endforeach; ?>
-                        </div>
-                    <?php endif; ?>
-                </section>
-
-                <section class="bottom-widgets">
-                    <article class="lq-card compact">
-                        <div class="lq-card-header">
-                            <h2>Metas del día</h2>
-                            <span><?= count($mainGoals) ?>/4</span>
-                        </div>
-
-                        <?php if (empty($mainGoals)): ?>
-                            <div class="mini-empty">
-                                <p>Crea metas para empezar tu camino.</p>
-                                <a href="goals.php">Crear meta →</a>
-                            </div>
-                        <?php else: ?>
-                            <?php foreach ($mainGoals as $goal): ?>
-                                <div class="mini-goal">
-                                    <span>🎯</span>
-                                    <strong><?= e(shortText($goal['title'], 28)) ?></strong>
-                                    <div class="mini-progress"><i style="width: <?= (int) $goal['progress'] ?>%"></i></div>
-                                    <small><?= (int) $goal['progress'] ?>%</small>
-                                </div>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                    </article>
-
-                    <article class="lq-card compact chart-card">
-                        <div class="lq-card-header">
-                            <h2>Progreso semanal</h2>
-                            <select disabled>
-                                <option>Esta semana</option>
-                            </select>
-                        </div>
-                        <div class="fake-chart">
-                            <span style="height: 28%"></span>
-                            <span style="height: 42%"></span>
-                            <span style="height: 39%"></span>
-                            <span style="height: 58%"></span>
-                            <span style="height: 72%"></span>
-                            <span style="height: 84%"></span>
-                            <span style="height: 96%"></span>
-                        </div>
-                        <strong><?= number_format($xpCurrent + 1250, 0, ',', '.') ?> XP</strong>
-                        <small>de <?= number_format($xpNext, 0, ',', '.') ?> XP</small>
-                    </article>
-
-                    <article class="lq-card compact summary-card">
-                        <div class="lq-card-header">
-                            <h2>Resumen general</h2>
-                        </div>
-                        <div class="summary-mini-grid">
-                            <div><span>✅</span><strong><?= count($mainGoals) + count($activeProjects) ?></strong><small>Misiones</small></div>
-                            <div><span>⚡</span><strong><?= $xpCurrent ?></strong><small>XP</small></div>
-                            <div><span>🪙</span><strong><?= $points ?></strong><small>Coins</small></div>
-                            <div><span>⏱️</span><strong>0h</strong><small>Enfoque</small></div>
-                        </div>
-                    </article>
-                </section>
+                </div>
             </section>
 
-            <aside class="lq-right">
-                <section class="lq-card objective-card">
-                    <div class="lq-card-header">
-                        <h2>Meta diario</h2>
-                    </div>
-                    <p>Completa <?= $dailyTotal ?> misiones al día</p>
-                    <div class="circle-progress" style="--value: <?= $objectivePercent ?>;">
-                        <strong><?= $dailyCompleted ?>/<?= $dailyTotal ?></strong>
-                        <span>misiones</span>
-                    </div>
-                    <small>✦ +200 XP</small>
-                </section>
-
-                <section class="lq-card upcoming-card">
-                    <div class="lq-card-header">
-                        <h2>Próximas misiones</h2>
-                    </div>
-
-                    <?php if (empty($mainGoals)): ?>
-                        <p class="muted">Crea metas para generar próximas misiones.</p>
-                    <?php else: ?>
-                        <?php foreach (array_slice($mainGoals, 0, 3) as $goal): ?>
-                            <div class="upcoming-item">
-                                <span>🎯</span>
-                                <div>
-                                    <strong><?= e(shortText($goal['title'], 24)) ?></strong>
-                                    <small><?= statusLabelDashboard($goal['status']) ?></small>
-                                </div>
-                                <em>+<?= (int) $goal['xp_reward'] ?> XP</em>
-                            </div>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-
-                    <a href="goals.php" class="center-link">Ver calendario</a>
-                </section>
-
-                <section class="lq-card shop-card">
-                    <div class="lq-card-header">
-                        <h2>Tienda destacada</h2>
-                        <a href="#">Ver todo</a>
-                    </div>
-                    <div class="shop-grid">
-                        <article class="shop-item neon">
-                            <strong>Tema<br>Neon Wave</strong>
-                            <span>🪙 500</span>
-                        </article>
-                        <article class="shop-item ring">
-                            <strong>Marco<br>Holo Circle</strong>
-                            <span>🪙 250</span>
-                        </article>
-                        <article class="shop-item mood">
-                            <b>NUEVO</b>
-                            <strong>Sticker<br>Mood Set</strong>
-                            <span>🪙 200</span>
-                        </article>
-                    </div>
-                </section>
-
-                <section class="lq-card donut-card">
-                    <div class="lq-card-header">
-                        <h2>Distribución de misiones</h2>
-                    </div>
-                    <div class="donut-wrap">
-                        <div class="donut"></div>
-                        <div class="donut-legend">
-                            <span><i class="green-dot"></i>Salud 28%</span>
-                            <span><i class="blue-dot"></i>Aprendizaje 28%</span>
-                            <span><i class="purple-dot"></i>Hábitos 22%</span>
-                            <span><i class="orange-dot"></i>Enfoque 18%</span>
+            <!-- Grid de 3 Columnas -->
+            <div class="dashboard-three-cols">
+                <!-- Columna Principal (Centro) -->
+                <div class="col-main">
+                    <!-- Misiones de hoy -->
+                    <section class="card">
+                        <div class="card-header">
+                            <h2>Misiones de hoy <span class="badge"><?= count($allMissions) ?></span></h2>
+                            <a href="missions.php" class="link">Ver todas</a>
                         </div>
+
+                        <div class="missions-list">
+                            <?php foreach ($allMissions as $mission): ?>
+                                <?php
+                                    $isCompleted = (int)$mission['completed'] === 1;
+                                    $progress = (int)$mission['current_progress'];
+                                    $target = (int)$mission['target_value'];
+                                    $percentage = $target > 0 ? (int)(($progress / $target) * 100) : 0;
+                                    $categories = ['Academia', 'Salud', 'Creatividad', 'Finanzas'];
+                                    $colors = ['green', 'purple', 'orange', 'blue'];
+                                    $idx = $mission['id'] % 4;
+                                ?>
+                                <div class="mission-item <?= $isCompleted ? 'completed' : '' ?>">
+                                    <label class="mission-checkbox">
+                                        <input type="checkbox" <?= $isCompleted ? 'checked' : '' ?> disabled>
+                                        <span class="checkmark"></span>
+                                    </label>
+
+                                    <div class="mission-icon-wrapper">
+                                        <div class="mission-icon <?= $colors[$idx] ?>">
+                                            <?= e($mission['icon']) ?>
+                                        </div>
+                                    </div>
+
+                                    <div class="mission-content">
+                                        <div class="mission-name"><?= e(shortText($mission['title'], 40)) ?></div>
+                                        <div class="mission-meta"><?= e($mission['description'] ?? 'Sin descripción') ?></div>
+                                    </div>
+
+                                    <span class="mission-category <?= $colors[$idx] ?>"><?= $categories[$idx] ?></span>
+
+                                    <div class="mission-progress-wrapper">
+                                        <div class="progress-text"><?= $progress ?> / <?= $target ?></div>
+                                        <div class="progress-bar-small">
+                                            <div class="progress-fill-small" style="width: <?= $percentage . '%' ?>"></div>
+                                        </div>
+                                    </div>
+
+                                    <div class="mission-reward">
+                                        <span class="xp-icon">✦</span>
+                                        <strong>+<?= (int)$mission['xp_reward'] ?> XP</strong>
+                                    </div>
+
+                                    <button class="mission-flag" title="Marcar como importante">⚑</button>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </section>
+
+                    <!-- Sección inferior con 3 cards -->
+                    <div class="bottom-cards">
+                        <!-- Metas del día -->
+                        <section class="card compact">
+                            <div class="card-header">
+                                <h2>Metas del día</h2>
+                                <span class="badge"><?= count($activeGoals) ?>/4</span>
+                            </div>
+
+                            <div class="goals-mini-list">
+                                <?php foreach (array_slice($activeGoals, 0, 3) as $goal): ?>
+                                    <div class="goal-mini-item">
+                                        <span class="goal-mini-icon">🎯</span>
+                                        <strong class="goal-mini-name"><?= e(shortText($goal['title'], 30)) ?></strong>
+                                        <div class="progress-bar-mini">
+                                            <div class="progress-fill-mini" style="width: <?= (int)$goal['progress'] . '%' ?>"></div>
+                                        </div>
+                                        <span class="goal-mini-percent"><?= (int)$goal['progress'] ?>%</span>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </section>
+
+                        <!-- Progreso semanal -->
+                        <section class="card compact">
+                            <div class="card-header">
+                                <h2>Progreso semanal</h2>
+                                <select class="week-selector">
+                                    <option>Esta semana</option>
+                                </select>
+                            </div>
+
+                            <div class="chart-weekly">
+                                <div class="chart-bar" style="height: 28%"><span>Lun</span></div>
+                                <div class="chart-bar" style="height: 42%"><span>Mar</span></div>
+                                <div class="chart-bar" style="height: 39%"><span>Mié</span></div>
+                                <div class="chart-bar" style="height: 58%"><span>Jue</span></div>
+                                <div class="chart-bar" style="height: 72%"><span>Vie</span></div>
+                                <div class="chart-bar" style="height: 84%"><span>Sáb</span></div>
+                                <div class="chart-bar active" style="height: 96%"><span>Dom</span></div>
+                            </div>
+
+                            <div class="chart-footer">
+                                <strong><?= number_format($currentXp) ?> XP</strong>
+                                <small>de <?= number_format($xpForNextLevel) ?> XP</small>
+                            </div>
+                        </section>
+
+                        <!-- Resumen general -->
+                        <section class="card compact">
+                            <div class="card-header">
+                                <h2>Resumen general</h2>
+                            </div>
+
+                            <div class="summary-grid">
+                                <div class="summary-item">
+                                    <span class="summary-icon">✅</span>
+                                    <strong><?= $missionStats['total_completed'] ?></strong>
+                                    <small>Misiones</small>
+                                </div>
+                                <div class="summary-item">
+                                    <span class="summary-icon">⚡</span>
+                                    <strong><?= number_format($currentXp) ?></strong>
+                                    <small>XP</small>
+                                </div>
+                                <div class="summary-item">
+                                    <span class="summary-icon">🪙</span>
+                                    <strong><?= number_format($lifeCoins) ?></strong>
+                                    <small>Coins</small>
+                                </div>
+                                <div class="summary-item">
+                                    <span class="summary-icon">⏱️</span>
+                                    <strong>22h 30m</strong>
+                                    <small>Enfoque</small>
+                                </div>
+                            </div>
+                        </section>
                     </div>
-                </section>
-            </aside>
+                </div>
+
+                <!-- Columna Derecha (Sidebar) -->
+                <aside class="col-sidebar">
+                    <!-- Objetivo diario -->
+                    <section class="card">
+                        <div class="card-header">
+                            <h3>Objetivo diario</h3>
+                        </div>
+
+                        <p class="objective-text">Completa <?= $dailyGoal ?> misiones al día</p>
+
+                        <div class="circle-progress">
+                            <svg viewBox="0 0 120 120">
+                                <circle cx="60" cy="60" r="54" class="circle-bg"></circle>
+                                <circle cx="60" cy="60" r="54" class="circle-fill" 
+                                        style="stroke-dashoffset: <?= 339.29 - (339.29 * ($dailyGoal > 0 ? ($dailyCompleted / $dailyGoal) : 0)) ?>"></circle>
+                            </svg>
+                            <div class="circle-content">
+                                <strong><?= $dailyCompleted ?>/<?= $dailyGoal ?></strong>
+                                <span>misiones</span>
+                            </div>
+                        </div>
+
+                        <div class="objective-reward">✦ +200 XP</div>
+                    </section>
+
+                    <!-- Próximas misiones -->
+                    <section class="card">
+                        <div class="card-header">
+                            <h3>Próximas misiones</h3>
+                        </div>
+
+                        <div class="upcoming-list">
+                            <?php foreach (array_slice($activeGoals, 0, 3) as $goal): ?>
+                                <div class="upcoming-item">
+                                    <span class="upcoming-icon">🎯</span>
+                                    <div class="upcoming-content">
+                                        <strong><?= e(shortText($goal['title'], 28)) ?></strong>
+                                        <small><?= $goal['status'] === 'in_progress' ? 'En progreso' : 'Por iniciar' ?></small>
+                                    </div>
+                                    <span class="upcoming-xp">+<?= (int)$goal['xp_reward'] ?> XP</span>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+
+                        <a href="goals.php" class="link-center">Ver calendario</a>
+                    </section>
+
+                    <!-- Tienda destacada -->
+                    <section class="card">
+                        <div class="card-header">
+                            <h3>Tienda destacada</h3>
+                            <a href="#" class="link-small">Ver todo</a>
+                        </div>
+
+                        <div class="shop-grid">
+                            <div class="shop-item">
+                                <div class="shop-image neon-wave">
+                                    <span class="shop-badge red">NUEVO</span>
+                                </div>
+                                <div class="shop-name">Neon Wave</div>
+                                <div class="shop-price"><span class="coin">🪙</span> 500</div>
+                            </div>
+                            <div class="shop-item">
+                                <div class="shop-image halo-circle">
+                                    <span class="shop-badge">-20%</span>
+                                </div>
+                                <div class="shop-name">Halo Circle</div>
+                                <div class="shop-price"><span class="coin">🪙</span> 250</div>
+                            </div>
+                            <div class="shop-item">
+                                <div class="shop-image mood-set"></div>
+                                <div class="shop-name">Mood Set</div>
+                                <div class="shop-price"><span class="coin">💎</span> 200</div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Distribución de misiones -->
+                    <section class="card">
+                        <div class="card-header">
+                            <h3>Distribución de misiones</h3>
+                        </div>
+
+                        <div class="distribution-chart">
+                            <svg viewBox="0 0 120 120">
+                                <circle cx="60" cy="60" r="50" fill="none" stroke="#10b981" stroke-width="20"
+                                        stroke-dasharray="88 226" transform="rotate(-90 60 60)"></circle>
+                                <circle cx="60" cy="60" r="50" fill="none" stroke="#3b82f6" stroke-width="20"
+                                        stroke-dasharray="88 226" stroke-dashoffset="-88" transform="rotate(-90 60 60)"></circle>
+                                <circle cx="60" cy="60" r="50" fill="none" stroke="#a855f7" stroke-width="20"
+                                        stroke-dasharray="70 246" stroke-dashoffset="-176" transform="rotate(-90 60 60)"></circle>
+                                <circle cx="60" cy="60" r="50" fill="none" stroke="#f59e0b" stroke-width="20"
+                                        stroke-dasharray="56 260" stroke-dashoffset="-246" transform="rotate(-90 60 60)"></circle>
+                            </svg>
+                        </div>
+
+                        <div class="distribution-legend">
+                            <div class="legend-item">
+                                <span class="legend-dot green"></span>
+                                <span class="legend-label">Salud</span>
+                                <span class="legend-value">28%</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-dot blue"></span>
+                                <span class="legend-label">Aprendizaje</span>
+                                <span class="legend-value">28%</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-dot purple"></span>
+                                <span class="legend-label">Hábitos</span>
+                                <span class="legend-value">22%</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-dot orange"></span>
+                                <span class="legend-label">Enfoque</span>
+                                <span class="legend-value">18%</span>
+                            </div>
+                        </div>
+                    </section>
+                </aside>
+            </div>
         </div>
     </main>
+
+    <script>
+        function updateMissionProgress(missionId) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = 'missions.php';
+            form.innerHTML = `
+                <input type="hidden" name="action" value="update_progress">
+                <input type="hidden" name="id" value="${missionId}">
+                <input type="hidden" name="progress" value="1">
+            `;
+            document.body.appendChild(form);
+            form.submit();
+        }
+    </script>
 </body>
 </html>

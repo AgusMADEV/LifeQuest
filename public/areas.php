@@ -71,66 +71,18 @@ function shortText(string|null $value, int $limit = 42): string
     <link rel="stylesheet" href="../assets/css/styles.css">
 </head>
 <body class="lifequest-app">
-    <aside class="lq-sidebar">
-        <a href="dashboard.php" class="lq-logo"><span>Life<span>Quest</span><i>✦</i></span></a>
-        <nav class="lq-nav">
-            <a href="dashboard.php"><span>🏠</span>Inicio</a>
-            <a href="goals.php"><span>🎯</span>Metas</a>
-            <a href="projects.php"><span>🚀</span>Retos</a>
-            <a href="tasks.php"><span>✅</span>Misiones</a>
-            <a href="areas.php" class="active"><span>🧩</span>Áreas</a>
-            <a href="#"><span>💚</span>Hábitos</a>
-            <a href="#"><span>🛍️</span>Tienda</a>
-            <a href="#"><span>📊</span>Progreso</a>
-        </nav>
+    <?php
+    $activePage = 'areas';
+    require __DIR__ . '/../app/Views/partials/sidebar.php';
+    ?>
 
-        <section class="lq-sidebar-card streak">
-            <div class="streak-icon">🔥</div>
-            <p>Racha actual</p>
-            <strong><?= (int)($user['current_streak'] ?? 0) ?> días</strong>
-            <small>¡Sigue así!</small>
-        </section>
+<main class="lq-main">
+        <?php
+        $searchPlaceholder = 'Buscar áreas, metas o misiones...';
+        require __DIR__ . '/../app/Views/partials/topbar.php';
+        ?>
 
-        <section class="lq-user-mini">
-            <div class="mini-avatar"><?= mb_strtoupper(mb_substr($user['name'] ?? 'U', 0, 1)) ?></div>
-            <div>
-                <strong><?= e(shortText($user['name'] ?? 'Usuario', 18)) ?></strong>
-                <small>Ver perfil</small>
-            </div>
-            <span>⌄</span>
-        </section>
-
-        <div class="lq-sidebar-bottom">
-            <a href="#">⚙️</a>
-            <a href="#">?</a>
-            <a href="logout.php">↪</a>
-        </div>
-    </aside>
-
-    <main class="lq-main">
-        <header class="lq-topbar">
-            <button class="icon-btn">☰</button>
-            <div class="search-box">
-                <span>🔎</span>
-                <input type="search" placeholder="Buscar áreas, metas o misiones..." disabled>
-                <kbd>⌘ K</kbd>
-            </div>
-            <div class="top-stats">
-                <div class="xp-pill">
-                    <span>✦</span>
-                    <strong><?= number_format((int)($user['xp'] ?? 0), 0, ',', '.') ?> XP</strong>
-                    <div class="mini-progress"><i style="width: 35%"></i></div>
-                    <small>Nivel <?= (int)($user['level'] ?? 1) ?></small>
-                </div>
-                <div class="currency-pill coin"><span>🪙</span><strong><?= number_format((int)($user['points'] ?? 0), 0, ',', '.') ?></strong></div>
-                <div class="profile-pill">
-                    <div class="mini-avatar image-like"><?= mb_strtoupper(mb_substr($user['name'] ?? 'U', 0, 1)) ?></div>
-                    <strong>¡Hola, <?= e(shortText($user['name'] ?? 'Usuario', 12)) ?>! 👋</strong>
-                </div>
-            </div>
-        </header>
-
-        <section class="lq-page-shell">
+<section class="lq-page-shell">
             <header class="lq-page-hero">
                 <div>
                     <p class="eyebrow">Mapa personal</p>
@@ -139,7 +91,7 @@ function shortText(string|null $value, int $limit = 42): string
                 </div>
                 <div class="lq-page-actions">
                     <a href="dashboard.php" class="btn btn-secondary">Volver al inicio</a>
-                    <a href="goals.php" class="btn btn-primary">Crear meta</a>
+                    <a href="goals.php" class="btn btn-primary">Crear objetivo</a>
                 </div>
             </header>
 
@@ -152,7 +104,7 @@ function shortText(string|null $value, int $limit = 42): string
                     <div class="lq-panel-header">
                         <div>
                             <h2><?= $editingArea ? 'Editar área' : 'Nueva área' ?></h2>
-                            <p><?= $editingArea ? 'Ajusta esta categoría de progreso.' : 'Crea una categoría para ordenar tus metas.' ?></p>
+                            <p><?= $editingArea ? 'Ajusta esta categoría de progreso.' : 'Crea una categoría para ordenar tus objetivos.' ?></p>
                         </div>
                         <?php if ($editingArea): ?><a href="areas.php">Cancelar</a><?php endif; ?>
                     </div>

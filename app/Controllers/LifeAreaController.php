@@ -20,31 +20,17 @@ final class LifeAreaController
 
     public function store(int $userId, array $data): array
     {
-        $name = trim($data['name'] ?? '');
-        $description = trim($data['description'] ?? '');
-        $icon = trim($data['icon'] ?? '');
-        $color = trim($data['color'] ?? '');
-
-        if ($name === '') {
-            return [
-                'success' => false,
-                'message' => 'El nombre del área es obligatorio.'
-            ];
-        }
-
-        if (mb_strlen($name) > 100) {
-            return [
-                'success' => false,
-                'message' => 'El nombre no puede superar los 100 caracteres.'
-            ];
+        $clean = $this->validate($data);
+        if (!$clean['success']) {
+            return $clean;
         }
 
         $created = $this->lifeAreaModel->create(
             $userId,
-            $name,
-            $description !== '' ? $description : null,
-            $icon !== '' ? $icon : null,
-            $color !== '' ? $color : '#16A34A'
+            $clean['data']['name'],
+            $clean['data']['description'],
+            $clean['data']['icon'],
+            $clean['data']['color']
         );
 
         return [
@@ -56,10 +42,6 @@ final class LifeAreaController
     public function update(int $userId, array $data): array
     {
         $id = (int) ($data['id'] ?? 0);
-        $name = trim($data['name'] ?? '');
-        $description = trim($data['description'] ?? '');
-        $icon = trim($data['icon'] ?? '');
-        $color = trim($data['color'] ?? '');
 
         if ($id <= 0) {
             return [
@@ -75,20 +57,18 @@ final class LifeAreaController
             ];
         }
 
-        if ($name === '') {
-            return [
-                'success' => false,
-                'message' => 'El nombre del área es obligatorio.'
-            ];
+        $clean = $this->validate($data);
+        if (!$clean['success']) {
+            return $clean;
         }
 
         $updated = $this->lifeAreaModel->update(
             $id,
             $userId,
-            $name,
-            $description !== '' ? $description : null,
-            $icon !== '' ? $icon : null,
-            $color !== '' ? $color : '#16A34A'
+            $clean['data']['name'],
+            $clean['data']['description'],
+            $clean['data']['icon'],
+            $clean['data']['color']
         );
 
         return [
@@ -126,6 +106,35 @@ final class LifeAreaController
         return [
             'success' => $deleted,
             'message' => $deleted ? 'Área eliminada correctamente.' : 'No se pudo eliminar el área.'
+        ];
+    }
+
+    private function validate(array $data): array
+    {
+        $name = trim($data['name'] ?? '');
+        
+        if ($name === '') {
+            return [
+                'success' => false,
+                'message' => 'El nombre del área es obligatorio.'
+            ];
+        }
+
+        if (mb_strlen($name) > 100) {
+            return [
+                'success' => false,
+                'message' => 'El nombre no puede superar los 100 caracteres.'
+            ];
+        }
+
+        return [
+            'success' => true,
+            'data' => [
+                'name' => $name,
+                'description' => trim($data['description'] ?? '') ?: null,
+                'icon' => trim($data['icon'] ?? '') ?: null,
+                'color' => trim($data['color'] ?? '') ?: '#16A34A'
+            ]
         ];
     }
 }

@@ -1,0 +1,418 @@
+/* =========================================================
+   LifeQuest - Modo Batalla
+   ========================================================= */
+
+.battle-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 380px;
+    gap: 26px;
+    align-items: start;
+}
+
+.battle-main {
+    display: grid;
+    gap: 22px;
+}
+
+.battle-hero {
+    background:
+        radial-gradient(circle at 90% 18%, rgba(255, 107, 107, .14), transparent 14rem),
+        radial-gradient(circle at 10% 20%, rgba(22, 199, 154, .14), transparent 13rem),
+        linear-gradient(135deg, rgba(255,255,255,.94), rgba(246,248,255,.94));
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    padding: 30px;
+    display: flex;
+    justify-content: space-between;
+    gap: 22px;
+    align-items: center;
+}
+
+.battle-hero h1 {
+    margin: 0;
+    font-size: clamp(2.4rem, 5vw, 4.6rem);
+    letter-spacing: -.09em;
+}
+
+.battle-hero p {
+    margin: 12px 0 0;
+    color: var(--muted);
+    line-height: 1.65;
+    max-width: 720px;
+}
+
+.battle-hero-card {
+    min-width: 210px;
+    min-height: 150px;
+    border-radius: 26px;
+    background: linear-gradient(135deg, #101935, #263154);
+    color: #fff;
+    display: grid;
+    place-content: center;
+    gap: 8px;
+    text-align: center;
+    box-shadow: 0 22px 45px rgba(16,25,53,.22);
+}
+
+.battle-hero-card span {
+    font-size: 2.2rem;
+}
+
+.battle-hero-card strong {
+    font-size: 1.1rem;
+}
+
+.battle-hero-card small {
+    color: rgba(255,255,255,.72);
+}
+
+.battle-console {
+    background: rgba(255,255,255,.92);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--soft-shadow);
+    padding: 24px;
+}
+
+.battle-form-grid {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr 220px;
+    gap: 14px;
+    margin-bottom: 22px;
+}
+
+.battle-form-grid label,
+.notes-label {
+    display: grid;
+    gap: 8px;
+    color: #263154;
+    font-size: .9rem;
+    font-weight: 900;
+}
+
+.battle-form-grid input,
+.battle-form-grid select,
+.notes-label textarea {
+    width: 100%;
+    border: 1px solid var(--line);
+    background: #f8fbff;
+    border-radius: 17px;
+    padding: 14px 15px;
+    outline: 0;
+    color: var(--text);
+}
+
+.battle-form-grid input:focus,
+.battle-form-grid select:focus,
+.notes-label textarea:focus {
+    border-color: rgba(22,199,154,.72);
+    box-shadow: 0 0 0 5px rgba(22,199,154,.12);
+}
+
+.timer-card {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 24px;
+    align-items: center;
+    border-radius: 30px;
+    background:
+        radial-gradient(circle at 10% 10%, rgba(22,199,154,.16), transparent 14rem),
+        #f8fbff;
+    border: 1px solid var(--line);
+    padding: 24px;
+}
+
+.timer-ring {
+    width: 250px;
+    height: 250px;
+    border-radius: 50%;
+    margin: 0 auto;
+    display: grid;
+    place-items: center;
+    background:
+        radial-gradient(circle, #fff 58%, transparent 59%),
+        conic-gradient(var(--primary) 0 78%, #e8eef8 78% 100%);
+    box-shadow:
+        inset 0 0 0 1px var(--line),
+        0 24px 42px rgba(22,199,154,.12);
+}
+
+.timer-ring div {
+    display: grid;
+    gap: 8px;
+    text-align: center;
+}
+
+#timerDisplay {
+    font-size: clamp(3rem, 7vw, 4.4rem);
+    font-weight: 900;
+    letter-spacing: -.08em;
+    color: #101935;
+}
+
+#timerStatus {
+    color: var(--muted);
+    font-weight: 900;
+}
+
+.battle-current {
+    display: grid;
+    gap: 12px;
+}
+
+.battle-current small {
+    color: var(--primary);
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    font-weight: 900;
+    font-size: .75rem;
+}
+
+.battle-current strong {
+    font-size: clamp(1.6rem, 4vw, 2.4rem);
+    letter-spacing: -.065em;
+    line-height: 1.05;
+}
+
+.battle-current p {
+    color: var(--muted);
+    line-height: 1.65;
+    max-width: 640px;
+}
+
+.battle-rules {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.battle-rules span {
+    border-radius: 999px;
+    background: #fff;
+    border: 1px solid var(--line);
+    padding: 9px 12px;
+    font-size: .83rem;
+    font-weight: 900;
+}
+
+.battle-controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 14px;
+    margin: 22px 0;
+}
+
+.battle-btn {
+    border: 0;
+    border-radius: 18px;
+    padding: 16px 20px;
+    font-weight: 900;
+    cursor: pointer;
+    transition: .18s ease;
+}
+
+.battle-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+}
+
+.battle-btn:disabled {
+    opacity: .45;
+    cursor: not-allowed;
+}
+
+.battle-btn.start {
+    color: #fff;
+    background: linear-gradient(135deg, var(--primary), #20d8aa);
+    box-shadow: 0 15px 28px rgba(22,199,154,.20);
+}
+
+.battle-btn.pause {
+    color: #8a5a00;
+    background: #fff3d6;
+}
+
+.battle-btn.reset {
+    color: #263154;
+    background: #f0f5ff;
+}
+
+.battle-finish {
+    display: grid;
+    gap: 18px;
+    border-top: 1px solid var(--line);
+    padding-top: 22px;
+}
+
+.battle-result-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+}
+
+.result-option input {
+    display: none;
+}
+
+.result-option span {
+    min-height: 105px;
+    border-radius: 20px;
+    border: 1px solid var(--line);
+    background: #f8fbff;
+    padding: 16px;
+    display: grid;
+    gap: 6px;
+    cursor: pointer;
+    transition: .18s ease;
+}
+
+.result-option strong {
+    font-size: 1rem;
+}
+
+.result-option small {
+    color: var(--muted);
+    line-height: 1.45;
+}
+
+.result-option input:checked + span {
+    transform: translateY(-1px);
+    box-shadow: var(--soft-shadow);
+}
+
+.result-option.completed input:checked + span {
+    background: #dcfff5;
+    border-color: rgba(22,199,154,.30);
+}
+
+.result-option.partial input:checked + span {
+    background: #fff3d6;
+    border-color: rgba(255,176,32,.30);
+}
+
+.result-option.failed input:checked + span {
+    background: #ffe9e9;
+    border-color: rgba(255,107,107,.30);
+}
+
+.battle-side {
+    display: grid;
+    gap: 22px;
+    align-self: start;
+}
+
+.battle-task-list,
+.session-history {
+    display: grid;
+    gap: 12px;
+}
+
+.battle-task-list article,
+.session-history article {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 12px;
+    align-items: center;
+    padding: 12px;
+    border-radius: 18px;
+    background: #f8fbff;
+    border: 1px solid var(--line);
+}
+
+.battle-task-list article > span {
+    width: 42px;
+    height: 42px;
+    border-radius: 15px;
+    color: #fff;
+    display: grid;
+    place-items: center;
+    font-size: 1.1rem;
+}
+
+.battle-task-list strong,
+.session-history strong {
+    display: block;
+    font-size: .92rem;
+}
+
+.battle-task-list small,
+.session-history small {
+    color: var(--muted);
+    display: block;
+    margin-top: 3px;
+}
+
+.battle-task-list em,
+.session-history em {
+    font-style: normal;
+    color: #087f5b;
+    font-weight: 900;
+    font-size: .82rem;
+}
+
+.battle-tip {
+    border-radius: var(--radius-lg);
+    background: linear-gradient(135deg, #101935, #273252);
+    color: #fff;
+    padding: 24px;
+    display: grid;
+    gap: 8px;
+    box-shadow: 0 22px 45px rgba(16,25,53,.22);
+}
+
+.battle-tip span {
+    font-size: 2rem;
+}
+
+.battle-tip p {
+    color: rgba(255,255,255,.76);
+    margin: 0;
+    line-height: 1.55;
+}
+
+@media (max-width: 1350px) {
+    .battle-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .battle-side {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 920px) {
+    .battle-hero,
+    .timer-card,
+    .battle-form-grid,
+    .battle-result-grid,
+    .battle-side {
+        grid-template-columns: 1fr;
+    }
+
+    .battle-hero {
+        align-items: stretch;
+    }
+
+    .battle-hero-card {
+        min-width: 0;
+    }
+
+    .timer-ring {
+        width: 220px;
+        height: 220px;
+    }
+}
+
+@media (max-width: 640px) {
+    .battle-controls {
+        grid-template-columns: 1fr;
+    }
+
+    .battle-console {
+        padding: 18px;
+    }
+
+    .timer-card {
+        padding: 18px;
+    }
+}

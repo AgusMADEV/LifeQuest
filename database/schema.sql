@@ -128,6 +128,7 @@ CREATE TABLE battle_sessions (
     points_earned INT DEFAULT 0,
     started_at DATETIME,
     ended_at DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE SET NULL
 );

@@ -10,7 +10,7 @@ define('APP_URL', 'http://localhost/LifeQuest/public');
 
 // Configuración de base de datos
 define('DB_HOST', 'localhost');
-define('DB_NAME', 'questboard');
+define('DB_NAME', 'lifequest');
 define('DB_USER', 'tu_usuario_db');
 define('DB_PASS', 'tu_contraseña_db');
 define('DB_CHARSET', 'utf8mb4');

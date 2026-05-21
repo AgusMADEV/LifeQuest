@@ -1,34 +1,40 @@
-# LifeQuest - cambio de nombre
+# LifeQuest - Unificación completa de nombre
 
-He actualizado el proyecto para que la identidad visible sea **LifeQuest**.
+El proyecto ahora usa **LifeQuest** de manera consistente en todos los aspectos.
 
 ## Qué se ha cambiado
 
-- Nombre visible de la app: `LifeQuest`.
-- Logo/textos principales en las vistas.
-- Documentación principal.
-- `APP_NAME` en `config/config.php`.
-- `APP_URL` a `http://localhost/LifeQuest/public`.
-- Nombre de sesión a `lifequest_session`.
+- Nombre visible de la app: `LifeQuest`
+- Logo/textos principales en las vistas
+- Documentación principal
+- `APP_NAME` en `config/config.php`: **LifeQuest**
+- `APP_URL`: `http://localhost/LifeQuest/public`
+- Nombre de sesión: `lifequest_session`
+- **Base de datos**: `lifequest` (anteriormente `questboard`)
+- **Usuario BD**: `lifequest` (anteriormente `questboard`)
 
-## Qué NO se ha cambiado para no romper tu instalación actual
+## Migración de base de datos
 
-He mantenido la base de datos actual tal como estaba:
+Si tienes una instalación existente con la BD `questboard`, sigue estos pasos:
 
-```php
-define('DB_NAME', 'questboard');
-define('DB_USER', 'questboard');
-define('DB_PASS', '159159159');
-```
+1. **Haz backup** de tu base de datos actual
+2. Ejecuta el script de migración: [`database/rename_db_to_lifequest.sql`](database/rename_db_to_lifequest.sql)
+3. El script:
+   - Crea la nueva BD `lifequest`
+   - Crea el usuario `lifequest` 
+   - Copia todos los datos de `questboard` → `lifequest`
+   - Mantiene tu BD antigua intacta por seguridad
 
-Así puedes copiar estos archivos sobre tu proyecto actual sin tener que recrear la base de datos ni perder datos.
+## Instalación nueva
 
-## Si quieres renombrar también la base de datos
+Si instalas desde cero:
 
-Más adelante podemos hacer una migración limpia de:
+1. Ejecuta [`database/schema.sql`](database/schema.sql) - creará la BD `lifequest`
+2. Configura [`config/config.php`](config/config.php) con tus credenciales
+3. Todo listo ✅
 
-```text
-questboard → lifequest
-```
+## Notas técnicas
 
-pero no es obligatorio para el TFG. El usuario nunca ve el nombre interno de la base de datos.
+- El usuario final **nunca ve** el nombre interno de la BD
+- La unificación mejora la consistencia del código
+- Ambos nombres (`questboard` / `lifequest`) son técnicamente válidos para un TFG

@@ -1,0 +1,210 @@
+/* LifeQuest - Hábitos */
+
+.habits-hero {
+    align-items: center;
+}
+
+.habit-hero-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(120px, 1fr));
+    gap: 12px;
+    min-width: min(460px, 100%);
+}
+
+.habit-hero-stats article {
+    background: rgba(255,255,255,.86);
+    border: 1px solid var(--line);
+    border-radius: 22px;
+    padding: 18px;
+    display: grid;
+    gap: 5px;
+    box-shadow: var(--soft-shadow);
+}
+
+.habit-hero-stats span {
+    font-size: 1.6rem;
+}
+
+.habit-hero-stats strong {
+    font-size: 1.55rem;
+    letter-spacing: -.05em;
+}
+
+.habit-hero-stats small {
+    color: var(--muted);
+    font-weight: 800;
+}
+
+.toggle-row {
+    min-height: 50px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #f8fbff;
+    border: 1px solid var(--line);
+    border-radius: 17px;
+    padding: 0 15px;
+    color: var(--muted);
+}
+
+.toggle-row input {
+    width: auto;
+    accent-color: var(--primary);
+}
+
+.habits-grid {
+    display: grid;
+    gap: 16px;
+}
+
+.habit-card {
+    background: rgba(255,255,255,.92);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--soft-shadow);
+    padding: 20px;
+    display: grid;
+    gap: 16px;
+    transition: .18s ease;
+}
+
+.habit-card:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow);
+}
+
+.habit-card.completed {
+    background: radial-gradient(circle at 96% 10%, rgba(22,199,154,.12), transparent 12rem), rgba(255,255,255,.94);
+    border-color: rgba(22,199,154,.28);
+}
+
+.habit-card.inactive {
+    opacity: .72;
+}
+
+.habit-card-top {
+    display: grid;
+    grid-template-columns: 58px minmax(0, 1fr) auto;
+    gap: 16px;
+    align-items: flex-start;
+}
+
+.habit-icon {
+    width: 58px;
+    height: 58px;
+    border-radius: 20px;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    font-size: 1.45rem;
+    box-shadow: 0 14px 24px rgba(16,25,53,.10);
+}
+
+.habit-card h2 {
+    margin: 0 0 7px;
+    font-size: 1.15rem;
+    letter-spacing: -.045em;
+}
+
+.habit-card p {
+    margin: 0;
+    color: var(--muted);
+    line-height: 1.55;
+}
+
+.habit-status {
+    border-radius: 999px;
+    padding: 8px 12px;
+    font-size: .78rem;
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+.habit-status.done {
+    background: #dcfff5;
+    color: #087f5b;
+}
+
+.habit-status.pending {
+    background: #fff3d6;
+    color: #f08c00;
+}
+
+.habit-stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.habit-stats-row div {
+    background: #f8fbff;
+    border: 1px solid var(--line);
+    border-radius: 17px;
+    padding: 13px;
+    display: grid;
+    gap: 3px;
+}
+
+.habit-stats-row strong {
+    font-size: 1.3rem;
+    letter-spacing: -.045em;
+}
+
+.habit-stats-row small {
+    color: var(--muted);
+    font-weight: 800;
+}
+
+.habit-meta {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.habit-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.habit-actions form {
+    margin: 0;
+}
+
+.habit-actions .btn:disabled {
+    opacity: .65;
+    cursor: not-allowed;
+}
+
+@media (max-width: 900px) {
+    .habit-card-top {
+        grid-template-columns: 58px 1fr;
+    }
+
+    .habit-status {
+        grid-column: 1 / -1;
+        width: fit-content;
+    }
+
+    .habit-hero-stats,
+    .habit-stats-row {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .habit-hero-stats,
+    .habit-stats-row {
+        grid-template-columns: 1fr;
+    }
+
+    .habit-actions {
+        display: grid;
+    }
+
+    .habit-actions .btn,
+    .habit-actions form {
+        width: 100%;
+    }
+}
