@@ -3,14 +3,17 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../Database/connection.php';
+require_once __DIR__ . '/AreaProgression.php';
 
 final class Task
 {
     private PDO $db;
+    private AreaProgression $areaProgression;
 
     public function __construct()
     {
         $this->db = Connection::getConnection();
+        $this->areaProgression = new AreaProgression($this->db);
     }
 
     public function getAllByUser(int $userId): array
@@ -264,6 +267,12 @@ final class Task
                 'level' => $newLevel,
                 'user_id' => $userId,
             ]);
+
+            $this->areaProgression->addXp(
+                $userId,
+                isset($task['area_id']) ? (int) $task['area_id'] : null,
+                (int) $task['xp_reward']
+            );
 
             $this->refreshRelatedProgress($task['project_id'] ?? null, $task['goal_id'] ?? null);
 

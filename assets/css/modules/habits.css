@@ -337,6 +337,21 @@ button.habit-check {
     font-weight: 900;
 }
 
+.habit-negative-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #5a6d94;
+    font-size: .8rem;
+    font-weight: 800;
+    padding: 0 4px;
+}
+
+.habit-negative-switch input {
+    width: 16px;
+    height: 16px;
+}
+
 .habits-aside {
     display: grid;
     gap: 12px;

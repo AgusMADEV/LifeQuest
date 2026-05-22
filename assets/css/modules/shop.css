@@ -1,0 +1,129 @@
+/* =========================================================
+   LifeQuest Shop module
+   ========================================================= */
+
+.shop-main {
+    padding: 30px;
+    display: grid;
+    gap: 18px;
+}
+
+.shop-topbar {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: flex-start;
+    background: rgba(255,255,255,.9);
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    box-shadow: var(--soft-shadow);
+    padding: 20px;
+}
+
+.shop-topbar h1 {
+    margin: 0;
+    font-size: 2rem;
+    letter-spacing: -.05em;
+}
+
+.shop-topbar p {
+    margin: 6px 0 0;
+    color: var(--muted);
+}
+
+.shop-top-stats {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.shop-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 14px;
+}
+
+.shop-card,
+.shop-empty-card,
+.shop-empty {
+    background: rgba(255,255,255,.92);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    box-shadow: var(--soft-shadow);
+    padding: 16px;
+}
+
+.shop-card-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.shop-card h2 {
+    margin: 0;
+    font-size: 1.1rem;
+    letter-spacing: -.02em;
+}
+
+.shop-type {
+    border-radius: 999px;
+    padding: 5px 9px;
+    font-size: .72rem;
+    font-weight: 800;
+    background: #fff4e3;
+    color: #9a6700;
+    border: 1px solid #ffe2b8;
+}
+
+.shop-card p {
+    margin: 0;
+    color: #5d6b8f;
+    min-height: 44px;
+}
+
+.shop-meta {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 10px;
+    font-size: .86rem;
+    font-weight: 800;
+}
+
+.shop-meta.subtle {
+    font-size: .78rem;
+    color: var(--muted);
+    font-weight: 700;
+}
+
+.shop-card form {
+    margin-top: 12px;
+}
+
+.shop-card button {
+    width: 100%;
+    border: none;
+    border-radius: 12px;
+    padding: 11px 12px;
+    font-weight: 900;
+    color: #fff;
+    background: linear-gradient(135deg, var(--primary), #18d7af);
+    cursor: pointer;
+}
+
+.shop-card button:disabled {
+    cursor: not-allowed;
+    background: #d3dbe9;
+    color: #5f6f93;
+}
+
+@media (max-width: 900px) {
+    .shop-main {
+        padding: 20px;
+    }
+
+    .shop-topbar {
+        flex-direction: column;
+    }
+}

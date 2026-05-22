@@ -38,6 +38,10 @@ $xpPercent = min(100, (int) (($xpCurrentLevel / max(1, $xpPerLevel)) * 100));
 $points = (int) ($user['points'] ?? 0);
 $gems = max(0, intdiv($points, 20));
 $currentStreak = (int) ($user['current_streak'] ?? 0);
+$hpSystemEnabled = defined('FEATURE_HP_SYSTEM') ? (bool) FEATURE_HP_SYSTEM : false;
+$baseHp = defined('PLAYER_BASE_HP') ? (int) PLAYER_BASE_HP : 1000;
+$maxHp = max(1, (int) ($user['max_hp'] ?? $baseHp));
+$hp = max(0, min($maxHp, (int) ($user['hp'] ?? $maxHp)));
 
 $completedTasks = 0;
 $focusedMinutes = 0;
@@ -141,6 +145,9 @@ function shortText(string|null $value, int $limit = 42): string
             <div class="profile-top-stats">
                 <div class="currency-pill coin"><span>🪙</span><strong><?= number_format($points, 0, ',', '.') ?></strong></div>
                 <div class="currency-pill gem"><span>💎</span><strong><?= $gems ?></strong></div>
+                <?php if ($hpSystemEnabled): ?>
+                    <div class="currency-pill hp"><span>❤️</span><strong><?= number_format($hp, 0, ',', '.') ?>/<?= number_format($maxHp, 0, ',', '.') ?></strong></div>
+                <?php endif; ?>
                 <button class="notify-pill" type="button" aria-label="Notificaciones">🔔</button>
                 <div class="profile-pill">
                     <div class="mini-avatar image-like"><?= mb_strtoupper(mb_substr($user['name'] ?? 'U', 0, 1)) ?></div>
@@ -183,6 +190,12 @@ function shortText(string|null $value, int $limit = 42): string
                             <small>XP total</small>
                             <strong><?= number_format($xpCurrent, 0, ',', '.') ?></strong>
                         </article>
+                        <?php if ($hpSystemEnabled): ?>
+                            <article>
+                                <small>Vida</small>
+                                <strong><?= number_format($hp, 0, ',', '.') ?>/<?= number_format($maxHp, 0, ',', '.') ?></strong>
+                            </article>
+                        <?php endif; ?>
                     </div>
                 </article>
 

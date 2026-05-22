@@ -116,6 +116,7 @@ $xpPerLevel = 1000;
 $xpFloor = ($level - 1) * $xpPerLevel;
 $xpCurrentLevel = max(0, $xpCurrent - $xpFloor);
 $xpPercent = min(100, (int) (($xpCurrentLevel / max(1, $xpPerLevel)) * 100));
+$negativeHabitsEnabled = defined('FEATURE_NEGATIVE_HABITS') ? (bool) FEATURE_NEGATIVE_HABITS : false;
 
 foreach ($habits as $habit) {
     $hid = (int) $habit['id'];
@@ -368,6 +369,9 @@ function habitEmojiByIndex(int $index): string
                                         <div class="habit-icon"><?= habitEmojiByIndex($index) ?></div>
                                         <div>
                                             <strong><?= e($habit['name']) ?></strong>
+                                            <?php if (!empty($habit['is_negative']) && $negativeHabitsEnabled): ?>
+                                                <small>Hábito de riesgo · -<?= (int) ($habit['hp_penalty'] ?? 0) ?> HP</small>
+                                            <?php endif; ?>
                                             <small><?= e($habit['description'] ?: 'Hábito sin descripción.') ?></small>
                                         </div>
                                     </div>
@@ -413,6 +417,13 @@ function habitEmojiByIndex(int $index): string
                                     <option value="<?= (int) $goal['id'] ?>"><?= e(shortText($goal['title'], 26)) ?></option>
                                 <?php endforeach; ?>
                             </select>
+                            <?php if ($negativeHabitsEnabled): ?>
+                                <label class="habit-negative-switch" for="is_negative_habit">
+                                    <input type="checkbox" id="is_negative_habit" name="is_negative" value="1">
+                                    <span>Es un hábito de riesgo</span>
+                                </label>
+                                <input type="number" name="hp_penalty" min="1" max="500" value="15" placeholder="Daño HP">
+                            <?php endif; ?>
                             <button type="submit">+ Añadir</button>
                         </form>
                     </article>

@@ -565,6 +565,11 @@ a {
     background: #efe6ff;
 }
 
+.currency-pill.hp span {
+    background: #ffe8ee;
+    color: #d6336c;
+}
+
 .xp-pill small {
     color: var(--muted);
     font-size: .76rem;

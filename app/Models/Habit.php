@@ -3,14 +3,18 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../Database/connection.php';
+require_once __DIR__ . '/AreaProgression.php';
 
 final class Habit
 {
     private PDO $db;
+    private array $columnCache = [];
+    private AreaProgression $areaProgression;
 
     public function __construct()
     {
         $this->db = Connection::getConnection();
+        $this->areaProgression = new AreaProgression($this->db);
     }
 
     public function getAllByUser(int $userId): array
@@ -29,18 +33,31 @@ final class Habit
 
     public function create(int $userId, array $data): bool
     {
-        $sql = "INSERT INTO habits (
-                    user_id, area_id, goal_id, name, description, frequency,
-                    current_streak, best_streak, active, xp_reward, points_reward
-                )
-                VALUES (
-                    :user_id, :area_id, :goal_id, :name, :description, :frequency,
-                    0, 0, 1, :xp_reward, :points_reward
-                )";
+        $hasNegativeColumns = $this->hasColumn('habits', 'is_negative') && $this->hasColumn('habits', 'hp_penalty');
+
+        if ($hasNegativeColumns) {
+            $sql = "INSERT INTO habits (
+                        user_id, area_id, goal_id, name, description, frequency,
+                        current_streak, best_streak, active, xp_reward, points_reward, is_negative, hp_penalty
+                    )
+                    VALUES (
+                        :user_id, :area_id, :goal_id, :name, :description, :frequency,
+                        0, 0, 1, :xp_reward, :points_reward, :is_negative, :hp_penalty
+                    )";
+        } else {
+            $sql = "INSERT INTO habits (
+                        user_id, area_id, goal_id, name, description, frequency,
+                        current_streak, best_streak, active, xp_reward, points_reward
+                    )
+                    VALUES (
+                        :user_id, :area_id, :goal_id, :name, :description, :frequency,
+                        0, 0, 1, :xp_reward, :points_reward
+                    )";
+        }
 
         $stmt = $this->db->prepare($sql);
 
-        return $stmt->execute([
+        $params = [
             'user_id' => $userId,
             'area_id' => $data['area_id'],
             'goal_id' => $data['goal_id'],
@@ -49,7 +66,14 @@ final class Habit
             'frequency' => $data['frequency'],
             'xp_reward' => $data['xp_reward'],
             'points_reward' => $data['points_reward'],
-        ]);
+        ];
+
+        if ($hasNegativeColumns) {
+            $params['is_negative'] = (int) ($data['is_negative'] ?? 0);
+            $params['hp_penalty'] = (int) ($data['hp_penalty'] ?? 0);
+        }
+
+        return $stmt->execute($params);
     }
 
     public function getWeekLogs(int $userId, string $startDate, string $endDate): array
@@ -150,6 +174,9 @@ final class Habit
             $existing = $existsStmt->fetch();
             $xpDelta = (int) $habit['xp_reward'];
             $pointsDelta = (int) $habit['points_reward'];
+            $negativeHabitsEnabled = defined('FEATURE_NEGATIVE_HABITS') ? (bool) FEATURE_NEGATIVE_HABITS : false;
+            $habitIsNegative = $negativeHabitsEnabled && (bool) ($habit['is_negative'] ?? false);
+            $hpPenalty = max(0, (int) ($habit['hp_penalty'] ?? 0));
 
             if ($existing) {
                 $deleteStmt = $this->db->prepare(
@@ -158,8 +185,15 @@ final class Habit
                 );
                 $deleteStmt->execute(['id' => (int) $existing['id']]);
 
-                $this->applyUserRewards($userId, -$xpDelta, -$pointsDelta);
-                $message = 'Hábito desmarcado para hoy.';
+                if ($habitIsNegative) {
+                    $this->applyUserHpDelta($userId, $hpPenalty);
+                    $message = $hpPenalty > 0
+                        ? 'Hábito de riesgo desmarcado. Recuperaste +' . $hpPenalty . ' HP.'
+                        : 'Hábito de riesgo desmarcado para hoy.';
+                } else {
+                    $this->applyUserRewards($userId, -$xpDelta, -$pointsDelta, isset($habit['area_id']) ? (int) $habit['area_id'] : null);
+                    $message = 'Hábito desmarcado para hoy.';
+                }
             } else {
                 $insertStmt = $this->db->prepare(
                     "INSERT INTO habit_logs (habit_id, user_id, completed_date)
@@ -171,11 +205,22 @@ final class Habit
                     'completed_date' => $today,
                 ]);
 
-                $this->applyUserRewards($userId, $xpDelta, $pointsDelta);
-                $message = 'Hábito completado para hoy. +' . $xpDelta . ' XP y +' . $pointsDelta . ' LifeCoins.';
+                if ($habitIsNegative) {
+                    $this->applyUserHpDelta($userId, -$hpPenalty);
+                    $message = $hpPenalty > 0
+                        ? 'Hábito de riesgo registrado. -' . $hpPenalty . ' HP.'
+                        : 'Hábito de riesgo registrado para hoy.';
+                } else {
+                    $this->applyUserRewards($userId, $xpDelta, $pointsDelta, isset($habit['area_id']) ? (int) $habit['area_id'] : null);
+                    $message = 'Hábito completado para hoy. +' . $xpDelta . ' XP y +' . $pointsDelta . ' LifeCoins.';
+                }
             }
 
-            $this->recalculateStreaks($habitId, $userId);
+            if ($habitIsNegative) {
+                $this->resetHabitStreaks($habitId, $userId);
+            } else {
+                $this->recalculateStreaks($habitId, $userId);
+            }
             $this->syncUserCurrentStreak($userId);
             $this->db->commit();
 
@@ -205,7 +250,7 @@ final class Habit
         return $habit ?: null;
     }
 
-    private function applyUserRewards(int $userId, int $xpDelta, int $pointsDelta): void
+    private function applyUserRewards(int $userId, int $xpDelta, int $pointsDelta, ?int $areaId = null): void
     {
         $stmt = $this->db->prepare(
             "SELECT xp, points
@@ -232,6 +277,41 @@ final class Habit
             'xp' => $newXp,
             'points' => $newPoints,
             'level' => $newLevel,
+            'user_id' => $userId,
+        ]);
+
+        $this->areaProgression->addXp($userId, $areaId, $xpDelta);
+    }
+
+    private function applyUserHpDelta(int $userId, int $hpDelta): void
+    {
+        if ($hpDelta === 0 || !$this->hasColumn('users', 'hp')) {
+            return;
+        }
+
+        $baseHp = defined('PLAYER_BASE_HP') ? (int) PLAYER_BASE_HP : 1000;
+        $hasMaxHp = $this->hasColumn('users', 'max_hp');
+
+        $select = $hasMaxHp
+            ? "SELECT hp, max_hp FROM users WHERE id = :user_id LIMIT 1"
+            : "SELECT hp FROM users WHERE id = :user_id LIMIT 1";
+
+        $stmt = $this->db->prepare($select);
+        $stmt->execute(['user_id' => $userId]);
+        $user = $stmt->fetch() ?: ['hp' => $baseHp, 'max_hp' => $baseHp];
+
+        $maxHp = $hasMaxHp ? max(1, (int) ($user['max_hp'] ?? $baseHp)) : $baseHp;
+        $currentHp = max(0, min($maxHp, (int) ($user['hp'] ?? $maxHp)));
+        $newHp = max(0, min($maxHp, $currentHp + $hpDelta));
+
+        $update = $this->db->prepare(
+            "UPDATE users
+             SET hp = :hp
+             WHERE id = :user_id"
+        );
+
+        $update->execute([
+            'hp' => $newHp,
             'user_id' => $userId,
         ]);
     }
@@ -307,12 +387,18 @@ final class Habit
 
     private function syncUserCurrentStreak(int $userId): void
     {
-        $stmt = $this->db->prepare(
-            "SELECT COALESCE(MAX(current_streak), 0) AS current_streak
-             FROM habits
-             WHERE user_id = :user_id
-               AND active = 1"
-        );
+                $excludeNegative = $this->hasColumn('habits', 'is_negative');
+                $sql = "SELECT COALESCE(MAX(current_streak), 0) AS current_streak
+                                FROM habits
+                                WHERE user_id = :user_id
+                                    AND active = 1";
+
+                if ($excludeNegative) {
+                        $sql .= "
+                                    AND (is_negative = 0 OR is_negative IS NULL)";
+                }
+
+                $stmt = $this->db->prepare($sql);
         $stmt->execute(['user_id' => $userId]);
 
         $globalStreak = (int) (($stmt->fetch()['current_streak'] ?? 0));
@@ -327,5 +413,47 @@ final class Habit
             'current_streak' => $globalStreak,
             'user_id' => $userId,
         ]);
+    }
+
+    private function resetHabitStreaks(int $habitId, int $userId): void
+    {
+        $update = $this->db->prepare(
+            "UPDATE habits
+             SET current_streak = 0,
+                 best_streak = 0
+             WHERE id = :habit_id AND user_id = :user_id"
+        );
+
+        $update->execute([
+            'habit_id' => $habitId,
+            'user_id' => $userId,
+        ]);
+    }
+
+    private function hasColumn(string $table, string $column): bool
+    {
+        $cacheKey = $table . '.' . $column;
+
+        if (array_key_exists($cacheKey, $this->columnCache)) {
+            return $this->columnCache[$cacheKey];
+        }
+
+        $stmt = $this->db->prepare(
+            'SELECT 1
+             FROM INFORMATION_SCHEMA.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE()
+               AND TABLE_NAME = :table
+               AND COLUMN_NAME = :column
+             LIMIT 1'
+        );
+        $stmt->execute([
+            'table' => $table,
+            'column' => $column,
+        ]);
+
+        $exists = (bool) $stmt->fetchColumn();
+        $this->columnCache[$cacheKey] = $exists;
+
+        return $exists;
     }
 }

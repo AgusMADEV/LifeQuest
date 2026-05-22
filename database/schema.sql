@@ -13,6 +13,8 @@ CREATE TABLE users (
     level INT DEFAULT 1,
     xp INT DEFAULT 0,
     points INT DEFAULT 0,
+    hp INT NOT NULL DEFAULT 1000,
+    max_hp INT NOT NULL DEFAULT 1000,
     current_streak INT DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -99,6 +101,8 @@ CREATE TABLE habits (
     active BOOLEAN DEFAULT TRUE,
     xp_reward INT DEFAULT 10,
     points_reward INT DEFAULT 5,
+    is_negative BOOLEAN DEFAULT FALSE,
+    hp_penalty INT DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (area_id) REFERENCES life_areas(id) ON DELETE SET NULL,
@@ -139,6 +143,9 @@ CREATE TABLE rewards (
     description TEXT,
     cost_points INT NOT NULL,
     category VARCHAR(100),
+    shop_type ENUM('indulgence', 'cosmetic') DEFAULT 'indulgence',
+    effect_hp INT DEFAULT 0,
+    weekly_limit INT DEFAULT 2,
     active BOOLEAN DEFAULT TRUE,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -160,4 +167,17 @@ CREATE TABLE danger_logs (
     description TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE area_progression (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    area_id INT NOT NULL,
+    level INT DEFAULT 1,
+    xp INT DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_user_area (user_id, area_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (area_id) REFERENCES life_areas(id) ON DELETE CASCADE
 );

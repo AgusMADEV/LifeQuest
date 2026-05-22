@@ -57,7 +57,7 @@ $activeNav = $activeNav ?? '';
         </span>
         Hábitos
     </a>
-    <a href="#">
+    <a href="shop.php" class="<?= $activeNav === 'shop' ? 'active' : '' ?>">
         <span class="nav-icon" aria-hidden="true">
             <svg class="icon-outline" viewBox="0 0 24 24" focusable="false">
                 <path d="M6.5 8h11l-1 10.6a1.5 1.5 0 0 1-1.5 1.4H9a1.5 1.5 0 0 1-1.5-1.4L6.5 8z"></path>

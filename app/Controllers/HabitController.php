@@ -108,6 +108,10 @@ final class HabitController
 
         $allowedFrequencies = ['daily', 'weekly', 'custom'];
         $frequency = in_array(($data['frequency'] ?? ''), $allowedFrequencies, true) ? $data['frequency'] : 'daily';
+        $negativeHabitsEnabled = defined('FEATURE_NEGATIVE_HABITS') ? (bool) FEATURE_NEGATIVE_HABITS : false;
+        $isNegative = $negativeHabitsEnabled && isset($data['is_negative'])
+            && in_array((string) $data['is_negative'], ['1', 'on', 'true'], true);
+        $hpPenalty = $isNegative ? max(1, (int) ($data['hp_penalty'] ?? 15)) : 0;
 
         return [
             'success' => true,
@@ -119,6 +123,8 @@ final class HabitController
                 'frequency' => $frequency,
                 'xp_reward' => max(0, (int) ($data['xp_reward'] ?? 10)),
                 'points_reward' => max(0, (int) ($data['points_reward'] ?? 5)),
+                'is_negative' => $isNegative ? 1 : 0,
+                'hp_penalty' => $hpPenalty,
             ],
         ];
     }

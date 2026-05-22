@@ -15,6 +15,15 @@ define('DB_USER', 'tu_usuario_db');
 define('DB_PASS', 'tu_contraseña_db');
 define('DB_CHARSET', 'utf8mb4');
 
+// Flags de funcionalidades (enfoque incremental)
+define('FEATURE_HP_SYSTEM', true);
+define('FEATURE_NEGATIVE_HABITS', false);
+define('FEATURE_AREA_PROGRESSION', false);
+define('FEATURE_INDULGENCE_SHOP', true);
+
+// Estado base del personaje
+define('PLAYER_BASE_HP', 1000);
+
 // Configuración de sesiones
 define('SESSION_NAME', 'lifequest_session');
 

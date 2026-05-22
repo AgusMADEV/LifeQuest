@@ -6,6 +6,7 @@ require_once __DIR__ . '/../app/Models/LifeArea.php';
 require_once __DIR__ . '/../app/Models/Goal.php';
 require_once __DIR__ . '/../app/Models/Project.php';
 require_once __DIR__ . '/../app/Models/Task.php';
+require_once __DIR__ . '/../app/Models/AreaProgression.php';
 require_once __DIR__ . '/../app/Support/StreakWeek.php';
 
 AuthController::requireAuth();
@@ -42,6 +43,18 @@ $xpNext = $level * $xpPerLevel;
 $points = (int) $user['points'];
 $gems = max(0, intdiv($points, 20));
 $currentStreak = (int) $user['current_streak'];
+$hpSystemEnabled = defined('FEATURE_HP_SYSTEM') ? (bool) FEATURE_HP_SYSTEM : false;
+$baseHp = defined('PLAYER_BASE_HP') ? (int) PLAYER_BASE_HP : 1000;
+$maxHp = max(1, (int) ($user['max_hp'] ?? $baseHp));
+$hp = max(0, min($maxHp, (int) ($user['hp'] ?? $maxHp)));
+$hpPercent = (int) round(($hp / max(1, $maxHp)) * 100);
+$areaProgressionEnabled = defined('FEATURE_AREA_PROGRESSION') ? (bool) FEATURE_AREA_PROGRESSION : false;
+$areaLevels = [];
+
+if ($areaProgressionEnabled) {
+    $areaProgressionModel = new AreaProgression();
+    $areaLevels = $areaProgressionModel->getTopByUser((int) $user['id'], 4);
+}
 
 $dailyCompleted = count(array_filter($todayTasks, static fn($task) => ($task['status'] ?? '') === 'completed'));
 $dailyTotal = max(4, count($todayTasks));
@@ -106,7 +119,7 @@ function shortText(string|null $value, int $limit = 42): string
             <div>
                 <strong>¡Desbloquea más!</strong>
                 <p>Completa misiones y consigue recompensas exclusivas.</p>
-                <a href="#" class="mini-btn">Ver tienda</a>
+                <a href="shop.php" class="mini-btn">Ver tienda</a>
             </div>
             <span class="bag">🎒</span>
         </section>
@@ -147,6 +160,13 @@ function shortText(string|null $value, int $limit = 42): string
                     <span>💎</span>
                     <strong><?= $gems ?></strong>
                 </div>
+
+                <?php if ($hpSystemEnabled): ?>
+                    <div class="currency-pill hp">
+                        <span>❤️</span>
+                        <strong><?= number_format($hp, 0, ',', '.') ?>/<?= number_format($maxHp, 0, ',', '.') ?></strong>
+                    </div>
+                <?php endif; ?>
 
                 <button class="icon-btn">🔔</button>
 
@@ -200,6 +220,15 @@ function shortText(string|null $value, int $limit = 42): string
                                 <strong><?= $gems ?></strong>
                                 <span>Para objetos únicos</span>
                             </article>
+
+                            <?php if ($hpSystemEnabled): ?>
+                                <article>
+                                    <small>Vida</small>
+                                    <strong><?= number_format($hp, 0, ',', '.') ?></strong>
+                                    <span><?= number_format($maxHp, 0, ',', '.') ?> HP máximos</span>
+                                    <div class="mini-progress"><i style="width: <?= $hpPercent ?>%"></i></div>
+                                </article>
+                            <?php endif; ?>
                         </div>
 
                         <div class="hero-bottom">
@@ -373,10 +402,36 @@ function shortText(string|null $value, int $limit = 42): string
                     <a href="goals.php" class="center-link">Ver calendario</a>
                 </section>
 
+                <?php if ($areaProgressionEnabled): ?>
+                    <section class="lq-card area-levels-card">
+                        <div class="lq-card-header">
+                            <h2>Nivel por áreas</h2>
+                            <a href="areas.php">Ver áreas</a>
+                        </div>
+
+                        <?php if (empty($areaLevels)): ?>
+                            <p class="muted">Completa hábitos o misiones con área para empezar a subir nivel por áreas.</p>
+                        <?php else: ?>
+                            <div class="area-levels-list">
+                                <?php foreach ($areaLevels as $areaLevel): ?>
+                                    <article class="area-level-item">
+                                        <span class="area-level-icon"><?= e($areaLevel['icon']) ?></span>
+                                        <div>
+                                            <strong><?= e(shortText($areaLevel['name'], 20)) ?> · Lv <?= (int) $areaLevel['level'] ?></strong>
+                                            <div class="mini-progress"><i style="width: <?= (int) $areaLevel['level_percent'] ?>%"></i></div>
+                                            <small><?= number_format((int) $areaLevel['level_xp'], 0, ',', '.') ?> / <?= number_format((int) $areaLevel['level_xp_target'], 0, ',', '.') ?> XP</small>
+                                        </div>
+                                    </article>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
+                    </section>
+                <?php endif; ?>
+
                 <section class="lq-card shop-card">
                     <div class="lq-card-header">
                         <h2>Tienda destacada</h2>
-                        <a href="#">Ver todo</a>
+                        <a href="shop.php">Ver todo</a>
                     </div>
                     <div class="shop-grid">
                         <article class="shop-item neon">
