@@ -14,20 +14,9 @@ final class Reward
         $this->db = Connection::getConnection();
     }
 
-    public function ensureDefaultIndulgences(int $userId): void
+    public function ensureDefaultCatalog(int $userId): void
     {
-        $stmt = $this->db->prepare(
-            'SELECT COUNT(*)
-             FROM rewards
-             WHERE user_id = :user_id'
-        );
-        $stmt->execute(['user_id' => $userId]);
-
-        if ((int) $stmt->fetchColumn() > 0) {
-            return;
-        }
-
-        $defaults = [
+        $catalog = [
             [
                 'name' => 'Cerveza fria',
                 'description' => 'Disfruta una cerveza de forma consciente.',
@@ -55,13 +44,56 @@ final class Reward
                 'effect_hp' => 40,
                 'weekly_limit' => 1,
             ],
+            [
+                'name' => 'Marco Aurora',
+                'description' => 'Cosmetico para destacar tu perfil con un marco premium.',
+                'cost_points' => 450,
+                'category' => 'cosmetico',
+                'shop_type' => 'cosmetic',
+                'effect_hp' => 0,
+                'weekly_limit' => 99,
+            ],
+            [
+                'name' => 'Tema Oceanic',
+                'description' => 'Paleta visual inspirada en tonos oceanicos.',
+                'cost_points' => 600,
+                'category' => 'cosmetico',
+                'shop_type' => 'cosmetic',
+                'effect_hp' => 0,
+                'weekly_limit' => 99,
+            ],
+            [
+                'name' => 'Pack Stickers Focus',
+                'description' => 'Stickers exclusivos para tus tableros y cards.',
+                'cost_points' => 280,
+                'category' => 'cosmetico',
+                'shop_type' => 'cosmetic',
+                'effect_hp' => 0,
+                'weekly_limit' => 99,
+            ],
         ];
 
         $supportsShopType = $this->hasColumn('rewards', 'shop_type');
         $supportsEffectHp = $this->hasColumn('rewards', 'effect_hp');
         $supportsWeeklyLimit = $this->hasColumn('rewards', 'weekly_limit');
 
-        foreach ($defaults as $item) {
+        foreach ($catalog as $item) {
+            $exists = $this->db->prepare(
+                'SELECT id
+                 FROM rewards
+                 WHERE user_id = :user_id
+                   AND name = :name
+                 LIMIT 1'
+            );
+            $exists->execute([
+                'user_id' => $userId,
+                'name' => $item['name'],
+            ]);
+
+            if ($exists->fetch()) {
+                continue;
+            }
+
             if ($supportsShopType && $supportsEffectHp && $supportsWeeklyLimit) {
                 $insert = $this->db->prepare(
                     'INSERT INTO rewards (user_id, name, description, cost_points, category, shop_type, effect_hp, weekly_limit, active)
@@ -92,6 +124,11 @@ final class Reward
                 'category' => $item['category'],
             ]);
         }
+    }
+
+    public function ensureDefaultIndulgences(int $userId): void
+    {
+        $this->ensureDefaultCatalog($userId);
     }
 
     public function getShopItems(int $userId, string $shopType = 'indulgence'): array
@@ -134,15 +171,24 @@ final class Reward
 
         $stmt->execute($params);
 
-        return array_map(static function (array $row): array {
+        $multiplier = defined('INDULGENCE_REPEAT_COST_MULTIPLIER') ? (float) INDULGENCE_REPEAT_COST_MULTIPLIER : 1.25;
+
+        return array_map(static function (array $row) use ($shopType, $multiplier): array {
+            $baseCost = max(0, (int) ($row['cost_points'] ?? 0));
+            $weeklyUsed = max(0, (int) ($row['weekly_used'] ?? 0));
+            $dynamicCost = $shopType === 'indulgence'
+                ? (int) ceil($baseCost * pow(max(1.0, $multiplier), $weeklyUsed))
+                : $baseCost;
+
             return [
                 'id' => (int) $row['id'],
                 'name' => (string) $row['name'],
                 'description' => (string) ($row['description'] ?? ''),
-                'cost_points' => max(0, (int) ($row['cost_points'] ?? 0)),
+                'cost_points' => $dynamicCost,
+                'base_cost_points' => $baseCost,
                 'effect_hp' => max(0, (int) ($row['effect_hp'] ?? 0)),
                 'weekly_limit' => max(1, (int) ($row['weekly_limit'] ?? 1)),
-                'weekly_used' => max(0, (int) ($row['weekly_used'] ?? 0)),
+                'weekly_used' => $weeklyUsed,
             ];
         }, $stmt->fetchAll());
     }
@@ -215,7 +261,9 @@ final class Reward
             return ['success' => false, 'message' => 'Usuario no encontrado.'];
         }
 
-        $cost = max(0, (int) ($reward['cost_points'] ?? 0));
+        $baseCost = max(0, (int) ($reward['cost_points'] ?? 0));
+        $multiplier = defined('INDULGENCE_REPEAT_COST_MULTIPLIER') ? (float) INDULGENCE_REPEAT_COST_MULTIPLIER : 1.25;
+        $cost = (int) ceil($baseCost * pow(max(1.0, $multiplier), $weeklyUsed));
         $points = max(0, (int) ($user['points'] ?? 0));
 
         if ($points < $cost) {
@@ -276,6 +324,84 @@ final class Reward
             $this->db->rollBack();
 
             return ['success' => false, 'message' => 'No se pudo canjear la indulgencia.'];
+        }
+    }
+
+    public function redeemCosmetic(int $userId, int $rewardId): array
+    {
+        $supportsShopType = $this->hasColumn('rewards', 'shop_type');
+
+        $query = 'SELECT id, name, cost_points
+                  FROM rewards
+                  WHERE id = :reward_id
+                    AND user_id = :user_id
+                    AND active = 1';
+
+        if ($supportsShopType) {
+            $query .= "\n                    AND shop_type = 'cosmetic'";
+        }
+
+        $rewardStmt = $this->db->prepare($query);
+        $rewardStmt->execute([
+            'reward_id' => $rewardId,
+            'user_id' => $userId,
+        ]);
+
+        $reward = $rewardStmt->fetch();
+
+        if (!$reward) {
+            return ['success' => false, 'message' => 'El cosmético no existe o no está disponible.'];
+        }
+
+        $userStmt = $this->db->prepare(
+            'SELECT points
+             FROM users
+             WHERE id = :user_id
+             LIMIT 1'
+        );
+        $userStmt->execute(['user_id' => $userId]);
+        $user = $userStmt->fetch();
+
+        if (!$user) {
+            return ['success' => false, 'message' => 'Usuario no encontrado.'];
+        }
+
+        $cost = max(0, (int) ($reward['cost_points'] ?? 0));
+        $points = max(0, (int) ($user['points'] ?? 0));
+
+        if ($points < $cost) {
+            return ['success' => false, 'message' => 'No tienes LifeCoins suficientes para este cosmético.'];
+        }
+
+        try {
+            $this->db->beginTransaction();
+
+            $updateUser = $this->db->prepare(
+                'UPDATE users
+                 SET points = :points
+                 WHERE id = :user_id'
+            );
+            $updateUser->execute([
+                'points' => $points - $cost,
+                'user_id' => $userId,
+            ]);
+
+            $insert = $this->db->prepare(
+                'INSERT INTO reward_redemptions (reward_id, user_id)
+                 VALUES (:reward_id, :user_id)'
+            );
+            $insert->execute([
+                'reward_id' => $rewardId,
+                'user_id' => $userId,
+            ]);
+
+            $this->db->commit();
+
+            return ['success' => true, 'message' => 'Cosmético canjeado correctamente.'];
+        } catch (Throwable $exception) {
+            $this->db->rollBack();
+
+            return ['success' => false, 'message' => 'No se pudo canjear el cosmético.'];
         }
     }
 

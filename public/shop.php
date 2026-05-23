@@ -34,6 +34,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $shopEnabled) {
             header('Location: shop.php?message=' . urlencode($message) . '&type=' . $messageType);
             exit;
         }
+    } elseif ($action === 'redeem_cosmetic') {
+        $result = $rewardModel->redeemCosmetic($userId, (int) ($_POST['reward_id'] ?? 0));
+        $message = (string) ($result['message'] ?? 'No se pudo procesar la acción.');
+        $messageType = !empty($result['success']) ? 'success' : 'error';
+
+        if (!empty($result['success'])) {
+            header('Location: shop.php?message=' . urlencode($message) . '&type=' . $messageType);
+            exit;
+        }
     }
 }
 
@@ -43,10 +52,11 @@ if (isset($_GET['message'], $_GET['type'])) {
 }
 
 if ($shopEnabled) {
-    $rewardModel->ensureDefaultIndulgences($userId);
+    $rewardModel->ensureDefaultCatalog($userId);
 }
 
 $indulgences = $shopEnabled ? $rewardModel->getShopItems($userId, 'indulgence') : [];
+$cosmetics = $shopEnabled ? $rewardModel->getShopItems($userId, 'cosmetic') : [];
 $user = $userModel->findById($userId) ?: $user;
 
 $points = (int) ($user['points'] ?? 0);
@@ -88,7 +98,7 @@ function shortText(string|null $value, int $limit = 42): string
         <header class="lq-topbar shop-topbar">
             <div>
                 <h1>Tienda</h1>
-                <p>Por ahora solo indulgencias. Los cosméticos se añadirán en esta misma pestaña.</p>
+                <p>Indulgencias y cosméticos en un solo lugar, con economía balanceada.</p>
             </div>
             <div class="shop-top-stats">
                 <div class="currency-pill coin"><span>🪙</span><strong><?= number_format($points, 0, ',', '.') ?></strong></div>
@@ -106,6 +116,11 @@ function shortText(string|null $value, int $limit = 42): string
                 <p>Activa FEATURE_INDULGENCE_SHOP en config para usar esta sección.</p>
             </section>
         <?php else: ?>
+            <section class="shop-section-head">
+                <h2>Indulgencias</h2>
+                <p>Permisos controlados con costo dinámico por uso semanal.</p>
+            </section>
+
             <section class="shop-grid">
                 <?php if (empty($indulgences)): ?>
                     <article class="shop-empty-card">
@@ -131,6 +146,7 @@ function shortText(string|null $value, int $limit = 42): string
                             <span>❤️ +<?= (int) $item['effect_hp'] ?> HP</span>
                         </div>
                         <div class="shop-meta subtle">
+                            <span>Base: <?= number_format((int) ($item['base_cost_points'] ?? $item['cost_points']), 0, ',', '.') ?> LC</span>
                             <span>Usos esta semana: <?= (int) $item['weekly_used'] ?>/<?= (int) $item['weekly_limit'] ?></span>
                             <span>Quedan: <?= $remaining ?></span>
                         </div>
@@ -139,6 +155,42 @@ function shortText(string|null $value, int $limit = 42): string
                             <input type="hidden" name="reward_id" value="<?= (int) $item['id'] ?>">
                             <button type="submit" <?= (!$canAfford || !$canRedeem) ? 'disabled' : '' ?>>
                                 <?= !$canRedeem ? 'Límite semanal alcanzado' : (!$canAfford ? 'Sin LifeCoins suficientes' : 'Canjear') ?>
+                            </button>
+                        </form>
+                    </article>
+                <?php endforeach; ?>
+            </section>
+
+            <section class="shop-section-head">
+                <h2>Cosméticos</h2>
+                <p>Personalización visual. No altera HP ni rendimiento.</p>
+            </section>
+
+            <section class="shop-grid">
+                <?php if (empty($cosmetics)): ?>
+                    <article class="shop-empty-card">
+                        <h2>Sin cosméticos por ahora</h2>
+                        <p>Pronto llegarán más estilos y colecciones.</p>
+                    </article>
+                <?php endif; ?>
+
+                <?php foreach ($cosmetics as $item): ?>
+                    <?php $canAfford = $points >= (int) $item['cost_points']; ?>
+                    <article class="shop-card cosmetic">
+                        <div class="shop-card-head">
+                            <h2><?= e(shortText($item['name'], 34)) ?></h2>
+                            <span class="shop-type cosmetic">Cosmético</span>
+                        </div>
+                        <p><?= e(shortText($item['description'], 120)) ?></p>
+                        <div class="shop-meta">
+                            <span>🪙 <?= number_format((int) $item['cost_points'], 0, ',', '.') ?></span>
+                            <span>🎨 Visual</span>
+                        </div>
+                        <form method="POST">
+                            <input type="hidden" name="action" value="redeem_cosmetic">
+                            <input type="hidden" name="reward_id" value="<?= (int) $item['id'] ?>">
+                            <button type="submit" <?= !$canAfford ? 'disabled' : '' ?>>
+                                <?= !$canAfford ? 'Sin LifeCoins suficientes' : 'Canjear cosmético' ?>
                             </button>
                         </form>
                     </article>

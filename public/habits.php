@@ -508,8 +508,8 @@ function habitEmojiByIndex(int $index): string
                             <h3><?= e($template['name']) ?></h3>
                             <p><?= e($template['description']) ?></p>
                             <div class="discover-meta">
-                                <span class="lq-badge purple">✦ +<?= (int) $template['xp'] ?> XP</span>
-                                <span class="lq-badge orange">🪙 +<?= (int) $template['points'] ?></span>
+                                <span class="lq-badge purple">✦ Recompensa automática</span>
+                                <span class="lq-badge orange">🪙 Balance dinámico</span>
                             </div>
                             <form method="POST" class="discover-add-form">
                                 <input type="hidden" name="current_tab" value="<?= e($tab) ?>">
@@ -518,8 +518,6 @@ function habitEmojiByIndex(int $index): string
                                 <input type="hidden" name="name" value="<?= e($template['name']) ?>">
                                 <input type="hidden" name="description" value="<?= e($template['description']) ?>">
                                 <input type="hidden" name="frequency" value="daily">
-                                <input type="hidden" name="xp_reward" value="<?= (int) $template['xp'] ?>">
-                                <input type="hidden" name="points_reward" value="<?= (int) $template['points'] ?>">
                                 <button type="submit" class="btn btn-primary">Añadir a mis hábitos</button>
                             </form>
                         </article>

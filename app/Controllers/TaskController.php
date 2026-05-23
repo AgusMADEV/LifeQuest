@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../Models/Task.php';
+require_once __DIR__ . '/../Support/RewardCalculator.php';
 
 final class TaskController
 {
@@ -156,6 +157,8 @@ final class TaskController
 
         $priority = in_array(($data['priority'] ?? ''), $allowedPriorities, true) ? $data['priority'] : 'medium';
         $status = in_array(($data['status'] ?? ''), $allowedStatuses, true) ? $data['status'] : 'pending';
+        $estimatedMinutes = max(0, (int) ($data['estimated_minutes'] ?? 0));
+        $reward = RewardCalculator::forTask($priority, $estimatedMinutes);
 
         return [
             'success' => true,
@@ -167,10 +170,10 @@ final class TaskController
                 'description' => trim($data['description'] ?? '') ?: null,
                 'priority' => $priority,
                 'status' => $status,
-                'estimated_minutes' => max(0, (int) ($data['estimated_minutes'] ?? 0)),
+                'estimated_minutes' => $estimatedMinutes,
                 'due_date' => trim($data['due_date'] ?? '') ?: null,
-                'xp_reward' => max(0, (int) ($data['xp_reward'] ?? 10)),
-                'points_reward' => max(0, (int) ($data['points_reward'] ?? 5)),
+                'xp_reward' => $reward['xp'],
+                'points_reward' => $reward['points'],
             ]
         ];
     }

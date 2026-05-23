@@ -467,8 +467,9 @@ function fieldError(array $errors, string $key): string
                                     </div>
 
                                     <div class="lq-form-row">
-                                        <label>Recompensa XP <input type="number" name="xp_reward" min="0" value="<?= e((string) formValue($goalCurrent, 'xp_reward', 50)) ?>"></label>
-                                        <label>LifeCoins <input type="number" name="points_reward" min="0" value="<?= e((string) formValue($goalCurrent, 'points_reward', 25)) ?>"></label>
+                                        <label>Recompensa
+                                            <input type="text" value="Automática según tipo y prioridad" disabled>
+                                        </label>
                                     </div>
 
                                     <button type="submit" class="btn btn-primary full"><?= $editingGoal ? 'Guardar cambios' : 'Crear meta' ?></button>
@@ -872,8 +873,9 @@ function fieldError(array $errors, string $key): string
                                 </div>
 
                                 <div class="lq-form-row">
-                                    <label>Recompensa XP <input type="number" name="xp_reward" min="0" value="<?= e((string) formValue($taskCurrent, 'xp_reward', 10)) ?>"></label>
-                                    <label>LifeCoins <input type="number" name="points_reward" min="0" value="<?= e((string) formValue($taskCurrent, 'points_reward', 5)) ?>"></label>
+                                    <label>Recompensa
+                                        <input type="text" value="Automática según prioridad y tiempo estimado" disabled>
+                                    </label>
                                 </div>
 
                                 <button type="submit" class="btn btn-primary full"><?= $editingTask ? 'Guardar cambios' : 'Crear misión' ?></button>

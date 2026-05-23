@@ -24,6 +24,20 @@ define('FEATURE_INDULGENCE_SHOP', true);
 // Estado base del personaje
 define('PLAYER_BASE_HP', 1000);
 
+// Balance de recompensas
+define('REWARD_POINTS_PER_XP', 0.5);
+define('REWARD_HABIT_BASE_XP', 10);
+define('REWARD_TASK_BASE_XP', 12);
+define('REWARD_GOAL_BASE_XP_DAILY', 16);
+define('REWARD_GOAL_BASE_XP_WEEKLY', 30);
+define('REWARD_GOAL_BASE_XP_MONTHLY', 50);
+define('REWARD_GOAL_BASE_XP_QUARTERLY', 70);
+define('REWARD_GOAL_BASE_XP_YEARLY', 95);
+define('REWARD_GOAL_BASE_XP_FUTURE', 110);
+
+// Balance de tienda (indulgencias)
+define('INDULGENCE_REPEAT_COST_MULTIPLIER', 1.25);
+
 // Configuración de sesiones
 define('SESSION_NAME', 'lifequest_session');
 

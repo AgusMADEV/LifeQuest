@@ -341,7 +341,9 @@ final class Habit
         if (!empty($dates)) {
             $dateSet = array_fill_keys($dates, true);
 
-            $cursor = new DateTimeImmutable('today');
+            // La racha actual se ancla al ultimo check-in realizado,
+            // no necesariamente al dia de hoy.
+            $cursor = new DateTimeImmutable($dates[0]);
             while (isset($dateSet[$cursor->format('Y-m-d')])) {
                 $currentStreak++;
                 $cursor = $cursor->modify('-1 day');

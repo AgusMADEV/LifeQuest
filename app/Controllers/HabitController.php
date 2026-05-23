@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../Models/Habit.php';
+require_once __DIR__ . '/../Support/RewardCalculator.php';
 
 final class HabitController
 {
@@ -112,6 +113,7 @@ final class HabitController
         $isNegative = $negativeHabitsEnabled && isset($data['is_negative'])
             && in_array((string) $data['is_negative'], ['1', 'on', 'true'], true);
         $hpPenalty = $isNegative ? max(1, (int) ($data['hp_penalty'] ?? 15)) : 0;
+        $reward = RewardCalculator::forHabit($frequency, $isNegative);
 
         return [
             'success' => true,
@@ -121,8 +123,8 @@ final class HabitController
                 'area_id' => $areaId,
                 'goal_id' => $goalId,
                 'frequency' => $frequency,
-                'xp_reward' => max(0, (int) ($data['xp_reward'] ?? 10)),
-                'points_reward' => max(0, (int) ($data['points_reward'] ?? 5)),
+                'xp_reward' => $reward['xp'],
+                'points_reward' => $reward['points'],
                 'is_negative' => $isNegative ? 1 : 0,
                 'hp_penalty' => $hpPenalty,
             ],
