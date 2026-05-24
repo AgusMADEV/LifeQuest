@@ -4,19 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../app/Models/AdminPortalUser.php';
-
-function clearAdminPortalSession(): void
-{
-    unset($_SESSION['admin_portal_user_id'], $_SESSION['admin_portal_username'], $_SESSION['admin_portal_logged_at']);
-}
-
-function isAdminPortalSessionExpired(): bool
-{
-    $timeoutSeconds = defined('ADMIN_PORTAL_SESSION_TIMEOUT_SECONDS') ? (int) ADMIN_PORTAL_SESSION_TIMEOUT_SECONDS : 900;
-    $loggedAt = (int) ($_SESSION['admin_portal_logged_at'] ?? 0);
-
-    return $loggedAt <= 0 || (time() - $loggedAt) > max($timeoutSeconds, 60);
-}
+require_once __DIR__ . '/session_guard.php';
 
 if (!defined('ADMIN_PORTAL_ENABLED') || ADMIN_PORTAL_ENABLED !== true) {
     http_response_code(404);
@@ -31,7 +19,7 @@ if (!empty($_SESSION['admin_portal_user_id'])) {
     }
 
     $_SESSION['admin_portal_logged_at'] = time();
-    header('Location: dashboard.php');
+    header('Location: database.php?section=db');
     exit;
 }
 
@@ -63,7 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['admin_portal_username'] = $admin['username'];
                 $_SESSION['admin_portal_logged_at'] = time();
 
-                header('Location: dashboard.php');
+                header('Location: database.php?section=db');
                 exit;
             }
         }

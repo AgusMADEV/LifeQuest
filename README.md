@@ -1,6 +1,6 @@
 # LifeQuest
 
-Aplicación web de productividad gamificada en PHP + MySQL para gestionar áreas de vida, metas, retos y misiones.
+Aplicación web de productividad gamificada en PHP + MySQL para gestionar áreas de vida, metas, retos, misiones, hábitos y progreso personal.
 
 ## Estado del proyecto
 
@@ -11,15 +11,15 @@ Implementado y funcional:
 - Metas: CRUD completo con relación opcional a áreas.
 - Retos: CRUD completo con relación opcional a metas y áreas.
 - Misiones: CRUD completo, marcado como completada, recompensas XP/LifeCoins y actualización de progreso en metas/retos.
-- Dashboard: resumen de progreso, metas, retos y misiones.
+- Hábitos: creación, check diario y estadísticas por período.
+- Dashboard: resumen general, racha semanal y actividad principal.
+- Progreso y perfil: métricas, historial y estado del jugador.
+- Tienda: canje de recompensas e indulgencias.
+- Portal admin: acceso separado en `admin/` con explorador de DB, CRUD visual, consola SQL controlada y sección de balance.
 
-Planificado (estructura de datos ya preparada en `database/schema.sql`):
+En evolución:
 
-- Hábitos
-- Modo Batalla
-- Tienda y canje de recompensas
-- Estadísticas avanzadas
-- Zona Peligrosa
+- Modo Batalla y mejoras de estadísticas avanzadas.
 
 ## Arquitectura
 
@@ -29,6 +29,12 @@ Planificado (estructura de datos ya preparada en `database/schema.sql`):
 - `app/Database/connection.php`: conexión PDO centralizada.
 - `database/schema.sql`: esquema completo de la base de datos.
 - `assets/css/styles.css`: estilos visuales de la interfaz.
+
+## Compatibilidad de rutas
+
+- `public/goals.php` concentra metas, retos y misiones por sección (`section=goals|projects|tasks`).
+- Acceso recomendado a retos y misiones mediante `public/goals.php?section=projects` y `public/goals.php?section=tasks`.
+- `admin/index.php` y `admin/login.php` redirigen al panel principal en `admin/database.php?section=db`.
 
 ## Configuración rápida
 

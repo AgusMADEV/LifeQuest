@@ -1,6 +1,8 @@
 # LifeQuest  
 ## Documento completo de concepto y planificación del TFG
 
+> Nota de vigencia: este documento es de planificación conceptual. Para rutas y arquitectura implementada, tomar como referencia README.md e INSTALL.md.
+
 ---
 
 ## 1. Nombre del proyecto
@@ -774,7 +776,7 @@ Estas funcionalidades pueden añadirse después o dejarse como mejoras futuras e
 ## 15. Estructura inicial del proyecto
 
 ```text
-questboard/
+LifeQuest/
 ├── public/
 │   ├── index.php
 │   ├── login.php

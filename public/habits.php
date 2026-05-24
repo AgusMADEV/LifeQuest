@@ -90,7 +90,6 @@ $rangeLogs = $habitController->logsByRange($userId, $periodStart, $periodEnd);
 $weekStart = (new DateTimeImmutable('monday this week'))->format('Y-m-d');
 $weekEnd = (new DateTimeImmutable('sunday this week'))->format('Y-m-d');
 $today = (new DateTimeImmutable('today'))->format('Y-m-d');
-$todayIndex = (int) (new DateTimeImmutable('today'))->format('N');
 $weekDates = [];
 
 for ($i = 0; $i < 7; $i++) {

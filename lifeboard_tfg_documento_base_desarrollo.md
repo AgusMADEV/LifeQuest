@@ -1,6 +1,8 @@
 # LifeQuest / Videojuego de la Vida  
 ## Documento base para iniciar el desarrollo del TFG
 
+> Nota de vigencia: este documento contiene secciones conceptuales e históricas. La estructura técnica vigente del proyecto está en README.md e INSTALL.md.
+
 ---
 
 ## 1. Resumen de la idea
@@ -921,51 +923,65 @@ La elección más realista, teniendo en cuenta conocimientos previos, sería:
 
 ---
 
-## 19. Arquitectura propuesta
+## 19. Arquitectura propuesta (actualizada al estado actual)
 
-Estructura sencilla del proyecto:
+Estructura actual del proyecto:
 
 ```text
-lifeboard/
+LifeQuest/
 │
 ├── public/
 │   ├── index.php
 │   ├── login.php
 │   ├── register.php
+│   ├── logout.php
 │   ├── dashboard.php
+│   ├── areas.php
 │   ├── goals.php
-│   ├── projects.php
 │   ├── habits.php
-│   ├── battle-mode.php
+│   ├── progress.php
+│   ├── profile.php
 │   ├── shop.php
-│   ├── stats.php
-│   └── danger-zone.php
+│   └── partials/
+│       ├── sidebar_nav.php
+│       ├── sidebar_user_mini.php
+│       └── sidebar_bottom.php
+│
+├── admin/
+│   ├── index.php
+│   ├── login.php
+│   ├── logout.php
+│   ├── database.php
+│   └── session_guard.php
 │
 ├── assets/
 │   ├── css/
-│   │   └── styles.css
+│   │   ├── styles.css
+│   │   └── modules/
 │   ├── js/
-│   │   ├── app.js
-│   │   ├── dashboard.js
-│   │   ├── habits.js
-│   │   ├── battle-mode.js
-│   │   └── stats.js
-│   └── img/
+│   │   └── app.js
 │
 ├── app/
 │   ├── Controllers/
 │   ├── Models/
-│   ├── Services/
+│   ├── Support/
 │   └── Database/
 │       └── connection.php
 │
 ├── config/
-│   └── config.php
+│   ├── config.php
+│   └── config.example.php
 │
 ├── database/
-│   └── schema.sql
+│   ├── schema.sql
+│   ├── tasks_migration.sql
+│   ├── admin_portal_auth_migration.sql
+│   └── admin_portal_auth_migration_rollback.sql
 │
-└── README.md
+├── referencias/
+│
+├── README.md
+└── INSTALL.md
 ```
 
 ---

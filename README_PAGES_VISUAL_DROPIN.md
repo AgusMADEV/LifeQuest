@@ -1,22 +1,21 @@
-# LifeQuest - Pantallas adaptadas a la nueva interfaz
+# LifeQuest - Pantallas y rutas visuales
 
-Este paquete adapta las ventanas internas al nuevo estilo visual tipo app gamificada.
+Resumen de la estructura visual actual y rutas de compatibilidad.
 
 ## Archivos incluidos
 
 - `public/areas.php`
 - `public/goals.php`
-- `public/projects.php`
-- `public/tasks.php`
 - `assets/css/styles.css`
 
 ## Cambios
 
-- Áreas, Metas, Retos y Misiones usan ahora la misma sidebar de LifeQuest.
+- Áreas, Metas, Retos y Misiones usan la misma sidebar de LifeQuest.
 - Topbar con buscador, XP, LifeCoins y perfil.
 - Formularios y listados adaptados a tarjetas modernas.
 - Nomenclatura consistente: Metas (`goals`), Retos (`projects`), Misiones (`tasks`).
-- Se mantiene la lógica PHP y la base de datos actual.
+- `public/goals.php` centraliza secciones internas por query string (`section=goals|projects|tasks`).
+- Retos y misiones se abren directamente desde `public/goals.php` usando `section=projects` o `section=tasks`.
 
 ## Instalación
 
@@ -27,6 +26,10 @@ Este paquete adapta las ventanas internas al nuevo estilo visual tipo app gamifi
 ```text
 http://localhost/LifeQuest/public/areas.php
 http://localhost/LifeQuest/public/goals.php
-http://localhost/LifeQuest/public/projects.php
-http://localhost/LifeQuest/public/tasks.php
+http://localhost/LifeQuest/public/goals.php?section=projects
+http://localhost/LifeQuest/public/goals.php?section=tasks
 ```
+
+Notas:
+
+- Para nuevas integraciones, apunta directamente a `public/goals.php` con `section=projects` o `section=tasks`.

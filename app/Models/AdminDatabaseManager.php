@@ -52,36 +52,6 @@ final class AdminDatabaseManager
         return $stmt->fetchAll();
     }
 
-    public function getTablePreview(string $table, int $limit): array
-    {
-        $table = $this->sanitizeTableName($table);
-        $limit = max(1, min($limit, (int) (defined('ADMIN_DB_MAX_ROWS') ? ADMIN_DB_MAX_ROWS : 200)));
-
-        if ($table === '') {
-            return [
-                'columns' => [],
-                'rows' => [],
-            ];
-        }
-
-        $stmt = $this->db->query('SELECT * FROM `' . $table . '` LIMIT ' . $limit);
-        $rows = $stmt->fetchAll();
-
-        $columns = [];
-        if (!empty($rows)) {
-            $columns = array_keys($rows[0]);
-        } else {
-            foreach ($this->getTableColumns($table) as $column) {
-                $columns[] = (string) ($column['Field'] ?? '');
-            }
-        }
-
-        return [
-            'columns' => $columns,
-            'rows' => $rows,
-        ];
-    }
-
     public function getPrimaryKey(string $table): ?string
     {
         $table = $this->sanitizeTableName($table);
@@ -187,7 +157,7 @@ final class AdminDatabaseManager
             return 0;
         }
 
-        [$columns, $params, $values] = $this->buildWritePayload($table, $payload, false);
+        [$columns, $values] = $this->buildWritePayload($table, $payload, false);
 
         if (empty($columns)) {
             return 0;
@@ -211,7 +181,7 @@ final class AdminDatabaseManager
             return 0;
         }
 
-        [$columns, $params, $values] = $this->buildWritePayload($table, $payload, true, $primaryKey);
+        [$columns, $values] = $this->buildWritePayload($table, $payload, true, $primaryKey);
 
         if (empty($columns)) {
             return 0;
@@ -385,7 +355,6 @@ final class AdminDatabaseManager
 
         $columns = [];
         $values = [];
-        $params = [];
 
         foreach ($payload as $key => $value) {
             $column = $this->sanitizeColumnName((string) $key);
@@ -418,11 +387,10 @@ final class AdminDatabaseManager
             }
 
             $columns[] = $column;
-            $params[] = $fieldMap[$column];
             $values[] = $this->normalizeValue($value, $fieldMap[$column], $table, $column, $forUpdate);
         }
 
-        return [$columns, $params, $values];
+        return [$columns, $values];
     }
 
     private function normalizeValue(mixed $value, array $column, string $table = '', string $columnName = '', bool $forUpdate = false): mixed
