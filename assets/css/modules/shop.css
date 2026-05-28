@@ -140,12 +140,3 @@
     background: linear-gradient(180deg, rgba(255,255,255,.95), rgba(246,243,255,.92));
 }
 
-@media (max-width: 900px) {
-    .shop-main {
-        padding: 20px;
-    }
-
-    .shop-topbar {
-        flex-direction: column;
-    }
-}
