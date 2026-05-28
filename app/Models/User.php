@@ -14,16 +14,25 @@ final class User
         $this->db = Connection::getConnection();
     }
 
-    public function create(string $name, string $email, string $password): bool
-    {
-        $sql = "INSERT INTO users (name, email, password) VALUES (:name, :email, :password)";
-        $stmt = $this->db->prepare($sql);
 
-        return $stmt->execute([
+    public function create(string $name, string $apellidos, string $email, string $password): bool
+    {
+        $hasApellidos = $this->hasColumn('users', 'apellidos');
+        if ($hasApellidos) {
+            $sql = "INSERT INTO users (name, apellidos, email, password) VALUES (:name, :apellidos, :email, :password)";
+        } else {
+            $sql = "INSERT INTO users (name, email, password) VALUES (:name, :email, :password)";
+        }
+        $stmt = $this->db->prepare($sql);
+        $params = [
             'name' => $name,
             'email' => $email,
             'password' => password_hash($password, PASSWORD_DEFAULT),
-        ]);
+        ];
+        if ($hasApellidos) {
+            $params['apellidos'] = $apellidos;
+        }
+        return $stmt->execute($params);
     }
 
     public function findByEmail(string $email): ?array
@@ -49,8 +58,11 @@ final class User
             ? "COALESCE(users.max_hp, {$baseHp}) AS max_hp"
             : "{$baseHp} AS max_hp";
 
+        $hasApellidos = $this->hasColumn('users', 'apellidos');
+        $apellidosSelect = $hasApellidos ? ', apellidos' : '';
+
         $sql = "SELECT id,
-                       name,
+                       name" . $apellidosSelect . ",
                        email,
                        avatar,
                        level,

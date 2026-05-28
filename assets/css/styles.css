@@ -680,8 +680,7 @@ a {
 }
 
 .xp-pill,
-.currency-pill,
-.profile-pill {
+.currency-pill {
     height: 42px;
     background: rgba(255,255,255,.95);
     border: 1px solid rgba(231, 237, 247, 0.8);
@@ -834,11 +833,13 @@ a {
 }
 
 .profile-pill {
-    min-height: 42px;
-    height: auto;
-    padding: 5px 8px 5px 5px;
-    gap: 10px;
-    background: rgba(255,255,255,.98);
+    background: rgba(255,255,255,.95);
+    border-radius: 14px;
+    box-shadow: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: .92rem;
 }
 
 .profile-pill .mini-avatar {

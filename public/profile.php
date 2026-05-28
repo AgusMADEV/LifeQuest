@@ -178,7 +178,7 @@ function badgeProgressLabel(array $badge): string
                         <div class="hero-avatar" aria-hidden="true"><?= mb_strtoupper(mb_substr($user['name'] ?? 'U', 0, 1)) ?></div>
                         <div>
                             <div class="identity-header">
-                                <h1><?= e(shortText($user['name'] ?? 'Usuario', 20)) ?></h1>
+                                <h1><?= e(shortText(trim(($user['name'] ?? '') . ' ' . ($user['apellidos'] ?? ''), ' '), 32)) ?></h1>
                                 <button class="edit-avatar" type="button" aria-label="Editar avatar">✎</button>
                             </div>
                             <div class="level-line">

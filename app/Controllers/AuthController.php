@@ -16,11 +16,12 @@ final class AuthController
     public function register(array $data): array
     {
         $name = trim($data['name'] ?? '');
+        $apellidos = trim($data['apellidos'] ?? '');
         $email = trim($data['email'] ?? '');
         $password = $data['password'] ?? '';
         $passwordConfirm = $data['password_confirm'] ?? '';
 
-        if ($name === '' || $email === '' || $password === '' || $passwordConfirm === '') {
+        if ($name === '' || $apellidos === '' || $email === '' || $password === '' || $passwordConfirm === '') {
             return ['success' => false, 'message' => 'Todos los campos son obligatorios.'];
         }
 
@@ -40,7 +41,7 @@ final class AuthController
             return ['success' => false, 'message' => 'Ya existe una cuenta con ese email.'];
         }
 
-        $created = $this->userModel->create($name, $email, $password);
+        $created = $this->userModel->create($name, $apellidos, $email, $password);
 
         if (!$created) {
             return ['success' => false, 'message' => 'No se pudo crear la cuenta.'];

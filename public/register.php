@@ -47,9 +47,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <?php endif; ?>
 
             <form method="POST" class="form">
+
                 <label>
                     Nombre
                     <input type="text" name="name" placeholder="Agustín" required>
+                </label>
+
+                <label>
+                    Apellidos
+                    <input type="text" name="apellidos" placeholder="Pérez García" required>
                 </label>
 
                 <label>
