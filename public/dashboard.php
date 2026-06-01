@@ -133,6 +133,9 @@ function shortText(string|null $value, int $limit = 42): string
     return mb_substr($value, 0, $limit - 1) . '…';
 }
 
+$stylesCssVersion = (int) (@filemtime(__DIR__ . '/../assets/css/styles.css') ?: time());
+$dashboardCssVersion = (int) (@filemtime(__DIR__ . '/../assets/css/modules/dashboard.css') ?: time());
+
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -140,8 +143,8 @@ function shortText(string|null $value, int $limit = 42): string
     <meta charset="UTF-8">
     <title>Inicio | <?= APP_NAME ?></title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="../assets/css/styles.css">
-    <link rel="stylesheet" href="../assets/css/modules/dashboard.css">
+    <link rel="stylesheet" href="../assets/css/styles.css?v=<?= $stylesCssVersion ?>">
+    <link rel="stylesheet" href="../assets/css/modules/dashboard.css?v=<?= $dashboardCssVersion ?>">
 </head>
 <body class="lifequest-app">
     <aside class="lq-sidebar">
@@ -183,7 +186,7 @@ function shortText(string|null $value, int $limit = 42): string
 
         <div class="lq-dashboard-grid">
             <section class="lq-center">
-                <section class="hero-panel">
+                <section class="hero-panel<?= $hpSystemEnabled ? ' hero-panel--with-hp' : '' ?>">
                     <div class="hero-avatar-wrap">
                         <div class="hero-glow"></div>
                         <div class="hero-avatar">
@@ -199,7 +202,39 @@ function shortText(string|null $value, int $limit = 42): string
 
                         <div class="hero-stats">
                             <article>
-                                <small>Nivel</small>
+                                <small>
+                                    <span class="hero-stat-icon" aria-hidden="true">
+                                        <svg width="24" height="24" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <defs>
+                                                <linearGradient id="heroLevelXpOuter" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+                                                    <stop stop-color="#3cffb0"/>
+                                                    <stop offset="1" stop-color="#0bb86c"/>
+                                                </linearGradient>
+                                                <linearGradient id="heroLevelXpInner" x1="8" y1="8" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+                                                    <stop stop-color="#2be98a"/>
+                                                    <stop offset="1" stop-color="#0e9e4a"/>
+                                                </linearGradient>
+                                                <radialGradient id="heroLevelXpGlow" cx="16" cy="16" r="16" gradientUnits="userSpaceOnUse">
+                                                    <stop stop-color="#baffc9" stop-opacity=".7"/>
+                                                    <stop offset="1" stop-color="#00ffb0" stop-opacity="0"/>
+                                                </radialGradient>
+                                            </defs>
+                                            <polygon points="16,3 29,11 29,25 16,31 3,25 3,11" fill="url(#heroLevelXpOuter)" stroke="#0bb86c" stroke-width="1.5"/>
+                                            <polygon points="16,6.5 26,13 26,23 16,28 6,23 6,13" fill="url(#heroLevelXpInner)"/>
+                                            <circle cx="16" cy="16" r="10" fill="url(#heroLevelXpGlow)"/>
+                                            <g>
+                                                <path d="M16 10V21" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
+                                                <path d="M16 10L12.5 14M16 10L19.5 14" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
+                                            </g>
+                                            <g opacity=".7">
+                                                <circle cx="11" cy="13" r="1.1" fill="#fff"/>
+                                                <circle cx="21" cy="12" r="0.7" fill="#fff"/>
+                                                <circle cx="19" cy="19" r="0.5" fill="#fff"/>
+                                            </g>
+                                        </svg>
+                                    </span>
+                                    <span class="hero-stat-label-text">Nivel</span>
+                                </small>
                                 <strong><?= $level ?></strong>
                                 <span>Camino a nivel <?= $level + 1 ?></span>
                                 <div class="mini-progress"><i style="width: <?= $xpPercent ?>%"></i></div>
@@ -207,27 +242,135 @@ function shortText(string|null $value, int $limit = 42): string
                             </article>
 
                             <article>
-                                <small>XP actual</small>
+                                <small>
+                                    <span class="hero-stat-icon" aria-hidden="true">
+                                        <svg width="24" height="24" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <defs>
+                                                <linearGradient id="heroCurrentXpOuter" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+                                                    <stop stop-color="#3cffb0"/>
+                                                    <stop offset="1" stop-color="#0bb86c"/>
+                                                </linearGradient>
+                                                <linearGradient id="heroCurrentXpInner" x1="8" y1="8" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+                                                    <stop stop-color="#2be98a"/>
+                                                    <stop offset="1" stop-color="#0e9e4a"/>
+                                                </linearGradient>
+                                                <radialGradient id="heroCurrentXpGlow" cx="16" cy="16" r="16" gradientUnits="userSpaceOnUse">
+                                                    <stop stop-color="#baffc9" stop-opacity=".7"/>
+                                                    <stop offset="1" stop-color="#00ffb0" stop-opacity="0"/>
+                                                </radialGradient>
+                                            </defs>
+                                            <polygon points="16,3 29,11 29,25 16,31 3,25 3,11" fill="url(#heroCurrentXpOuter)" stroke="#0bb86c" stroke-width="1.5"/>
+                                            <polygon points="16,6.5 26,13 26,23 16,28 6,23 6,13" fill="url(#heroCurrentXpInner)"/>
+                                            <circle cx="16" cy="16" r="10" fill="url(#heroCurrentXpGlow)"/>
+                                            <g>
+                                                <path d="M16 10V21" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
+                                                <path d="M16 10L12.5 14M16 10L19.5 14" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
+                                            </g>
+                                            <g opacity=".7">
+                                                <circle cx="11" cy="13" r="1.1" fill="#fff"/>
+                                                <circle cx="21" cy="12" r="0.7" fill="#fff"/>
+                                                <circle cx="19" cy="19" r="0.5" fill="#fff"/>
+                                            </g>
+                                        </svg>
+                                    </span>
+                                    <span class="hero-stat-label-text">XP actual</span>
+                                </small>
                                 <strong><?= number_format($xpCurrent, 0, ',', '.') ?></strong>
                                 <span><?= number_format(max(0, $xpNext - $xpCurrent), 0, ',', '.') ?> XP para subir</span>
                                 <div class="mini-progress"><i style="width: <?= $xpPercent ?>%"></i></div>
                             </article>
 
                             <article>
-                                <small>LifeCoins</small>
+                                <small>
+                                    <span class="hero-stat-icon" aria-hidden="true">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <defs>
+                                                <linearGradient id="heroCoinOuter" x1="4" y1="3" x2="20" y2="21" gradientUnits="userSpaceOnUse">
+                                                    <stop stop-color="#FFE27A"/>
+                                                    <stop offset="0.45" stop-color="#FFC93A"/>
+                                                    <stop offset="1" stop-color="#F59F00"/>
+                                                </linearGradient>
+                                                <linearGradient id="heroCoinInner" x1="7" y1="6" x2="17" y2="18" gradientUnits="userSpaceOnUse">
+                                                    <stop stop-color="#FFD85C"/>
+                                                    <stop offset="1" stop-color="#F08C00"/>
+                                                </linearGradient>
+                                                <filter id="heroCoinShadow" x="0" y="0" width="24" height="24" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+                                                    <feDropShadow dx="0" dy="1" stdDeviation="0.8" flood-color="#C76B00" flood-opacity="0.35"/>
+                                                </filter>
+                                            </defs>
+                                            <g filter="url(#heroCoinShadow)">
+                                                <circle cx="12" cy="12" r="10" fill="url(#heroCoinOuter)"/>
+                                                <circle cx="12" cy="12" r="8.1" fill="url(#heroCoinInner)" stroke="#FFB11A" stroke-width="0.9"/>
+                                                <path d="M5.8 7.5C7.1 5.4 9.34 4 11.9 4" stroke="#FFF4BF" stroke-width="1.4" stroke-linecap="round" opacity="0.9"/>
+                                                <path d="M12.1 7.1C10.8 7.1 9.9 7.75 9.9 8.72C9.9 9.73 10.87 10.2 12.22 10.58C13.64 10.98 14.4 11.47 14.4 12.58C14.4 13.73 13.42 14.55 12 14.69V15.6C12 15.93 11.73 16.2 11.4 16.2C11.07 16.2 10.8 15.93 10.8 15.6V14.63C9.89 14.48 9.04 13.99 8.49 13.25C8.29 12.98 8.34 12.61 8.61 12.42C8.87 12.22 9.25 12.27 9.44 12.54C9.91 13.18 10.69 13.56 11.47 13.56H12C13 13.56 13.2 12.98 13.2 12.62C13.2 12.05 12.87 11.72 11.9 11.44C10.43 11.02 8.7 10.4 8.7 8.77C8.7 7.43 9.69 6.47 10.8 6.22V5.4C10.8 5.07 11.07 4.8 11.4 4.8C11.73 4.8 12 5.07 12 5.4V6.15C12.78 6.21 13.47 6.48 14.07 6.95C14.33 7.15 14.37 7.53 14.17 7.79C13.97 8.05 13.59 8.09 13.33 7.89C12.96 7.6 12.52 7.43 12.1 7.1Z" fill="#FFF9EA"/>
+                                            </g>
+                                        </svg>
+                                    </span>
+                                    <span class="hero-stat-label-text">LifeCoins</span>
+                                </small>
                                 <strong><?= number_format($points, 0, ',', '.') ?></strong>
                                 <span>Úsalos en la tienda</span>
                             </article>
 
                             <article>
-                                <small>Gemas</small>
+                                <small>
+                                    <span class="hero-stat-icon" aria-hidden="true">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <defs>
+                                                <linearGradient id="heroGemTopLeft" x1="4.5" y1="5" x2="11" y2="13" gradientUnits="userSpaceOnUse">
+                                                    <stop stop-color="#D8B8FF"/>
+                                                    <stop offset="1" stop-color="#A45CFF"/>
+                                                </linearGradient>
+                                                <linearGradient id="heroGemTopCenter" x1="12" y1="4" x2="12" y2="13" gradientUnits="userSpaceOnUse">
+                                                    <stop stop-color="#C99CFF"/>
+                                                    <stop offset="1" stop-color="#A66BFF"/>
+                                                </linearGradient>
+                                                <linearGradient id="heroGemTopRight" x1="18.5" y1="5" x2="13" y2="13" gradientUnits="userSpaceOnUse">
+                                                    <stop stop-color="#9B4DFF"/>
+                                                    <stop offset="1" stop-color="#7B2CF3"/>
+                                                </linearGradient>
+                                                <linearGradient id="heroGemBottomLeft" x1="4.5" y1="12" x2="12" y2="22" gradientUnits="userSpaceOnUse">
+                                                    <stop stop-color="#8B3FFF"/>
+                                                    <stop offset="1" stop-color="#6622D7"/>
+                                                </linearGradient>
+                                                <linearGradient id="heroGemBottomCenter" x1="12" y1="12" x2="12" y2="23" gradientUnits="userSpaceOnUse">
+                                                    <stop stop-color="#BC84FF"/>
+                                                    <stop offset="1" stop-color="#7A35EA"/>
+                                                </linearGradient>
+                                                <linearGradient id="heroGemBottomRight" x1="19.5" y1="12" x2="12" y2="22" gradientUnits="userSpaceOnUse">
+                                                    <stop stop-color="#6C1DE5"/>
+                                                    <stop offset="1" stop-color="#4F0FC0"/>
+                                                </linearGradient>
+                                                <filter id="heroGemShadow" x="1" y="2" width="22" height="21" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+                                                    <feDropShadow dx="0" dy="1" stdDeviation="0.8" flood-color="#4E17A8" flood-opacity="0.28"/>
+                                                </filter>
+                                            </defs>
+                                            <g filter="url(#heroGemShadow)">
+                                                <path d="M6.2 5H17.8L21 9.1L12 20L3 9.1L6.2 5Z" fill="#9D5CFF"/>
+                                                <path d="M6.2 5L3 9.1H8.1L12 5H6.2Z" fill="url(#heroGemTopLeft)"/>
+                                                <path d="M12 5L8.1 9.1H15.9L12 5Z" fill="url(#heroGemTopCenter)"/>
+                                                <path d="M17.8 5L12 5L15.9 9.1H21L17.8 5Z" fill="url(#heroGemTopRight)"/>
+                                                <path d="M3 9.1H8.1L12 20L3 9.1Z" fill="url(#heroGemBottomLeft)"/>
+                                                <path d="M8.1 9.1H15.9L12 20L8.1 9.1Z" fill="url(#heroGemBottomCenter)"/>
+                                                <path d="M15.9 9.1H21L12 20L15.9 9.1Z" fill="url(#heroGemBottomRight)"/>
+                                                <path d="M6.2 5H17.8" stroke="#C794FF" stroke-width="0.7" stroke-linecap="round" opacity="0.9"/>
+                                                <path d="M8.1 9.1H15.9" stroke="#C48AFF" stroke-width="0.7" stroke-linecap="round" opacity="0.9"/>
+                                                <path d="M6.7 5.8L8.1 9.1L12 5.2" stroke="#F6ECFF" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
+                                            </g>
+                                        </svg>
+                                    </span>
+                                    <span class="hero-stat-label-text">Gemas</span>
+                                </small>
                                 <strong><?= $gems ?></strong>
                                 <span>Para objetos únicos</span>
                             </article>
 
                             <?php if ($hpSystemEnabled): ?>
                                 <article>
-                                    <small>Vida</small>
+                                    <small>
+                                        <span class="hero-stat-icon hero-stat-icon--hp" aria-hidden="true">♥</span>
+                                        <span class="hero-stat-label-text">Vida</span>
+                                    </small>
                                     <strong><?= number_format($hp, 0, ',', '.') ?></strong>
                                     <span><?= number_format($maxHp, 0, ',', '.') ?> HP máximos</span>
                                     <div class="mini-progress"><i style="width: <?= $hpPercent ?>%"></i></div>

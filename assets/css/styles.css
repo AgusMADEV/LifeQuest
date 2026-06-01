@@ -32,9 +32,8 @@ body {
     margin: 0;
     font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
     background:
-        radial-gradient(circle at 94% 4%, rgba(22, 199, 154, .16), transparent 16rem),
-        radial-gradient(circle at 4% 4%, rgba(139, 92, 246, .12), transparent 15rem),
-        linear-gradient(180deg, #fbfcff 0%, var(--bg-main) 100%);
+        radial-gradient(circle at 94% 4%, var(--line), transparent 16rem),
+        linear-gradient(180deg, #fbfcff 0%, var(--surface) 100%);
     color: var(--text);
 }
 
@@ -114,7 +113,7 @@ a {
 .form textarea {
     width: 100%;
     border: 1px solid var(--line);
-    background: #f8fbff;
+    background: var(--surface-soft);
     border-radius: 16px;
     padding: 14px 15px;
     outline: 0;
@@ -286,15 +285,15 @@ a {
 
 .lq-nav {
     display: grid;
-    gap: 12px;
+    gap: 8px;
 }
 
 .lq-nav a {
     display: flex;
-    gap: 12px;
+    gap: 10px;
     align-items: center;
-    min-height: 52px;
-    padding: 12px 14px;
+    min-height: 44px;
+    padding: 9px 12px;
     border-radius: 14px;
     color: #4e5f8a;
     font-weight: 700;
@@ -302,20 +301,20 @@ a {
 }
 
 .lq-nav a span {
-    width: 24px;
+    width: 28px;
     text-align: center;
 }
 
 .lq-nav .nav-icon {
-    width: 24px;
-    height: 24px;
+    width: 28px;
+    height: 28px;
     display: grid;
     place-items: center;
 }
 
 .lq-nav .nav-icon svg {
-    width: 20px;
-    height: 20px;
+    width: 24px;
+    height: 24px;
 }
 
 .lq-nav .icon-outline {
