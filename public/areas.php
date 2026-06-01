@@ -83,10 +83,14 @@ function shortText(string|null $value, int $limit = 42): string
         <?php require __DIR__ . '/partials/sidebar_nav.php'; ?>
 
         <section class="lq-sidebar-card streak">
-            <div class="streak-icon">🔥</div>
-            <p>Racha actual</p>
-            <strong><?= (int)($user['current_streak'] ?? 0) ?> días</strong>
-            <small>¡Sigue así!</small>
+            <div class="streak-summary">
+                <div class="streak-icon">🔥</div>
+                <div class="streak-copy">
+                    <p>Racha actual</p>
+                    <strong><?= (int)($user['current_streak'] ?? 0) ?> días</strong>
+                    <small>¡Sigue así!</small>
+                </div>
+            </div>
         </section>
 
         <?php require __DIR__ . '/partials/sidebar_user_mini.php'; ?>

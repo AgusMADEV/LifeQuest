@@ -371,34 +371,63 @@ a {
 }
 
 .lq-sidebar-card.streak {
-    text-align: center;
+    display: grid;
+    gap: 14px;
+    text-align: left;
+}
+
+.streak-summary {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.streak-copy {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
 }
 
 .streak-icon {
-    width: 52px;
-    height: 52px;
-    border-radius: 18px;
-    background: #fff0f0;
+    width: 50px;
+    height: 50px;
+    border-radius: 16px;
+    background: linear-gradient(180deg, #fff7ee, #fff0df);
     display: grid;
     place-items: center;
-    margin: 0 auto 8px;
-    font-size: 1.8rem;
+    margin: 0;
+    font-size: 1.75rem;
+    box-shadow: inset 0 0 0 1px rgba(255, 171, 120, .18);
 }
 
 .lq-sidebar-card p {
     color: var(--muted);
-    margin: 0 0 8px;
+    margin: 0;
     line-height: 1.5;
 }
 
 .lq-sidebar-card strong {
-    font-size: 1.65rem;
+    font-size: 1.9rem;
+    line-height: 1;
+    letter-spacing: -.04em;
 }
 
 .lq-sidebar-card small {
     display: block;
     color: var(--muted);
-    margin-top: 4px;
+    margin-top: 0;
+}
+
+.streak-copy p {
+    font-size: .88rem;
+    font-weight: 800;
+    color: #5d6988;
+}
+
+.streak-copy small {
+    font-size: .9rem;
+    font-weight: 800;
+    color: #7f8aa7;
 }
 
 .week-dots,
@@ -432,6 +461,12 @@ a {
 .week-stack {
     gap: 7px;
     align-items: flex-start;
+}
+
+.lq-sidebar-card.streak .week-dots.week-stack {
+    margin-top: 0;
+    padding-top: 14px;
+    justify-content: center;
 }
 
 .week-day {

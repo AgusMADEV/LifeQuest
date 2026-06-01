@@ -154,10 +154,14 @@ $heroAvatarSrc = '../referencias/avatares/' . rawurlencode($heroAvatarFile);
         <?php require __DIR__ . '/partials/sidebar_nav.php'; ?>
 
         <section class="lq-sidebar-card streak">
-            <div class="streak-icon">🔥</div>
-            <p>Racha actual</p>
-            <strong><?= $currentStreak ?> días</strong>
-            <small>¡Sigue así!</small>
+            <div class="streak-summary">
+                <div class="streak-icon">🔥</div>
+                <div class="streak-copy">
+                    <p>Racha actual</p>
+                    <strong><?= $currentStreak ?> días</strong>
+                    <small>¡Sigue así!</small>
+                </div>
+            </div>
             <div class="week-dots week-stack">
                 <?php foreach ($weekActivity as $day): ?>
                     <div class="week-day" title="<?= e($day['date']) ?>">
@@ -546,15 +550,59 @@ $heroAvatarSrc = '../referencias/avatares/' . rawurlencode($heroAvatarFile);
 
             <aside class="lq-right">
                 <section class="lq-card objective-card">
-                    <div class="lq-card-header">
-                        <h2>Meta diario</h2>
+                    <div class="objective-card-main">
+                        <div class="objective-copy">
+                            <div class="objective-title-row">
+                                <span class="objective-title-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 62 62" fill="none" xmlns="http://www.w3.org/2000/svg" focusable="false">
+                                        <circle cx="29" cy="35" r="24" stroke="currentColor" stroke-width="4.5"/>
+                                        <circle cx="29" cy="35" r="14" stroke="currentColor" stroke-width="4.5"/>
+                                        <circle cx="29" cy="35" r="5.5" fill="currentColor"/>
+                                        <path d="M33 31L45 19" stroke="currentColor" stroke-width="4.5" stroke-linecap="round"/>
+                                        <path d="M44 11V19H52" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                        <path d="M45 19L53 11" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                </span>
+                                <h2>Objetivo diario</h2>
+                            </div>
+                            <p>Completa <?= $dailyTotal ?> misiones al día</p>
+                        </div>
+                        <div class="circle-progress" style="--value: <?= $objectivePercent ?>;">
+                            <strong><?= $dailyCompleted ?><span>/<?= $dailyTotal ?></span></strong>
+                            <span>misiones</span>
+                        </div>
                     </div>
-                    <p>Completa <?= $dailyTotal ?> misiones al día</p>
-                    <div class="circle-progress" style="--value: <?= $objectivePercent ?>;">
-                        <strong><?= $dailyCompleted ?>/<?= $dailyTotal ?></strong>
-                        <span>misiones</span>
-                    </div>
-                    <small>✦ +200 XP</small>
+                    <small>
+                        <span aria-hidden="true">
+                            <svg width="20" height="20" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                <defs>
+                                    <linearGradient id="xpHexOuter" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+                                        <stop stop-color="#3cffb0"/>
+                                        <stop offset="1" stop-color="#0bb86c"/>
+                                    </linearGradient>
+                                    <linearGradient id="xpHexInner" x1="8" y1="8" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+                                        <stop stop-color="#2be98a"/>
+                                        <stop offset="1" stop-color="#0e9e4a"/>
+                                    </linearGradient>
+                                    <radialGradient id="xpGlow" cx="16" cy="16" r="16" gradientUnits="userSpaceOnUse">
+                                        <stop stop-color="#baffc9" stop-opacity=".7"/>
+                                        <stop offset="1" stop-color="#00ffb0" stop-opacity="0"/>
+                                    </radialGradient>
+                                </defs>
+                                <polygon points="16,3 29,11 29,25 16,31 3,25 3,11" fill="url(#xpHexOuter)" stroke="#0bb86c" stroke-width="1.5"/>
+                                <polygon points="16,6.5 26,13 26,23 16,28 6,23 6,13" fill="url(#xpHexInner)"/>
+                                <circle cx="16" cy="16" r="10" fill="url(#xpGlow)"/>
+                                <g>
+                                    <path d="M16 10V21" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
+                                    <path d="M16 10L12.5 14M16 10L19.5 14" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
+                                </g>
+                                <g opacity=".7">
+                                    <circle cx="11" cy="13" r="1.1" fill="#fff"/>
+                                    <circle cx="21" cy="12" r="0.7" fill="#fff"/>
+                                    <circle cx="19" cy="19" r="0.5" fill="#fff"/>
+                                </g>
+                            </svg>
+                    </span> +200 XP</small>
                 </section>
 
                 <section class="lq-card upcoming-card">

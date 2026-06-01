@@ -14,7 +14,7 @@
 .lq-center {
     display: flex;
 	flex-direction: column;
-    gap: 22px;
+    gap: 15px;
     min-width: 0;
 }
 
@@ -110,6 +110,7 @@
 .hero-content p {
     margin: 0;
     color: #53607f;
+    font-size: .85rem;
 }
 
 .hero-stats {
@@ -582,44 +583,109 @@
 
 
 .objective-card {
-    min-height: 210px;
+    min-height: 178px;
     position: relative;
+    padding: 18px 20px 16px;
+    display: grid;
+}
+
+.objective-card-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 126px;
+    align-items: start;
+    gap: 10px;
+}
+
+.objective-copy {
+    display: grid;
+    gap: 14px;
+    min-width: 0;
+}
+
+.objective-title-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.objective-title-icon {
+    width: 24px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #25314f;
+    flex: 0 0 24px;
+}
+
+.objective-title-icon svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.objective-card h2 {
+    margin: 0;
+    font-size: 1.05rem;
+    letter-spacing: -.045em;
+    color: #1e2745;
 }
 
 .objective-card p {
-    color: var(--muted);
-    margin: -4px 0 10px;
+    color: #5c6887;
+    margin: 0;
+    font-size: .75rem;
+    line-height: 1.35;
 }
 
 .objective-card > small {
-    color: #087f5b;
-    font-weight: 900;
+    color: #14b57c;
+    font-weight: 700;
+    font-size: .90rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
 }
 
 .circle-progress {
     --value: 0;
-    width: 138px;
-    height: 138px;
+    width: 116px;
+    height: 116px;
     border-radius: 50%;
     margin-left: auto;
-    margin-top: -8px;
-    display: grid;
+    margin-top: 13px;
+    display: flex;
+    flex-direction: column;
     place-items: center;
-    background:
-        radial-gradient(circle, #fff 57%, transparent 58%),
-        conic-gradient(var(--primary) calc(var(--value) * 1%), #edf2fb 0);
-    box-shadow: inset 0 0 0 1px var(--line);
+    flex-wrap: nowrap;
+    justify-content: center;
+    align-items: center;
+    background: radial-gradient(circle, #fff 62%, transparent 63%), conic-gradient(#1fbe82 calc(var(--value) * 1%), #edf2fb 0);
+    box-shadow: inset 0 0 0 1px rgba(231, 237, 247, .95);
+    gap: 8px;
 }
 
 .circle-progress strong {
-    font-size: 1.6rem;
+    display: block;
+    font-size: 2rem;
+    line-height: .95;
+    letter-spacing: -.05em;
+    color: #1e2745;
+}
+
+.circle-progress strong span {
+    display: inline;
+    font-size: .56em;
+    color: #1e2745;
+    font-weight: 700;
+    vertical-align: .08em;
 }
 
 .circle-progress span {
     display: block;
-    color: var(--muted);
-    font-size: .82rem;
-    margin-top: -24px;
+    color: #6b7898;
+    font-size: .75rem;
+    text-align: center;
 }
 
 .upcoming-card {

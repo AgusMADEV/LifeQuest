@@ -337,10 +337,14 @@ function shortText(string|null $value, int $limit = 42): string
         <?php require __DIR__ . '/partials/sidebar_nav.php'; ?>
 
         <section class="lq-sidebar-card streak">
-            <div class="streak-icon">🔥</div>
-            <p>Racha actual</p>
-            <strong><?= $currentStreak ?> dias</strong>
-            <small>Tu evolucion continua.</small>
+            <div class="streak-summary">
+                <div class="streak-icon">🔥</div>
+                <div class="streak-copy">
+                    <p>Racha actual</p>
+                    <strong><?= $currentStreak ?> dias</strong>
+                    <small>Tu evolucion continua.</small>
+                </div>
+            </div>
             <div class="week-dots week-stack">
                 <?php foreach ($weekActivity as $day): ?>
                     <div class="week-day" title="<?= e($day['date']) ?>">
