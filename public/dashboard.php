@@ -155,7 +155,9 @@ $heroAvatarSrc = '../referencias/avatares/' . rawurlencode($heroAvatarFile);
 
         <section class="lq-sidebar-card streak">
             <div class="streak-summary">
-                <div class="streak-icon">🔥</div>
+                <div class="streak-icon" aria-hidden="true">
+                    <img src="../icons/flame.png" alt="" class="streak-flame-image">
+                </div>
                 <div class="streak-copy">
                     <p>Racha actual</p>
                     <strong><?= $currentStreak ?> días</strong>
@@ -178,7 +180,9 @@ $heroAvatarSrc = '../referencias/avatares/' . rawurlencode($heroAvatarFile);
                 <p>Completa misiones y consigue recompensas exclusivas.</p>
                 <a href="shop.php" class="mini-btn">Ver tienda</a>
             </div>
-            <span class="bag">🎒</span>
+            <span class="bag" aria-hidden="true">
+                <img src="../icons/bag.png" alt="" class="bag-image">
+            </span>
         </section>
 
         <?php require __DIR__ . '/partials/sidebar_user_mini.php'; ?>
@@ -384,7 +388,9 @@ $heroAvatarSrc = '../referencias/avatares/' . rawurlencode($heroAvatarFile);
 
                         <div class="hero-bottom">
                             <div class="streak-row">
-                                <span>🔥</span>
+                                <span class="streak-row-icon" aria-hidden="true">
+                                    <img src="../icons/flame.png" alt="" class="streak-flame-image">
+                                </span>
                                 <div>
                                     <small>Racha actual</small>
                                     <strong><?= $currentStreak ?> días</strong>

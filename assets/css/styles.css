@@ -57,14 +57,17 @@ a {
 .btn,
 .mini-btn {
     border: none;
-    border-radius: 999px;
+    border-radius: 15px;
     padding: 13px 20px;
-    font-weight: 800;
+    font-weight: 500;
+    font-size: .68rem;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     transition: .18s ease;
+    height: 35px;
+    width: 93px;
 }
 
 .btn-primary,
@@ -244,7 +247,7 @@ a {
 
 .lq-sidebar {
     min-height: 100vh;
-    padding: 34px 26px;
+    padding: 34px 46px 34px 26px;;
     border-right: 1px solid var(--line);
     background: rgba(255,255,255,.74);
     backdrop-filter: blur(26px);
@@ -367,12 +370,11 @@ a {
 }
 
 .lq-sidebar-card {
-    padding: 22px;
+    padding: 15px;
 }
 
 .lq-sidebar-card.streak {
     display: grid;
-    gap: 14px;
     text-align: left;
 }
 
@@ -391,23 +393,29 @@ a {
 .streak-icon {
     width: 50px;
     height: 50px;
-    border-radius: 16px;
-    background: linear-gradient(180deg, #fff7ee, #fff0df);
     display: grid;
     place-items: center;
     margin: 0;
     font-size: 1.75rem;
-    box-shadow: inset 0 0 0 1px rgba(255, 171, 120, .18);
+}
+
+.streak-flame-image {
+    display: block;
+    width: 45px;
+    height: 45px;
+    object-fit: contain;
 }
 
 .lq-sidebar-card p {
     color: var(--muted);
     margin: 0;
+    font-size: .70rem;
     line-height: 1.5;
 }
 
 .lq-sidebar-card strong {
     font-size: 1.9rem;
+    font-weight: 600;
     line-height: 1;
     letter-spacing: -.04em;
 }
@@ -419,14 +427,14 @@ a {
 }
 
 .streak-copy p {
-    font-size: .88rem;
-    font-weight: 800;
+    font-size: .75rem;
+    font-weight: 700;
     color: #5d6988;
 }
 
 .streak-copy small {
-    font-size: .9rem;
-    font-weight: 800;
+    font-size: .7rem;
+    font-weight: 600;
     color: #7f8aa7;
 }
 
@@ -513,12 +521,11 @@ a {
 }
 
 .week-mini.week-stack {
-    gap: 6px;
+    gap: 20px;
 }
 
 .streak-row .week-stack {
-    margin-top: 0;
-    margin-left: auto;
+    margin: 0px 50px;
 }
 
 .unlock {
@@ -528,14 +535,32 @@ a {
     background: linear-gradient(140deg, #fff 0%, #f5f0ff 100%);
     overflow: hidden;
 }
-
+.unlock div{
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
 .unlock strong {
     font-size: 1rem;
+    font-weight: 600;
 }
 
 .unlock .bag {
-    font-size: 3rem;
-    filter: drop-shadow(0 14px 18px rgba(80,60,180,.18));
+    width: 25%;
+    position: absolute;
+    display: inline-flex;
+    align-items: flex-end;
+    justify-content: center;
+    filter: drop-shadow(0px 7px 5px rgba(25, 21, 49, 0.507));
+    left: 63%;
+    top: 58%;
+}
+
+.unlock .bag-image {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: contain;
 }
 
 .lq-user-mini {

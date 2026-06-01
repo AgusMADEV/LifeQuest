@@ -149,7 +149,9 @@ function badgeProgressLabel(array $badge): string
 
         <section class="lq-sidebar-card streak">
             <div class="streak-summary">
-                <div class="streak-icon">🔥</div>
+                <div class="streak-icon" aria-hidden="true">
+                    <img src="../icons/flame.png" alt="" class="streak-flame-image">
+                </div>
                 <div class="streak-copy">
                     <p>Racha actual</p>
                     <strong><?= $currentStreak ?> días</strong>
