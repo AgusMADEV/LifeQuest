@@ -135,6 +135,8 @@ function shortText(string|null $value, int $limit = 42): string
 
 $stylesCssVersion = (int) (@filemtime(__DIR__ . '/../assets/css/styles.css') ?: time());
 $dashboardCssVersion = (int) (@filemtime(__DIR__ . '/../assets/css/modules/dashboard.css') ?: time());
+$heroAvatarFile = 'ChatGPT Image 1 jun 2026, 08_22_51.png';
+$heroAvatarSrc = '../referencias/avatares/' . rawurlencode($heroAvatarFile);
 
 ?>
 <!DOCTYPE html>
@@ -190,9 +192,7 @@ $dashboardCssVersion = (int) (@filemtime(__DIR__ . '/../assets/css/modules/dashb
                     <div class="hero-avatar-wrap">
                         <div class="hero-glow"></div>
                         <div class="hero-avatar">
-                            <div class="avatar-hair"></div>
-                            <div class="avatar-face">😊</div>
-                            <div class="avatar-body">LQ</div>
+                            <img src="<?= e($heroAvatarSrc) ?>" alt="Avatar de <?= e($user['name']) ?>" class="hero-avatar-image">
                         </div>
                     </div>
 
