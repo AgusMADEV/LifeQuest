@@ -61,6 +61,8 @@ $topbarFilledHearts = max(0, min($topbarHeartSlots, $topbarFilledHearts));
 if ($topbarHp > 0 && $topbarFilledHearts === 0) {
     $topbarFilledHearts = 1;
 }
+
+$topbarAvatarSrc = AvatarLibrary::getAvatarSrc($user['avatar'] ?? null);
 ?>
 <header class="lq-topbar">
     <div class="topbar-left">
@@ -212,7 +214,13 @@ if ($topbarHp > 0 && $topbarFilledHearts === 0) {
         </button>
 
         <div class="profile-pill">
-            <div class="mini-avatar image-like"><?= $topbarUserInitial ?></div>
+            <div class="mini-avatar image-like">
+                <?php if ($topbarAvatarSrc !== null): ?>
+                    <img src="<?= $topbarEscape($topbarAvatarSrc) ?>" alt="" class="mini-avatar-image">
+                <?php else: ?>
+                    <?= $topbarUserInitial ?>
+                <?php endif; ?>
+            </div>
             <div class="profile-copy">
                 <div class="profile-greeting">
                     <strong>¡Hola, <?= $topbarEscape($topbarDisplayName) ?>!</strong>

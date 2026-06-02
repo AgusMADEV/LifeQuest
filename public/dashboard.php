@@ -165,13 +165,15 @@ function areaIconMaskUrl(string|null $iconValue): ?string
         return null;
     }
 
-    $maskedPath = __DIR__ . '/../icons/areas_masked/' . $iconValue;
-    if (is_file($maskedPath)) {
-        return '../icons/areas_masked/' . rawurlencode($iconValue);
+    $baseName = pathinfo($iconValue, PATHINFO_FILENAME);
+    $svgFile = $baseName . '.svg';
+    $svgPath = __DIR__ . '/../icons/areas_svg/' . $svgFile;
+    if (is_file($svgPath)) {
+        return '../icons/areas_svg/' . rawurlencode($svgFile);
     }
 
-    $originalPath = __DIR__ . '/../icons/areas/' . $iconValue;
-    if (is_file($originalPath)) {
+    $pngPath = __DIR__ . '/../icons/areas/' . $iconValue;
+    if (is_file($pngPath)) {
         return '../icons/areas/' . rawurlencode($iconValue);
     }
 
@@ -237,8 +239,7 @@ function hexToRgba(string $hex, float $alpha = 1.0): string
 
 $stylesCssVersion = (int) (@filemtime(__DIR__ . '/../assets/css/styles.css') ?: time());
 $dashboardCssVersion = (int) (@filemtime(__DIR__ . '/../assets/css/modules/dashboard.css') ?: time());
-$heroAvatarFile = 'ChatGPT Image 1 jun 2026, 08_22_51.png';
-$heroAvatarSrc = '../referencias/avatares/' . rawurlencode($heroAvatarFile);
+$heroAvatarSrc = AvatarLibrary::getAvatarSrc($user['avatar'] ?? null);
 
 ?>
 <!DOCTYPE html>
@@ -302,7 +303,11 @@ $heroAvatarSrc = '../referencias/avatares/' . rawurlencode($heroAvatarFile);
                     <div class="hero-avatar-wrap">
                         <div class="hero-glow"></div>
                         <div class="hero-avatar">
-                            <img src="<?= e($heroAvatarSrc) ?>" alt="Avatar de <?= e($user['name']) ?>" class="hero-avatar-image">
+                            <?php if ($heroAvatarSrc !== null): ?>
+                                <img src="<?= e($heroAvatarSrc) ?>" alt="Avatar de <?= e($user['name']) ?>" class="hero-avatar-image">
+                            <?php else: ?>
+                                <span class="hero-avatar-fallback"><?= e(mb_strtoupper(mb_substr($user['name'] ?? 'U', 0, 1))) ?></span>
+                            <?php endif; ?>
                         </div>
                     </div>
 
@@ -790,8 +795,13 @@ $heroAvatarSrc = '../referencias/avatares/' . rawurlencode($heroAvatarFile);
                         <?php else: ?>
                             <div class="area-levels-list">
                                 <?php foreach ($areaLevels as $areaLevel): ?>
+                                    <?php $areaLevelIcon = areaIconMaskUrl($areaLevel['icon'] ?? null); ?>
                                     <article class="area-level-item">
-                                        <span class="area-level-icon" aria-hidden="true"><?= e($areaLevel['icon']) ?></span>
+                                        <?php if ($areaLevelIcon): ?>
+                                            <span class="area-level-icon area-level-icon-mask" aria-hidden="true" style="-webkit-mask-image: url('<?= e($areaLevelIcon) ?>'); mask-image: url('<?= e($areaLevelIcon) ?>');"></span>
+                                        <?php else: ?>
+                                            <span class="area-level-icon" aria-hidden="true"><?= e($areaLevel['icon']) ?></span>
+                                        <?php endif; ?>
                                         <div>
                                             <strong><?= e(shortText($areaLevel['name'], 20)) ?> · Lv <?= (int) $areaLevel['level'] ?></strong>
                                             <div class="mini-progress"><i style="width: <?= (int) $areaLevel['level_percent'] ?>%"></i></div>

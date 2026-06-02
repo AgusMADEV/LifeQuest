@@ -325,6 +325,29 @@ function goalStatusLabel(string $status): string
     return ['not_started' => 'No iniciada', 'in_progress' => 'En progreso', 'paused' => 'Pausada', 'completed' => 'Completada', 'cancelled' => 'Cancelada'][$status] ?? $status;
 }
 
+function areaIconMaskUrl(string|null $iconValue): ?string
+{
+    $iconValue = trim((string) $iconValue);
+
+    if ($iconValue === '') {
+        return null;
+    }
+
+    $baseName = pathinfo($iconValue, PATHINFO_FILENAME);
+    $svgFile = $baseName . '.svg';
+    $svgPath = __DIR__ . '/../icons/areas_svg/' . $svgFile;
+    if (is_file($svgPath)) {
+        return '../icons/areas_svg/' . rawurlencode($svgFile);
+    }
+
+    $pngPath = __DIR__ . '/../icons/areas/' . $iconValue;
+    if (is_file($pngPath)) {
+        return '../icons/areas/' . rawurlencode($iconValue);
+    }
+
+    return null;
+}
+
 function projectStatusLabel(string $status): string
 {
     return ['active' => 'Activa', 'completed' => 'Completada', 'paused' => 'Pausada', 'cancelled' => 'Cancelada'][$status] ?? $status;
@@ -408,27 +431,6 @@ function csrfField(): string
 function formValue(array $formData, string $key, mixed $fallback = ''): mixed
 {
     return array_key_exists($key, $formData) ? $formData[$key] : $fallback;
-}
-
-function areaIconMaskUrl(string|null $iconValue): ?string
-{
-    $iconValue = trim((string) $iconValue);
-
-    if ($iconValue === '') {
-        return null;
-    }
-
-    $maskedPath = __DIR__ . '/../icons/areas_masked/' . $iconValue;
-    if (is_file($maskedPath)) {
-        return '../icons/areas_masked/' . rawurlencode($iconValue);
-    }
-
-    $originalPath = __DIR__ . '/../icons/areas/' . $iconValue;
-    if (is_file($originalPath)) {
-        return '../icons/areas/' . rawurlencode($iconValue);
-    }
-
-    return null;
 }
 
 function fieldError(array $errors, string $key): string

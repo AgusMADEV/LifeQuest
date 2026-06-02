@@ -101,12 +101,17 @@ function areaIconOptions(): array
 
     foreach ($iconFiles as $iconFile) {
         $fileName = basename($iconFile);
+        $svgFile = pathinfo($fileName, PATHINFO_FILENAME) . '.svg';
+        $svgUrl = '../icons/areas_svg/' . rawurlencode($svgFile);
+        $previewUrl = is_file(__DIR__ . '/../icons/areas_svg/' . $svgFile)
+            ? $svgUrl
+            : '../icons/areas/' . rawurlencode($fileName);
 
         $options[] = [
             'value' => $fileName,
             'label' => $labelMap[$fileName] ?? 'Icono',
-            'preview' => '../icons/areas/' . rawurlencode($fileName),
-            'masked' => '../icons/areas_masked/' . rawurlencode($fileName),
+            'preview' => $previewUrl,
+            'masked' => $previewUrl,
         ];
     }
 
@@ -119,6 +124,13 @@ function areaIconMaskedPath(string|null $iconValue, array $areaIconByValue): ?st
 
     if ($iconValue === '' || !isset($areaIconByValue[$iconValue])) {
         return null;
+    }
+
+    $baseName = pathinfo($iconValue, PATHINFO_FILENAME);
+    $svgFile = $baseName . '.svg';
+    $svgPath = __DIR__ . '/../icons/areas_svg/' . $svgFile;
+    if (is_file($svgPath)) {
+        return '../icons/areas_svg/' . rawurlencode($svgFile);
     }
 
     return $areaIconByValue[$iconValue]['masked'] ?? null;

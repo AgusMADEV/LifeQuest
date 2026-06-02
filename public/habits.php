@@ -262,7 +262,14 @@ function habitEmojiByIndex(int $index): string
         </section>
 
         <section class="lq-sidebar-card habit-side-user">
-            <div class="mini-avatar"><?= mb_strtoupper(mb_substr($user['name'] ?? 'U', 0, 1)) ?></div>
+            <?php $habitAvatarSrc = AvatarLibrary::getAvatarSrc($user['avatar'] ?? null); ?>
+            <div class="mini-avatar">
+                <?php if ($habitAvatarSrc !== null): ?>
+                    <img src="<?= e($habitAvatarSrc) ?>" alt="" class="mini-avatar-image">
+                <?php else: ?>
+                    <?= mb_strtoupper(mb_substr($user['name'] ?? 'U', 0, 1)) ?>
+                <?php endif; ?>
+            </div>
             <div>
                 <strong>¡Hola, <?= e(shortText($user['name'] ?? 'Usuario', 12)) ?>!</strong>
                 <small>Nivel <?= $level ?></small>

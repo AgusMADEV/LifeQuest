@@ -19,6 +19,44 @@ if (!$user) {
     exit;
 }
 
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
+$avatarOptions = AvatarLibrary::getOptions();
+$selectedAvatarFile = AvatarLibrary::normalizeAvatar($user['avatar'] ?? null) ?? AvatarLibrary::getDefaultAvatarFile();
+$selectedAvatarSrc = AvatarLibrary::getAvatarSrc($selectedAvatarFile);
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $action = (string) ($_POST['action'] ?? '');
+    $csrfToken = (string) ($_POST['csrf_token'] ?? '');
+
+    if (!hash_equals((string) ($_SESSION['csrf_token'] ?? ''), $csrfToken)) {
+        header('Location: profile.php?avatar=csrf');
+        exit;
+    }
+
+    if ($action === 'update_avatar') {
+        $avatarFile = AvatarLibrary::normalizeAvatar((string) ($_POST['avatar'] ?? ''));
+
+        if ($avatarFile !== null) {
+            $connection = Connection::getConnection();
+            $statement = $connection->prepare('UPDATE users SET avatar = :avatar WHERE id = :id');
+
+            if ($statement->execute([
+                'avatar' => $avatarFile,
+                'id' => $userId,
+            ])) {
+                header('Location: profile.php?avatar=updated');
+                exit;
+            }
+        }
+
+        header('Location: profile.php?avatar=invalid');
+        exit;
+    }
+}
+
 $taskModel = new Task();
 $habitModel = new Habit();
 $badgeModel = new Badge();
@@ -78,14 +116,6 @@ $usernameSlug = strtolower(preg_replace('/[^a-zA-Z0-9]+/', '', (string) ($user['
 $motivationalLine = $completedTasks > 0 || $completedHabitChecks > 0
     ? 'Un 1% mejor cada dia.'
     : 'Hoy es un gran dia para empezar.';
-
-$avatarOptions = [
-    ['name' => 'Neo', 'emoji' => '🧑', 'tone' => 'tone-green', 'active' => true],
-    ['name' => 'Kai', 'emoji' => '👦', 'tone' => 'tone-gray', 'active' => false],
-    ['name' => 'Lia', 'emoji' => '👧', 'tone' => 'tone-lavender', 'active' => false],
-    ['name' => 'Ezra', 'emoji' => '🧒', 'tone' => 'tone-blue', 'active' => false],
-    ['name' => 'Nora', 'emoji' => '👩', 'tone' => 'tone-gold', 'active' => false],
-];
 
 $badges = $badgeModel->syncAndGetByUser($userId, [
     'completed_tasks' => $completedTasks,
@@ -181,11 +211,17 @@ function badgeProgressLabel(array $badge): string
             <section class="profile-grid-top">
                 <article class="profile-card identity-card">
                     <div class="identity-main">
-                        <div class="hero-avatar" aria-hidden="true"><?= mb_strtoupper(mb_substr($user['name'] ?? 'U', 0, 1)) ?></div>
+                        <div class="hero-avatar" aria-hidden="true">
+                            <?php if ($selectedAvatarSrc !== null): ?>
+                                <img src="<?= e($selectedAvatarSrc) ?>" alt="" class="hero-avatar-image">
+                            <?php else: ?>
+                                <span class="hero-avatar-fallback"><?= e(mb_strtoupper(mb_substr($user['name'] ?? 'U', 0, 1))) ?></span>
+                            <?php endif; ?>
+                        </div>
                         <div>
                             <div class="identity-header">
                                 <h1><?= e(shortText(trim(($user['name'] ?? '') . ' ' . ($user['apellidos'] ?? ''), ' '), 32)) ?></h1>
-                                <button class="edit-avatar" type="button" aria-label="Editar avatar">✎</button>
+                                <button class="edit-avatar" type="button" aria-label="Editar avatar" data-avatar-jump>✎</button>
                             </div>
                             <div class="level-line">
                                 <strong>Nivel <?= $level ?></strong>
@@ -232,25 +268,37 @@ function badgeProgressLabel(array $badge): string
                     </div>
                 </article>
 
-                <article class="profile-card avatars-card">
+                <article class="profile-card avatars-card" id="avatar-selector">
                     <div class="card-head-row">
                         <h2>Avatares</h2>
-                        <a href="#">Ver todos</a>
+                        <span><?= count($avatarOptions) ?> disponibles</span>
                     </div>
-                    <div class="avatar-carousel">
-                        <button class="carousel-arrow" type="button" aria-label="Anterior">‹</button>
+                    <form class="avatar-selector-form" method="POST">
+                        <input type="hidden" name="csrf_token" value="<?= e((string) $_SESSION['csrf_token']) ?>">
+                        <input type="hidden" name="action" value="update_avatar">
                         <div class="avatar-options" role="list">
                             <?php foreach ($avatarOptions as $avatar): ?>
-                                <article class="avatar-option <?= e($avatar['tone']) ?><?= $avatar['active'] ? ' active' : '' ?>" role="listitem">
-                                    <div class="avatar-face" aria-hidden="true"><?= e($avatar['emoji']) ?></div>
-                                    <?php if ($avatar['active']): ?>
+                                <button
+                                    class="avatar-option<?= $avatar['file'] === $selectedAvatarFile ? ' active' : '' ?>"
+                                    type="submit"
+                                    name="avatar"
+                                    value="<?= e($avatar['file']) ?>"
+                                    role="listitem"
+                                    aria-label="Seleccionar avatar <?= e($avatar['label']) ?>"
+                                >
+                                    <span class="avatar-face" aria-hidden="true">
+                                        <img src="<?= e($avatar['src']) ?>" alt="" class="avatar-option-image">
+                                    </span>
+                                    <span class="avatar-name"><?= e($avatar['label']) ?></span>
+                                    <?php if ($avatar['file'] === $selectedAvatarFile): ?>
                                         <span class="avatar-tag">Actual</span>
+                                    <?php else: ?>
+                                        <span class="avatar-tag avatar-tag--ghost">Elegir</span>
                                     <?php endif; ?>
-                                </article>
+                                </button>
                             <?php endforeach; ?>
                         </div>
-                        <button class="carousel-arrow" type="button" aria-label="Siguiente">›</button>
-                    </div>
+                    </form>
                 </article>
             </section>
 
@@ -344,8 +392,16 @@ function badgeProgressLabel(array $badge): string
             var overlay = document.getElementById('badges-modal');
             var openButton = document.querySelector('[data-open-badges-modal]');
             var closeButton = document.querySelector('[data-close-badges-modal]');
+            var avatarJump = document.querySelector('[data-avatar-jump]');
+            var avatarSelector = document.getElementById('avatar-selector');
 
             if (!overlay || !openButton || !closeButton) {
+                if (avatarJump && avatarSelector) {
+                    avatarJump.addEventListener('click', function () {
+                        avatarSelector.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    });
+                }
+
                 return;
             }
 
@@ -374,6 +430,12 @@ function badgeProgressLabel(array $badge): string
                     closeModal();
                 }
             });
+
+            if (avatarJump && avatarSelector) {
+                avatarJump.addEventListener('click', function () {
+                    avatarSelector.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                });
+            }
         })();
 
     </script>

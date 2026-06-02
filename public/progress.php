@@ -397,7 +397,14 @@ function shortText(string|null $value, int $limit = 42): string
                         <p><?= number_format($xpCurrentLevel, 0, ',', '.') ?> / <?= number_format($xpPerLevel, 0, ',', '.') ?> XP</p>
                         <div class="mini-progress"><i style="width: <?= $xpPercent ?>%"></i></div>
                     </div>
-                    <div class="level-avatar">LQ</div>
+                    <?php $progressAvatarSrc = AvatarLibrary::getAvatarSrc($user['avatar'] ?? null); ?>
+                    <div class="level-avatar">
+                        <?php if ($progressAvatarSrc !== null): ?>
+                            <img src="<?= e($progressAvatarSrc) ?>" alt="" class="level-avatar-image">
+                        <?php else: ?>
+                            LQ
+                        <?php endif; ?>
+                    </div>
                 </article>
 
                 <article class="progress-card metric-card">

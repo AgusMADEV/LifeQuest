@@ -89,6 +89,21 @@ final class User
         return $user ?: null;
     }
 
+    public function updateAvatar(int $id, string $avatar): bool
+    {
+        if (!$this->hasColumn('users', 'avatar')) {
+            return false;
+        }
+
+        $sql = 'UPDATE users SET avatar = :avatar WHERE id = :id';
+        $stmt = $this->db->prepare($sql);
+
+        return $stmt->execute([
+            'avatar' => $avatar,
+            'id' => $id,
+        ]);
+    }
+
     private function hasColumn(string $table, string $column): bool
     {
         $cacheKey = $table . '.' . $column;

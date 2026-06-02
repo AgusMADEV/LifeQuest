@@ -812,6 +812,17 @@
     border: 1px solid rgba(164, 193, 235, 0.38);
 }
 
+.area-level-icon-mask {
+    background: linear-gradient(145deg, #16c79a, #05b8d6);
+    color: transparent;
+    -webkit-mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-size: 66%;
+    mask-position: center;
+    mask-repeat: no-repeat;
+    mask-size: 66%;
+}
+
 .area-level-item strong {
     display: block;
     font-size: .92rem;
