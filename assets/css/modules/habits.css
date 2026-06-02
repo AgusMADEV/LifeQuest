@@ -20,6 +20,18 @@
     justify-items: end;
 }
 
+.habit-create-btn {
+    border: 0;
+    border-radius: 12px;
+    padding: 10px 14px;
+    background: linear-gradient(135deg, var(--primary), #18d7af);
+    color: #fff;
+    font-size: .86rem;
+    font-weight: 900;
+    cursor: pointer;
+    box-shadow: 0 12px 22px rgba(22,199,154,.18);
+}
+
 .habits-hero h1 {
     font-size: clamp(2rem, 3.4vw, 2.9rem);
     letter-spacing: -.05em;
@@ -621,6 +633,161 @@ button.habit-check {
 
 .discover-add-form {
     margin: 0;
+}
+
+.habit-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 130;
+    background: rgba(10, 18, 37, .48);
+    display: none;
+    place-items: center;
+    padding: 20px;
+}
+
+.habit-modal-overlay.is-open {
+    display: grid;
+}
+
+.habit-modal-card {
+    width: min(840px, 100%);
+    border-radius: 22px;
+    background: #fdfefe;
+    border: 1px solid #dbe4f4;
+    box-shadow: 0 24px 40px rgba(10, 18, 37, .24);
+    padding: 18px;
+    display: grid;
+    gap: 12px;
+}
+
+.habit-modal-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.habit-modal-eyebrow {
+    margin: 0 0 4px;
+    color: #16c79a;
+    font-size: .76rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+}
+
+.habit-modal-head h2 {
+    margin: 0;
+    font-size: 1.3rem;
+    letter-spacing: -.03em;
+}
+
+.habit-modal-close {
+    width: 36px;
+    height: 36px;
+    border: 1px solid #d7deed;
+    border-radius: 10px;
+    background: #f7faff;
+    color: #4f5d84;
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.habit-modal-sub {
+    margin: 0;
+    color: #5d6e96;
+    font-weight: 700;
+}
+
+.habit-modal-form {
+    display: grid;
+    gap: 14px;
+}
+
+.habit-modal-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.habit-modal-grid label {
+    display: grid;
+    gap: 8px;
+}
+
+.habit-modal-grid > label > span {
+    color: #526189;
+    font-size: .84rem;
+    font-weight: 800;
+}
+
+.habit-modal-grid input,
+.habit-modal-grid select {
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    background: #f8fbff;
+    color: #334161;
+    font-size: .92rem;
+    font-weight: 700;
+    padding: 11px 12px;
+    outline: 0;
+}
+
+.habit-modal-span-2 {
+    grid-column: span 2;
+}
+
+.habit-modal-negative {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding-top: 4px;
+}
+
+.habit-modal-negative input {
+    width: 16px;
+    height: 16px;
+}
+
+.habit-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.habit-modal-secondary,
+.habit-modal-primary {
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    padding: 11px 16px;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.habit-modal-secondary {
+    background: #f7faff;
+    color: #4f5d84;
+}
+
+.habit-modal-primary {
+    border: 0;
+    background: linear-gradient(135deg, var(--primary), #18d7af);
+    color: #fff;
+}
+
+body.lq-modal-lock {
+    overflow: hidden;
+}
+
+@media (max-width: 900px) {
+    .habit-modal-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .habit-modal-span-2 {
+        grid-column: auto;
+    }
 }
 
 

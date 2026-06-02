@@ -34,9 +34,12 @@ $period = in_array($periodInput, $allowedPeriods, true) ? $periodInput : 'week';
 
 $message = null;
 $messageType = null;
+$habitFormData = [];
+$habitModalShouldOpen = false;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
+    $habitFormData = $_POST;
 
     if ($action === 'create') {
         $result = $habitController->store($userId, $_POST);
@@ -64,6 +67,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         header('Location: ' . $redirect);
         exit;
+    }
+
+    if ($action === 'create') {
+        $habitModalShouldOpen = true;
     }
 }
 
@@ -306,6 +313,9 @@ function habitEmojiByIndex(int $index): string
                             <option value="month" <?= $period === 'month' ? 'selected' : '' ?>>Este mes</option>
                         </select>
                     </form>
+                    <?php if ($tab === 'habits'): ?>
+                        <button type="button" class="habit-create-btn" data-habit-modal-open>+ Crear hábito</button>
+                    <?php endif; ?>
                 </div>
             </header>
 
@@ -406,33 +416,6 @@ function habitEmojiByIndex(int $index): string
                             <?php endforeach; ?>
                         </div>
 
-                        <form method="POST" class="habit-add-bar">
-                            <input type="hidden" name="current_tab" value="<?= e($tab) ?>">
-                            <input type="hidden" name="current_period" value="<?= e($period) ?>">
-                            <input type="hidden" name="action" value="create">
-                            <input type="text" name="name" placeholder="Añadir nuevo hábito" required>
-                            <input type="text" name="description" placeholder="Descripción corta (opcional)">
-                            <select name="area_id">
-                                <option value="">Área</option>
-                                <?php foreach ($areas as $area): ?>
-                                    <option value="<?= (int) $area['id'] ?>"><?= e($area['name']) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                            <select name="goal_id">
-                                <option value="">Meta</option>
-                                <?php foreach ($goals as $goal): ?>
-                                    <option value="<?= (int) $goal['id'] ?>"><?= e(shortText($goal['title'], 26)) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                            <?php if ($negativeHabitsEnabled): ?>
-                                <label class="habit-negative-switch" for="is_negative_habit">
-                                    <input type="checkbox" id="is_negative_habit" name="is_negative" value="1">
-                                    <span>Es un hábito de riesgo</span>
-                                </label>
-                                <input type="number" name="hp_penalty" min="1" max="500" value="15" placeholder="Daño HP">
-                            <?php endif; ?>
-                            <button type="submit">+ Añadir</button>
-                        </form>
                     </article>
 
                     <aside class="habits-aside">
@@ -539,6 +522,84 @@ function habitEmojiByIndex(int $index): string
             <?php endif; ?>
         </section>
     </main>
+
+    <div class="habit-modal-overlay<?= $habitModalShouldOpen ? ' is-open' : '' ?>" data-habit-modal<?= $habitModalShouldOpen ? '' : ' hidden' ?>>
+        <div class="habit-modal-card" role="dialog" aria-modal="true" aria-labelledby="habit-modal-title">
+            <div class="habit-modal-head">
+                <div>
+                    <p class="habit-modal-eyebrow">Nuevo hábito</p>
+                    <h2 id="habit-modal-title">Crear nuevo hábito</h2>
+                </div>
+                <button type="button" class="habit-modal-close" data-habit-modal-close aria-label="Cerrar modal">×</button>
+            </div>
+
+            <p class="habit-modal-sub">Añádelo a tu rutina y empieza a seguir su progreso desde hoy.</p>
+
+            <form method="POST" class="habit-modal-form">
+                <input type="hidden" name="current_tab" value="<?= e($tab) ?>">
+                <input type="hidden" name="current_period" value="<?= e($period) ?>">
+                <input type="hidden" name="action" value="create">
+
+                <div class="habit-modal-grid">
+                    <label>
+                        <span>Nombre del hábito</span>
+                        <input type="text" name="name" placeholder="Ej. Leer 20 minutos" value="<?= e((string) ($habitFormData['name'] ?? '')) ?>" required>
+                    </label>
+
+                    <label>
+                        <span>Frecuencia</span>
+                        <select name="frequency">
+                            <option value="daily" <?= (($habitFormData['frequency'] ?? 'daily') === 'daily') ? 'selected' : '' ?>>Diaria</option>
+                            <option value="weekly" <?= (($habitFormData['frequency'] ?? '') === 'weekly') ? 'selected' : '' ?>>Semanal</option>
+                            <option value="custom" <?= (($habitFormData['frequency'] ?? '') === 'custom') ? 'selected' : '' ?>>Personalizada</option>
+                        </select>
+                    </label>
+
+                    <label class="habit-modal-span-2">
+                        <span>Descripción</span>
+                        <input type="text" name="description" placeholder="Descripción corta (opcional)" value="<?= e((string) ($habitFormData['description'] ?? '')) ?>">
+                    </label>
+
+                    <label>
+                        <span>Área</span>
+                        <select name="area_id">
+                            <option value="">Área</option>
+                            <?php foreach ($areas as $area): ?>
+                                <option value="<?= (int) $area['id'] ?>" <?= ((string) ($habitFormData['area_id'] ?? '') === (string) $area['id']) ? 'selected' : '' ?>><?= e($area['name']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </label>
+
+                    <label>
+                        <span>Meta</span>
+                        <select name="goal_id">
+                            <option value="">Meta</option>
+                            <?php foreach ($goals as $goal): ?>
+                                <option value="<?= (int) $goal['id'] ?>" <?= ((string) ($habitFormData['goal_id'] ?? '') === (string) $goal['id']) ? 'selected' : '' ?>><?= e(shortText($goal['title'], 26)) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </label>
+
+                    <?php if ($negativeHabitsEnabled): ?>
+                        <label class="habit-negative-switch habit-modal-span-2 habit-modal-negative" for="is_negative_habit_modal">
+                            <input type="checkbox" id="is_negative_habit_modal" name="is_negative" value="1" <?= !empty($habitFormData['is_negative']) ? 'checked' : '' ?>>
+                            <span>Es un hábito de riesgo</span>
+                        </label>
+                        <label class="habit-modal-span-2">
+                            <span>Daño HP</span>
+                            <input type="number" name="hp_penalty" min="1" max="500" value="<?= e((string) ($habitFormData['hp_penalty'] ?? '15')) ?>" placeholder="Daño HP">
+                        </label>
+                    <?php endif; ?>
+                </div>
+
+                <div class="habit-modal-actions">
+                    <button type="button" class="habit-modal-secondary" data-habit-modal-close>Cancelar</button>
+                    <button type="submit" class="habit-modal-primary">Crear hábito</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script src="../assets/js/app.js"></script>
 </body>
 </html>

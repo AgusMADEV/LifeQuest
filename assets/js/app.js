@@ -119,3 +119,63 @@ console.log('LifeQuest iniciado correctamente.');
     colorInput.addEventListener('change', syncPickerColor);
     syncPickerColor();
 })();
+
+(function initHabitModal() {
+    const modal = document.querySelector('[data-habit-modal]');
+    const openButton = document.querySelector('[data-habit-modal-open]');
+    const closeButtons = document.querySelectorAll('[data-habit-modal-close]');
+
+    if (!modal || !openButton) {
+        return;
+    }
+
+    const openModal = () => {
+        modal.hidden = false;
+        modal.classList.add('is-open');
+        document.body.classList.add('lq-modal-lock');
+
+        const firstField = modal.querySelector('input:not([type="hidden"]), textarea, select');
+
+        if (firstField) {
+            setTimeout(() => firstField.focus(), 80);
+        }
+    };
+
+    const closeModal = (event) => {
+        if (event) {
+            event.preventDefault();
+        }
+
+        modal.classList.remove('is-open');
+        modal.hidden = true;
+        document.body.classList.remove('lq-modal-lock');
+    };
+
+    openButton.addEventListener('click', openModal);
+
+    closeButtons.forEach((button) => {
+        button.addEventListener('click', closeModal);
+    });
+
+    modal.addEventListener('click', (event) => {
+        if (event.target === modal) {
+            closeModal(event);
+        }
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && modal.classList.contains('is-open')) {
+            closeModal(event);
+        }
+    });
+
+    if (modal.classList.contains('is-open')) {
+        document.body.classList.add('lq-modal-lock');
+
+        const firstField = modal.querySelector('input:not([type="hidden"]), textarea, select');
+
+        if (firstField) {
+            setTimeout(() => firstField.focus(), 80);
+        }
+    }
+})();
