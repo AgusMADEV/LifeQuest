@@ -192,10 +192,6 @@ if ($section === 'tasks') {
 }
 
 $completedCount = count(array_filter($tasks, static fn($task) => $task['status'] === 'completed'));
-$pendingCount = count(array_filter($tasks, static fn($task) => $task['status'] === 'pending'));
-$progressCount = count(array_filter($tasks, static fn($task) => $task['status'] === 'in_progress'));
-$dailyGoal = max(3, count($tasks));
-$dailyProgressPercent = (int) min(100, round(($completedCount / max(1, $dailyGoal)) * 100));
 $focusMinutes = array_reduce(
     $tasks,
     static fn(int $carry, array $task) => $carry + (int) ($task['estimated_minutes'] ?? 0),
@@ -203,6 +199,52 @@ $focusMinutes = array_reduce(
 );
 $focusHours = intdiv($focusMinutes, 60);
 $focusRemainder = $focusMinutes % 60;
+
+$sectionItems = [
+    'goals' => $goals,
+    'projects' => $projects,
+    'tasks' => $tasks,
+][$section];
+
+$sectionCompletedCount = count(array_filter(
+    $sectionItems,
+    static function (array $item) use ($section): bool {
+        if ($section === 'tasks') {
+            return ($item['status'] ?? '') === 'completed';
+        }
+
+        return ($item['status'] ?? '') === 'completed' || (int) ($item['progress'] ?? 0) >= 100;
+    }
+));
+
+$sectionTotalCount = count($sectionItems);
+$sectionProgressPercent = (int) min(100, round(($sectionCompletedCount / max(1, $sectionTotalCount)) * 100));
+$sectionAverageProgress = $sectionTotalCount > 0
+    ? (int) round(array_reduce(
+        $sectionItems,
+        static fn(int $carry, array $item) => $carry + (int) ($item['progress'] ?? 0),
+        0
+    ) / $sectionTotalCount)
+    : 0;
+$sectionPreviewItems = array_slice($sectionItems, 0, 4);
+$sectionStatsLabel = [
+    'goals' => 'Metas completadas',
+    'projects' => 'Retos completados',
+    'tasks' => 'Misiones completadas',
+][$section];
+$sectionGoalTitle = [
+    'goals' => 'Avance de metas',
+    'projects' => 'Avance de retos',
+    'tasks' => 'Meta diaria',
+][$section];
+$sectionGoalSubtitle = [
+    'goals' => 'Sigue el progreso de tus objetivos principales.',
+    'projects' => 'Mide el avance de tus bloques de trabajo.',
+    'tasks' => 'Completa misiones diarias para sumar XP y LifeCoins.',
+][$section];
+$sectionStatsSecondary = $section === 'tasks'
+    ? $focusHours . 'h ' . $focusRemainder . 'm'
+    : $sectionAverageProgress . '%';
 
 $searchPlaceholder = [
     'goals' => 'Buscar metas...',
@@ -227,6 +269,33 @@ $heroDescription = [
     'projects' => 'Convierte tus metas en retos accionables para mantener enfoque y claridad.',
     'tasks' => 'Completa misiones diarias para sumar XP, LifeCoins y progreso real.',
 ][$section];
+$sectionConfig = [
+    'goals' => [
+        'button' => '+ meta',
+        'singular' => 'meta',
+        'plural' => 'metas',
+    ],
+    'projects' => [
+        'button' => '+ reto',
+        'singular' => 'reto',
+        'plural' => 'retos',
+    ],
+    'tasks' => [
+        'button' => '+ misión',
+        'singular' => 'misión',
+        'plural' => 'misiones',
+    ],
+];
+
+$currentConfig = $sectionConfig[$section];
+
+$modalIsOpen =
+    $editingGoal ||
+    $editingProject ||
+    $editingTask ||
+    !empty($goalFormErrors) ||
+    !empty($projectFormErrors) ||
+    !empty($taskFormErrors);
 
 function e(string|null $value): string
 {
@@ -269,22 +338,17 @@ function taskStatusLabel(string $status): string
     return ['pending' => 'Pendiente', 'in_progress' => 'En progreso', 'completed' => 'Completada', 'cancelled' => 'Cancelada'][$status] ?? $status;
 }
 
-function statusClass(string $status): string
+function statusAccentColor(string $status): string
 {
     return [
-        'not_started' => 'blue',
-        'in_progress' => 'green',
-        'paused' => 'orange',
-        'completed' => 'purple',
-        'cancelled' => 'red',
-        'active' => 'green',
-        'pending' => 'blue',
-    ][$status] ?? 'blue';
-}
-
-function priorityClass(string $priority): string
-{
-    return ['low' => 'green', 'medium' => 'orange', 'high' => 'red', 'critical' => 'red'][$priority] ?? 'blue';
+        'not_started' => '#2f7cff',
+        'pending' => '#2f7cff',
+        'in_progress' => '#15c98a',
+        'active' => '#15c98a',
+        'paused' => '#f08c00',
+        'completed' => '#15c98a',
+        'cancelled' => '#ef6b6b',
+    ][$status] ?? '#2f7cff';
 }
 
 function taskVisualProgress(string $status): int
@@ -295,6 +359,48 @@ function taskVisualProgress(string $status): int
         'pending' => 25,
         'cancelled' => 10,
     ][$status] ?? 20;
+}
+
+function sectionItemProgress(array $item, string $section): int
+{
+    if ($section === 'tasks') {
+        return taskVisualProgress((string) ($item['status'] ?? ''));
+    }
+
+    return max(0, min(100, (int) ($item['progress'] ?? 0)));
+}
+
+function rewardIcon(string $type, string $suffix = ''): string
+{
+    $suffix = preg_replace('/[^a-zA-Z0-9_-]/', '', $suffix) ?: '';
+    $coinOuterId = 'rewardCoinOuter' . $suffix;
+    $coinInnerId = 'rewardCoinInner' . $suffix;
+    $coinShadowId = 'rewardCoinShadow' . $suffix;
+
+    return <<<HTML
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <defs>
+        <linearGradient id="{$coinOuterId}" x1="4" y1="3" x2="20" y2="21" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#FFE27A"/>
+            <stop offset="0.45" stop-color="#FFC93A"/>
+            <stop offset="1" stop-color="#F59F00"/>
+        </linearGradient>
+        <linearGradient id="{$coinInnerId}" x1="7" y1="6" x2="17" y2="18" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#FFD85C"/>
+            <stop offset="1" stop-color="#F08C00"/>
+        </linearGradient>
+        <filter id="{$coinShadowId}" x="0" y="0" width="24" height="24" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+            <feDropShadow dx="0" dy="1" stdDeviation="0.8" flood-color="#C76B00" flood-opacity="0.35"/>
+        </filter>
+    </defs>
+    <g filter="url(#{$coinShadowId})">
+        <circle cx="12" cy="12" r="10" fill="url(#{$coinOuterId})"/>
+        <circle cx="12" cy="12" r="8.1" fill="url(#{$coinInnerId})" stroke="#FFB11A" stroke-width="0.9"/>
+        <path d="M5.8 7.5C7.1 5.4 9.34 4 11.9 4" stroke="#FFF4BF" stroke-width="1.4" stroke-linecap="round" opacity="0.9"/>
+        <path d="M12.1 7.1C10.8 7.1 9.9 7.75 9.9 8.72C9.9 9.73 10.87 10.2 12.22 10.58C13.64 10.98 14.4 11.47 14.4 12.58C14.4 13.73 13.42 14.55 12 14.69V15.6C12 15.93 11.73 16.2 11.4 16.2C11.07 16.2 10.8 15.93 10.8 15.6V14.63C9.89 14.48 9.04 13.99 8.49 13.25C8.29 12.98 8.34 12.61 8.61 12.42C8.87 12.22 9.25 12.27 9.44 12.54C9.91 13.18 10.69 13.56 11.47 13.56H12C13 13.56 13.2 12.98 13.2 12.62C13.2 12.05 12.87 11.72 11.9 11.44C10.43 11.02 8.7 10.4 8.7 8.77C8.7 7.43 9.69 6.47 10.8 6.22V5.4C10.8 5.07 11.07 4.8 11.4 4.8C11.73 4.8 12 5.07 12 5.4V6.15C12.78 6.21 13.47 6.48 14.07 6.95C14.33 7.15 14.37 7.53 14.17 7.79C13.97 8.05 13.59 8.09 13.33 7.89C12.96 7.6 12.52 7.43 12.1 7.1Z" fill="#FFF9EA"/>
+    </g>
+</svg>
+HTML;
 }
 
 function csrfField(): string
@@ -345,41 +451,39 @@ function fieldError(array $errors, string $key): string
         <?php $topbarSearchPlaceholder = (string) $searchPlaceholder; ?>
         <?php require __DIR__ . '/partials/topbar.php'; ?>
 
-        <section class="lq-page-shell metas-shell">
-            <header class="lq-page-hero metas-hero">
+        <section class="lq-page-shell metas-shell metas-missions-look">
+            <header class="lq-page-hero metas-hero metas-clean-hero">
                 <div>
-                    <p class="eyebrow"><?= e($heroEyebrow) ?></p>
                     <h1><?= e($heroTitle) ?></h1>
-                    <p><?= e($heroDescription) ?></p>
-                </div>
-                <div class="lq-page-actions">
-                    <a href="dashboard.php" class="btn btn-secondary">Volver al inicio</a>
-                    <a href="goals.php?section=tasks&period=<?= e($period) ?>" class="btn btn-primary">Abrir misiones</a>
+                    <p>Completa acciones, registra progreso y gana XP, LifeCoins y recompensas.</p>
                 </div>
             </header>
 
-            <nav class="metas-tabs" aria-label="Navegación metas">
-                <a href="goals.php?section=goals" class="<?= $section === 'goals' ? 'active' : '' ?>">Metas</a>
-                <a href="goals.php?section=projects" class="<?= $section === 'projects' ? 'active' : '' ?>">Retos</a>
-                <a href="goals.php?section=tasks&period=<?= e($period) ?>" class="<?= $section === 'tasks' ? 'active' : '' ?>">Misiones</a>
-            </nav>
+            <div class="metas-tabs-bar">
+                <nav class="metas-tabs" aria-label="Navegación metas">
+                    <a href="goals.php?section=goals" class="<?= $section === 'goals' ? 'active' : '' ?>">Metas</a>
+                    <a href="goals.php?section=projects" class="<?= $section === 'projects' ? 'active' : '' ?>">Retos</a>
+                    <a href="goals.php?section=tasks&period=<?= e($period) ?>" class="<?= $section === 'tasks' ? 'active' : '' ?>">Misiones</a>
+                </nav>
+            </div>
 
             <?php if ($message): ?>
                 <div class="lq-alert <?= e($messageType) ?>"><?= e($message) ?></div>
             <?php endif; ?>
+            <div class="metas-modal-backdrop <?= $modalIsOpen ? 'is-open' : '' ?>" data-goal-modal-close></div>
 
-            <section class="hub-layout <?= $section === 'tasks' ? 'tasks-mode' : '' ?>">
+            <section class="hub-layout metas-missions-layout tasks-mode <?= $section !== 'tasks' ? 'metas-sidepanel-mode' : '' ?>">
                 <section>
                     <?php if ($section === 'goals'): ?>
                         <section class="lq-crud-layout">
-                            <article class="lq-form-panel">
+                            <article class="lq-form-panel metas-form-modal <?= ($editingGoal || !empty($goalFormErrors)) ? 'is-open' : '' ?>" data-goal-form-modal>
                                 <?php $goalCurrent = !empty($goalFormData) ? $goalFormData : ($editingGoal ?? []); ?>
                                 <div class="lq-panel-header">
                                     <div>
                                         <h2><?= $editingGoal ? 'Editar meta' : 'Nueva meta' ?></h2>
                                         <p><?= $editingGoal ? 'Ajusta el progreso y la prioridad.' : 'Crea una meta clara y medible.' ?></p>
                                     </div>
-                                    <?php if ($editingGoal): ?><a href="goals.php?section=goals">Cancelar</a><?php endif; ?>
+                                    <a href="goals.php?section=goals" class="metas-modal-close" data-goal-modal-close>×</a>
                                 </div>
 
                                 <form method="POST" class="lq-form">
@@ -472,6 +576,9 @@ function fieldError(array $errors, string $key): string
                                         <h2>Tus metas</h2>
                                         <p><?= count($goals) ?> metas creadas</p>
                                     </div>
+                                    <button type="button" class="btn btn-primary metas-add-btn" data-goal-modal-open>
+                                        <?= e($currentConfig['button']) ?>
+                                    </button>
                                 </div>
 
                                 <div class="lq-list-grid">
@@ -483,35 +590,25 @@ function fieldError(array $errors, string $key): string
                                     <?php endif; ?>
 
                                     <?php foreach ($goals as $goal): ?>
-                                        <article class="lq-object-card">
-                                            <div class="lq-object-top">
-                                                <div class="lq-object-icon" style="background: <?= e($goal['area_color'] ?: '#16C79A') ?>;"><?= e($goal['area_icon'] ?: '🎯') ?></div>
-                                                <div class="lq-object-title">
-                                                    <h2><?= e($goal['title']) ?></h2>
+                                        <article class="mission-item-row">
+                                            <div class="mission-item-left">
+                                                <div class="mission-item-icon" style="background: <?= e($goal['area_color'] ?: '#16C79A') ?>;"><?= e($goal['area_icon'] ?: '🎯') ?></div>
+                                                <div class="mission-item-copy">
+                                                    <h3><?= e($goal['title']) ?></h3>
                                                     <p><?= e($goal['description'] ?: 'Sin descripción.') ?></p>
-                                                </div>
-                                                <div class="lq-object-badges">
-                                                    <span class="lq-badge <?= priorityClass($goal['priority']) ?>"><?= priorityLabel($goal['priority']) ?></span>
-                                                    <span class="lq-badge <?= statusClass($goal['status']) ?>"><?= goalStatusLabel($goal['status']) ?></span>
+                                                    <small><?= e(goalTypeLabel($goal['type'])) ?> · +<?= (int) $goal['xp_reward'] ?> XP · <span class="reward-chip coins"><?= rewardIcon('coins', 'goal' . (int) $goal['id']) ?><span class="reward-amount">+<?= (int) $goal['points_reward'] ?></span></span></small>
                                                 </div>
                                             </div>
 
-                                            <div class="lq-progress-block">
-                                                <div class="lq-progress-info"><span>Progreso</span><span><?= (int) $goal['progress'] ?>%</span></div>
+                                            <div class="mission-item-progress">
+                                                <small class="mission-progress-label"><?= (int) $goal['progress'] ?>%</small>
                                                 <div class="lq-progress"><span style="width: <?= (int) $goal['progress'] ?>%"></span></div>
+                                                <div class="mission-status-bubble <?= (int) $goal['progress'] >= 100 ? 'mission-status-completed' : '' ?>" style="--mission-progress: <?= (int) $goal['progress'] ?>%; --mission-accent: <?= e(statusAccentColor((string) $goal['status'])) ?>;">
+                                                    <span class="sr-only"><?= e(goalStatusLabel($goal['status'])) ?></span>
+                                                </div>
                                             </div>
 
-                                            <div class="lq-object-footer">
-                                                <div class="lq-object-meta">
-                                                    <span class="lq-badge"><?= goalTypeLabel($goal['type']) ?></span>
-                                                    <?php if (!empty($goal['area_name'])): ?>
-                                                        <span class="lq-badge green"><?= e(($goal['area_icon'] ? $goal['area_icon'] . ' ' : '') . $goal['area_name']) ?></span>
-                                                    <?php endif; ?>
-                                                    <span class="lq-badge purple">XP +<?= (int) $goal['xp_reward'] ?></span>
-                                                    <span class="lq-badge orange">LC +<?= (int) $goal['points_reward'] ?></span>
-                                                </div>
-
-                                                <div class="lq-object-actions">
+                                            <div class="mission-item-actions">
                                                     <a href="goals.php?section=goals&edit_goal=<?= (int) $goal['id'] ?>" class="btn btn-secondary">Editar</a>
                                                     <form method="POST" onsubmit="return confirm('¿Seguro que quieres eliminar esta meta?');">
                                                         <?= csrfField() ?>
@@ -520,7 +617,6 @@ function fieldError(array $errors, string $key): string
                                                         <input type="hidden" name="id" value="<?= (int) $goal['id'] ?>">
                                                         <button type="submit" class="btn lq-btn-danger">Eliminar</button>
                                                     </form>
-                                                </div>
                                             </div>
                                         </article>
                                     <?php endforeach; ?>
@@ -529,14 +625,14 @@ function fieldError(array $errors, string $key): string
                         </section>
                     <?php elseif ($section === 'projects'): ?>
                         <section class="lq-crud-layout">
-                            <article class="lq-form-panel">
+                            <article class="lq-form-panel metas-form-modal <?= ($editingProject || !empty($projectFormErrors)) ? 'is-open' : '' ?>" data-goal-form-modal>
                                 <?php $projectCurrent = !empty($projectFormData) ? $projectFormData : ($editingProject ?? []); ?>
                                 <div class="lq-panel-header">
                                     <div>
                                         <h2><?= $editingProject ? 'Editar reto' : 'Nuevo reto' ?></h2>
                                         <p><?= $editingProject ? 'Actualiza este reto.' : 'Crea un bloque conectado a una meta.' ?></p>
                                     </div>
-                                    <?php if ($editingProject): ?><a href="goals.php?section=projects">Cancelar</a><?php endif; ?>
+                                    <a href="goals.php?section=projects" class="metas-modal-close" data-goal-modal-close>×</a>
                                 </div>
 
                                 <form method="POST" class="lq-form">
@@ -610,6 +706,9 @@ function fieldError(array $errors, string $key): string
                                         <h2>Tus retos</h2>
                                         <p><?= count($projects) ?> retos creados</p>
                                     </div>
+                                    <button type="button" class="btn btn-primary metas-add-btn" data-goal-modal-open>
+                                        <?= e($currentConfig['button']) ?>
+                                    </button>
                                 </div>
 
                                 <div class="lq-list-grid">
@@ -621,29 +720,25 @@ function fieldError(array $errors, string $key): string
                                     <?php endif; ?>
 
                                     <?php foreach ($projects as $project): ?>
-                                        <article class="lq-object-card">
-                                            <div class="lq-object-top">
-                                                <div class="lq-object-icon" style="background: <?= e($project['area_color'] ?: '#16C79A') ?>;"><?= e($project['area_icon'] ?: '🚀') ?></div>
-                                                <div class="lq-object-title">
-                                                    <h2><?= e($project['title']) ?></h2>
+                                        <article class="mission-item-row">
+                                            <div class="mission-item-left">
+                                                <div class="mission-item-icon" style="background: <?= e($project['area_color'] ?: '#16C79A') ?>;"><?= e($project['area_icon'] ?: '🚀') ?></div>
+                                                <div class="mission-item-copy">
+                                                    <h3><?= e($project['title']) ?></h3>
                                                     <p><?= e($project['description'] ?: 'Sin descripción.') ?></p>
+                                                    <small><?php if (!empty($project['goal_title'])): ?>🎯 <?= e(shortText($project['goal_title'], 32)) ?> · <?php endif; ?>Progreso <?= (int) $project['progress'] ?>%<?php if (!empty($project['due_date'])): ?> · <?= e(date('d/m/Y', strtotime($project['due_date']))) ?><?php endif; ?></small>
                                                 </div>
-                                                <div class="lq-object-badges"><span class="lq-badge <?= statusClass($project['status']) ?>"><?= projectStatusLabel($project['status']) ?></span></div>
                                             </div>
 
-                                            <div class="lq-progress-block">
-                                                <div class="lq-progress-info"><span>Progreso</span><span><?= (int) $project['progress'] ?>%</span></div>
+                                            <div class="mission-item-progress">
+                                                <small class="mission-progress-label"><?= (int) $project['progress'] ?>%</small>
                                                 <div class="lq-progress"><span style="width: <?= (int) $project['progress'] ?>%"></span></div>
+                                                <div class="mission-status-bubble <?= (int) $project['progress'] >= 100 ? 'mission-status-completed' : '' ?>" style="--mission-progress: <?= (int) $project['progress'] ?>%; --mission-accent: <?= e(statusAccentColor((string) $project['status'])) ?>;">
+                                                    <span class="sr-only"><?= e(projectStatusLabel($project['status'])) ?></span>
+                                                </div>
                                             </div>
 
-                                            <div class="lq-object-footer">
-                                                <div class="lq-object-meta">
-                                                    <?php if (!empty($project['goal_title'])): ?><span class="lq-badge blue">🎯 <?= e(shortText($project['goal_title'], 32)) ?></span><?php endif; ?>
-                                                    <?php if (!empty($project['area_name'])): ?><span class="lq-badge green"><?= e(($project['area_icon'] ? $project['area_icon'] . ' ' : '') . $project['area_name']) ?></span><?php endif; ?>
-                                                    <?php if (!empty($project['due_date'])): ?><span class="lq-badge orange">📅 <?= e(date('d/m/Y', strtotime($project['due_date']))) ?></span><?php endif; ?>
-                                                </div>
-
-                                                <div class="lq-object-actions">
+                                            <div class="mission-item-actions">
                                                     <a href="goals.php?section=projects&edit_project=<?= (int) $project['id'] ?>" class="btn btn-secondary">Editar</a>
                                                     <form method="POST" onsubmit="return confirm('¿Seguro que quieres eliminar este reto?');">
                                                         <?= csrfField() ?>
@@ -652,7 +747,6 @@ function fieldError(array $errors, string $key): string
                                                         <input type="hidden" name="id" value="<?= (int) $project['id'] ?>">
                                                         <button type="submit" class="btn lq-btn-danger">Eliminar</button>
                                                     </form>
-                                                </div>
                                             </div>
                                         </article>
                                     <?php endforeach; ?>
@@ -672,6 +766,9 @@ function fieldError(array $errors, string $key): string
                                         <a href="goals.php?section=tasks&period=weekly" class="<?= $period === 'weekly' ? 'active' : '' ?>">Semanales</a>
                                         <a href="goals.php?section=tasks&period=monthly" class="<?= $period === 'monthly' ? 'active' : '' ?>">Mensuales</a>
                                     </nav>
+                                    <button type="button" class="btn btn-primary metas-add-btn" data-goal-modal-open>
+                                        <?= e($currentConfig['button']) ?>
+                                    </button>
                                 </header>
 
                                 <div class="missions-list">
@@ -684,32 +781,38 @@ function fieldError(array $errors, string $key): string
 
                                     <?php foreach ($tasks as $task): ?>
                                         <?php $taskProgress = taskVisualProgress((string) $task['status']); ?>
-                                        <article class="mission-item-row">
+                                        <?php $taskStatus = (string) $task['status']; ?>
+                                        <article class="mission-item-row task-status-<?= e($taskStatus) ?>">
                                             <div class="mission-item-left">
                                                 <div class="mission-item-icon" style="background: <?= e($task['area_color'] ?: '#1f335e') ?>;"><?= e($task['area_icon'] ?: '✅') ?></div>
                                                 <div class="mission-item-copy">
                                                     <h3><?= e($task['title']) ?></h3>
                                                     <p><?= e(shortText($task['description'] ?: 'Sin descripción.', 64)) ?></p>
-                                                    <small>+<?= (int) $task['xp_reward'] ?> XP · +<?= (int) $task['points_reward'] ?> LC</small>
+                                                    <small>+<?= (int) $task['xp_reward'] ?> XP · <span class="reward-chip coins"><?= rewardIcon('coins', 'task' . (int) $task['id']) ?><span class="reward-amount">+<?= (int) $task['points_reward'] ?></span></span></small>
                                                 </div>
                                             </div>
 
                                             <div class="mission-item-progress">
+                                                <small class="mission-progress-label"><?= $taskProgress ?>%</small>
                                                 <div class="lq-progress"><span style="width: <?= $taskProgress ?>%"></span></div>
-                                                <span><?= taskStatusLabel((string) $task['status']) ?></span>
-                                            </div>
-
-                                            <div class="mission-item-actions">
-                                                <?php if ($task['status'] !== 'completed' && $task['status'] !== 'cancelled'): ?>
-                                                    <form method="POST">
+                                                <?php if ($taskStatus !== 'completed' && $taskStatus !== 'cancelled'): ?>
+                                                    <form method="POST" class="mission-status-action">
                                                         <?= csrfField() ?>
                                                         <input type="hidden" name="entity" value="tasks">
                                                         <input type="hidden" name="action" value="complete">
                                                         <input type="hidden" name="id" value="<?= (int) $task['id'] ?>">
-                                                        <button type="submit" class="btn lq-task-complete">Completar</button>
+                                                        <button type="submit" class="mission-status-bubble mission-status-<?= e($taskStatus) ?> mission-status-action" aria-label="Completar misión">
+                                                            <span class="sr-only">Completar misión</span>
+                                                        </button>
                                                     </form>
+                                                <?php else: ?>
+                                                    <div class="mission-status-bubble mission-status-<?= e($taskStatus) ?>" style="--mission-progress: <?= $taskProgress ?>%;">
+                                                        <span class="sr-only"><?= e(taskStatusLabel($taskStatus)) ?></span>
+                                                    </div>
                                                 <?php endif; ?>
+                                            </div>
 
+                                            <div class="mission-item-actions">
                                                 <a href="goals.php?section=tasks&period=<?= e($period) ?>&edit_task=<?= (int) $task['id'] ?>" class="btn btn-secondary">Editar</a>
 
                                                 <form method="POST" onsubmit="return confirm('¿Seguro que quieres eliminar esta misión?');">
@@ -741,26 +844,27 @@ function fieldError(array $errors, string $key): string
 
                                 <article class="mission-side-card stats">
                                     <div>
-                                        <small>Misiones completadas</small>
-                                        <strong><?= $completedCount ?></strong>
+                                        <small><?= e($sectionStatsLabel) ?></small>
+                                        <strong><?= $sectionCompletedCount ?></strong>
                                     </div>
                                     <div>
-                                        <small>Tiempo enfocado</small>
-                                        <strong><?= $focusHours ?>h <?= $focusRemainder ?>m</strong>
+                                        <small><?= $section === 'tasks' ? 'Tiempo enfocado' : 'Progreso medio' ?></small>
+                                        <strong><?= e($sectionStatsSecondary) ?></strong>
                                     </div>
                                 </article>
 
                                 <article class="mission-side-card daily-goal">
                                     <div class="daily-goal-head">
-                                        <small>Meta diaria</small>
-                                        <strong><?= $completedCount ?>/<?= $dailyGoal ?></strong>
+                                        <small><?= e($sectionGoalTitle) ?></small>
+                                        <strong><?= $sectionCompletedCount ?>/<?= max(1, $sectionTotalCount) ?></strong>
                                     </div>
-                                    <div class="lq-progress"><span style="width: <?= $dailyProgressPercent ?>%"></span></div>
+                                    <span><?= e($sectionGoalSubtitle) ?></span>
+                                    <div class="lq-progress"><span style="width: <?= $sectionProgressPercent ?>%"></span></div>
                                     <ul>
-                                        <?php foreach (array_slice($tasks, 0, 4) as $miniTask): ?>
+                                        <?php foreach ($sectionPreviewItems as $miniTask): ?>
                                             <li>
                                                 <span><?= e(shortText($miniTask['title'], 22)) ?></span>
-                                                <strong><?= taskVisualProgress((string) $miniTask['status']) ?>%</strong>
+                                                <strong><?= sectionItemProgress($miniTask, $section) ?>%</strong>
                                             </li>
                                         <?php endforeach; ?>
                                     </ul>
@@ -768,14 +872,14 @@ function fieldError(array $errors, string $key): string
                             </aside>
                         </section>
 
-                        <section class="missions-editor-card lq-form-panel">
+                        <section class="missions-editor-card lq-form-panel metas-form-modal <?= ($editingTask || !empty($taskFormErrors)) ? 'is-open' : '' ?>" data-goal-form-modal>
                             <?php $taskCurrent = !empty($taskFormData) ? $taskFormData : ($editingTask ?? []); ?>
                             <div class="lq-panel-header">
                                 <div>
                                     <h2><?= $editingTask ? 'Editar misión' : 'Nueva misión' ?></h2>
                                     <p><?= $editingTask ? 'Ajusta esta misión para mantener el ritmo.' : 'Añade una misión concreta para hoy.' ?></p>
                                 </div>
-                                <?php if ($editingTask): ?><a href="goals.php?section=tasks&period=<?= e($period) ?>">Cancelar</a><?php endif; ?>
+                                <a href="goals.php?section=tasks&period=<?= e($period) ?>" class="metas-modal-close" data-goal-modal-close>×</a>
                             </div>
 
                             <form method="POST" class="lq-form">
@@ -875,21 +979,53 @@ function fieldError(array $errors, string $key): string
                 </section>
 
                 <?php if ($section !== 'tasks'): ?>
-                    <aside class="metas-side-summary">
-                        <article>
+                    <aside class="missions-side-panel">
+                        <article class="mission-side-card level">
                             <small>Nivel</small>
                             <strong><?= (int) ($user['level'] ?? 1) ?></strong>
-                            <span><?= number_format((int) ($user['xp'] ?? 0), 0, ',', '.') ?> XP</span>
+                            <span><?= number_format((int) ($user['xp'] ?? 0), 0, ',', '.') ?> / 2.000 XP</span>
+                            <div class="lq-progress">
+                                <span style="width: <?= min(100, (int) (((int) ($user['xp'] ?? 0) % 2000) / 20)) ?>%"></span>
+                            </div>
                         </article>
-                        <article>
+
+                        <article class="mission-side-card streak">
                             <small>Racha actual</small>
                             <strong><?= (int) ($user['current_streak'] ?? 0) ?> días</strong>
-                            <span>Constancia diaria</span>
+                            <span>¡Sigue así, lo estás logrando!</span>
                         </article>
-                        <article>
-                            <small>Resumen rápido</small>
-                            <strong><?= count($goals) ?> metas</strong>
-                            <span><?= count($projects) ?> retos, <?= count($tasks) ?> misiones</span>
+
+                        <article class="mission-side-card stats">
+                            <div>
+                                <small><?= e($sectionStatsLabel) ?></small>
+                                <strong><?= $sectionCompletedCount ?></strong>
+                            </div>
+                            <div>
+                                <small><?= $section === 'tasks' ? 'Tiempo enfocado' : 'Progreso medio' ?></small>
+                                <strong><?= e($sectionStatsSecondary) ?></strong>
+                            </div>
+                        </article>
+
+                        <article class="mission-side-card daily-goal">
+                            <div class="daily-goal-head">
+                                <small><?= e($sectionGoalTitle) ?></small>
+                                <strong><?= $sectionCompletedCount ?>/<?= max(1, $sectionTotalCount) ?></strong>
+                            </div>
+
+                            <span><?= e($sectionGoalSubtitle) ?></span>
+
+                            <div class="lq-progress">
+                                <span style="width: <?= $sectionProgressPercent ?>%"></span>
+                            </div>
+
+                            <ul>
+                                <?php foreach ($sectionPreviewItems as $miniTask): ?>
+                                    <li>
+                                        <span><?= e(shortText($miniTask['title'], 22)) ?></span>
+                                        <strong><?= sectionItemProgress($miniTask, $section) ?>%</strong>
+                                    </li>
+                                <?php endforeach; ?>
+                            </ul>
                         </article>
                     </aside>
                 <?php endif; ?>
