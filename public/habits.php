@@ -526,5 +526,6 @@ function habitEmojiByIndex(int $index): string
             <?php endif; ?>
         </section>
     </main>
+    <script src="../assets/js/app.js"></script>
 </body>
 </html>

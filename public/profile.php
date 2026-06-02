@@ -377,5 +377,6 @@ function badgeProgressLabel(array $badge): string
         })();
 
     </script>
+    <script src="../assets/js/app.js"></script>
 </body>
 </html>

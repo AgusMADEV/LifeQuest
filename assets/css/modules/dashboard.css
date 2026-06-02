@@ -430,8 +430,10 @@
     display: grid;
     place-items: center;
     font-size: 1.15rem;
+    /* Background color will be set inline based on area */
 }
 
+/* Fallback colors for missions without area assigned */
 .green {
     background: #dcfff5;
     color: #07966f;
@@ -470,6 +472,8 @@
     font-size: .76rem;
     font-weight: 900;
     text-align: center;
+    border: 1px solid;
+    /* Colors will be set inline based on area */
 }
 
 .mission-progress {

@@ -560,5 +560,6 @@ function shortText(string|null $value, int $limit = 42): string
             </section>
         </section>
     </main>
+    <script src="../assets/js/app.js"></script>
 </body>
 </html>

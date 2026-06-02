@@ -191,5 +191,6 @@ function shortText(string|null $value, int $limit = 42): string
             </section>
         <?php endif; ?>
     </main>
+    <script src="../assets/js/app.js"></script>
 </body>
 </html>

@@ -175,6 +175,21 @@ function buildDonutGradient(array $distribution): string
     return 'conic-gradient(' . implode(', ', $gradientParts) . ')';
 }
 
+function hexToRgba(string $hex, float $alpha = 1.0): string
+{
+    $hex = ltrim($hex, '#');
+    
+    if (strlen($hex) === 3) {
+        $hex = $hex[0] . $hex[0] . $hex[1] . $hex[1] . $hex[2] . $hex[2];
+    }
+    
+    $r = hexdec(substr($hex, 0, 2));
+    $g = hexdec(substr($hex, 2, 2));
+    $b = hexdec(substr($hex, 4, 2));
+    
+    return "rgba({$r}, {$g}, {$b}, {$alpha})";
+}
+
 $stylesCssVersion = (int) (@filemtime(__DIR__ . '/../assets/css/styles.css') ?: time());
 $dashboardCssVersion = (int) (@filemtime(__DIR__ . '/../assets/css/modules/dashboard.css') ?: time());
 $heroAvatarFile = 'ChatGPT Image 1 jun 2026, 08_22_51.png';
@@ -469,11 +484,18 @@ $heroAvatarSrc = '../referencias/avatares/' . rawurlencode($heroAvatarFile);
                         </div>
                     <?php else: ?>
                         <div class="mission-list">
-                            <?php foreach ($todayTasks as $index => $task): ?>
+                            <?php foreach ($todayTasks as $task): ?>
                                 <?php
-                                $missionIcons = ['📚', '🏋️', '✍️', '📈'];
-                                $categoryColors = ['green', 'purple', 'orange', 'blue'];
                                 $done = $task['status'] === 'completed';
+                                // Usar datos del área de vida o valores por defecto
+                                $areaIcon = !empty($task['area_icon']) ? $task['area_icon'] : '📋';
+                                $areaColor = !empty($task['area_color']) ? $task['area_color'] : '#8b5cf6';
+                                $areaName = !empty($task['area_name']) ? e(shortText($task['area_name'], 14)) : 'General';
+                                
+                                // Colores con transparencia para backgrounds
+                                $iconBgColor = hexToRgba($areaColor, 0.15);
+                                $tagBgColor = hexToRgba($areaColor, 0.12);
+                                $tagBorderColor = hexToRgba($areaColor, 0.25);
                                 ?>
                                 <article class="mission-item">
                                     <label class="check-wrap">
@@ -481,8 +503,8 @@ $heroAvatarSrc = '../referencias/avatares/' . rawurlencode($heroAvatarFile);
                                         <span></span>
                                     </label>
 
-                                    <div class="mission-icon <?= $categoryColors[$index % count($categoryColors)] ?>">
-                                        <?= $missionIcons[$index % count($missionIcons)] ?>
+                                    <div class="mission-icon" style="background-color: <?= $iconBgColor ?>;">
+                                        <?= $areaIcon ?>
                                     </div>
 
                                     <div class="mission-info">
@@ -490,8 +512,8 @@ $heroAvatarSrc = '../referencias/avatares/' . rawurlencode($heroAvatarFile);
                                         <small><?= !empty($task['project_title']) ? e(shortText($task['project_title'], 42)) : 'Misión independiente' ?></small>
                                     </div>
 
-                                    <span class="mission-tag <?= $categoryColors[$index % count($categoryColors)] ?>">
-                                        <?= !empty($task['area_name']) ? e(shortText($task['area_name'], 14)) : 'General' ?>
+                                    <span class="mission-tag" style="background-color: <?= $tagBgColor ?>; color: <?= e($areaColor) ?>; border-color: <?= $tagBorderColor ?>;">
+                                        <?= $areaName ?>
                                     </span>
 
                                     <div class="mission-progress">
@@ -768,7 +790,7 @@ $heroAvatarSrc = '../referencias/avatares/' . rawurlencode($heroAvatarFile);
                                 <?php foreach ($taskDistribution as $area): ?>
                                     <span>
                                         <i style="background: <?= e($area['area_color']) ?>;"></i>
-                                        <?= e($area['area_icon']) ?> <?= e(shortText($area['area_name'], 12)) ?> <?= number_format($area['percentage'], 0) ?>%
+                                        <?= e(shortText($area['area_name'], 15)) ?> <?= number_format($area['percentage'], 0) ?>%
                                     </span>
                                 <?php endforeach; ?>
                             </div>
@@ -778,5 +800,6 @@ $heroAvatarSrc = '../referencias/avatares/' . rawurlencode($heroAvatarFile);
             </aside>
         </div>
     </main>
+    <script src="../assets/js/app.js"></script>
 </body>
 </html>

@@ -896,5 +896,6 @@ function fieldError(array $errors, string $key): string
             </section>
         </section>
     </main>
+    <script src="../assets/js/app.js"></script>
 </body>
 </html>
