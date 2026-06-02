@@ -34,6 +34,7 @@ $activeProjects = $projectModel->getActiveByUser((int) $user['id'], 4);
 
 $taskModel = new Task();
 $habitModel = new Habit();
+$dailyObjectiveModel = new DailyObjective();
 $todayTasks = $taskModel->getTodayByUser((int) $user['id'], 4);
 $upcomingTasks = $taskModel->getUpcomingByUser((int) $user['id'], 5);
 $taskDistribution = $taskModel->getDistributionByArea((int) $user['id']);
@@ -51,6 +52,11 @@ $habitLogs = $habitModel->getLogsByRange(
     $weekStartDate->format('Y-m-d'),
     $weekEndDate->format('Y-m-d')
 );
+$weeklyObjectives = $dailyObjectiveModel->getByRange(
+    (int) $user['id'],
+    $weekStartDate->format('Y-m-d'),
+    $weekEndDate->format('Y-m-d')
+);
 
 $lineChartWidth = 420;
 $lineChartHeight = 190;
@@ -60,6 +66,7 @@ $xpChart = XpEvolutionChart::build(
     $chartTasks,
     $chartHabits,
     $habitLogs,
+    $weeklyObjectives,
     $weekStartDate,
     $weekEndDate,
     'week',
@@ -93,6 +100,24 @@ $xpNext = $level * $xpPerLevel;
 $points = (int) $user['points'];
 $gems = max(0, intdiv($points, 20));
 $currentStreak = (int) $user['current_streak'];
+$completedTasks = 0;
+$focusedMinutes = 0;
+
+foreach ($chartTasks as $task) {
+    if ((string) ($task['status'] ?? '') !== 'completed') {
+        continue;
+    }
+
+    $completedTasks++;
+    $focusedMinutes += max(0, (int) ($task['estimated_minutes'] ?? 0));
+}
+
+$focusHours = intdiv($focusedMinutes, 60);
+$focusRemainderMinutes = $focusedMinutes % 60;
+$focusLabel = $focusHours > 0
+    ? $focusHours . 'h ' . str_pad((string) $focusRemainderMinutes, 2, '0', STR_PAD_LEFT) . 'm'
+    : $focusRemainderMinutes . 'm';
+
 $hpSystemEnabled = defined('FEATURE_HP_SYSTEM') ? (bool) FEATURE_HP_SYSTEM : false;
 $baseHp = defined('PLAYER_BASE_HP') ? (int) PLAYER_BASE_HP : 1000;
 $maxHp = max(1, (int) ($user['max_hp'] ?? $baseHp));
@@ -116,7 +141,6 @@ $dailyBonusXp = max(100, (int) round($dailyTotalXp * 0.25)); // Bonus del 25% de
 $dailyBonusXp = min($dailyBonusXp, 500); // Máximo 500 XP de bonus
 
 // Verificar si el objetivo ya se completó hoy
-$dailyObjectiveModel = new DailyObjective();
 $objectiveCompletedToday = $dailyObjectiveModel->isCompletedToday((int) $user['id']);
 $todayObjective = $dailyObjectiveModel->getTodayObjective((int) $user['id']);
 
@@ -609,10 +633,10 @@ $heroAvatarSrc = '../referencias/avatares/' . rawurlencode($heroAvatarFile);
                             <h2>Resumen general</h2>
                         </div>
                         <div class="summary-mini-grid">
-                            <div><span>✅</span><strong><?= count($mainGoals) + count($activeProjects) ?></strong><small>Misiones</small></div>
-                            <div><span>⚡</span><strong><?= $xpCurrent ?></strong><small>XP</small></div>
-                            <div><span>🪙</span><strong><?= $points ?></strong><small>Coins</small></div>
-                            <div><span>⏱️</span><strong>0h</strong><small>Enfoque</small></div>
+                            <div><span>✅</span><strong><?= number_format($completedTasks, 0, ',', '.') ?></strong><small>Completadas</small></div>
+                            <div><span>🪙</span><strong><?= number_format($points, 0, ',', '.') ?></strong><small>LifeCoins</small></div>
+                            <div><span>⚡</span><strong><?= number_format($xpCurrent, 0, ',', '.') ?></strong><small>XP</small></div>
+                            <div><span>⏱️</span><strong><?= e($focusLabel) ?></strong><small>Enfoque</small></div>
                         </div>
                     </article>
                 </section>
@@ -741,7 +765,7 @@ $heroAvatarSrc = '../referencias/avatares/' . rawurlencode($heroAvatarFile);
                             <div class="area-levels-list">
                                 <?php foreach ($areaLevels as $areaLevel): ?>
                                     <article class="area-level-item">
-                                        <span class="area-level-icon"><?= e($areaLevel['icon']) ?></span>
+                                        <span class="area-level-icon" aria-hidden="true"><?= e($areaLevel['icon']) ?></span>
                                         <div>
                                             <strong><?= e(shortText($areaLevel['name'], 20)) ?> · Lv <?= (int) $areaLevel['level'] ?></strong>
                                             <div class="mini-progress"><i style="width: <?= (int) $areaLevel['level_percent'] ?>%"></i></div>

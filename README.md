@@ -20,6 +20,7 @@ Implementado y funcional:
 En evolución:
 
 - Modo Batalla y mejoras de estadísticas avanzadas.
+- Desglose visual del bonus de XP del objetivo diario en Dashboard/Progreso (etiqueta o serie diferenciada).
 
 ## Arquitectura
 

@@ -8,6 +8,7 @@ final class XpEvolutionChart
         array $tasks,
         array $habits,
         array $habitLogs,
+        array $dailyObjectives,
         DateTimeImmutable $periodStartDate,
         DateTimeImmutable $periodEndDate,
         string $metricPeriod,
@@ -63,6 +64,28 @@ final class XpEvolutionChart
                 if ($done && isset($xpByDate[$date])) {
                     $xpByDate[$date] += $habitXp;
                 }
+            }
+        }
+
+        foreach ($dailyObjectives as $dailyObjective) {
+            $objectiveDateRaw = (string) ($dailyObjective['objective_date'] ?? '');
+            if ($objectiveDateRaw === '') {
+                continue;
+            }
+
+            try {
+                $objectiveDate = new DateTimeImmutable($objectiveDateRaw);
+            } catch (Throwable $exception) {
+                continue;
+            }
+
+            if ($objectiveDate < $periodStartDate || $objectiveDate > $periodEndDate) {
+                continue;
+            }
+
+            $dateKey = $objectiveDate->format('Y-m-d');
+            if (isset($xpByDate[$dateKey])) {
+                $xpByDate[$dateKey] += (int) ($dailyObjective['xp_bonus_awarded'] ?? 0);
             }
         }
 

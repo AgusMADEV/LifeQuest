@@ -18,6 +18,7 @@
 .metas-shell {
     display: grid;
     gap: 16px;
+    padding: 0px 30px;
 }
 
 .metas-hero {

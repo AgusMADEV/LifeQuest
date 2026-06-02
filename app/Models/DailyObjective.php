@@ -119,6 +119,24 @@ final class DailyObjective
         return $stmt->fetchAll();
     }
 
+    public function getByRange(int $userId, string $startDate, string $endDate): array
+    {
+        $sql = "SELECT *
+                FROM daily_objectives
+                WHERE user_id = :user_id
+                  AND objective_date BETWEEN :start_date AND :end_date
+                ORDER BY objective_date ASC";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([
+            'user_id' => $userId,
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+        ]);
+
+        return $stmt->fetchAll();
+    }
+
     /**
      * Obtiene la racha de días consecutivos completando objetivos
      */

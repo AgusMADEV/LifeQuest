@@ -6,6 +6,7 @@ require_once __DIR__ . '/../app/Models/Task.php';
 require_once __DIR__ . '/../app/Models/Habit.php';
 require_once __DIR__ . '/../app/Models/Goal.php';
 require_once __DIR__ . '/../app/Models/Project.php';
+require_once __DIR__ . '/../app/Models/DailyObjective.php';
 require_once __DIR__ . '/../app/Support/StreakWeek.php';
 require_once __DIR__ . '/../app/Support/XpEvolutionChart.php';
 
@@ -25,6 +26,7 @@ $taskModel = new Task();
 $habitModel = new Habit();
 $goalModel = new Goal();
 $projectModel = new Project();
+$dailyObjectiveModel = new DailyObjective();
 
 $allowedMetricPeriods = ['week', 'month'];
 $metricPeriodInput = (string) ($_GET['metric_period'] ?? 'month');
@@ -92,6 +94,7 @@ foreach ($tasks as $task) {
 }
 
 $habitLogs = $habitModel->getLogsByRange($userId, $periodStartDate->format('Y-m-d'), $periodEndDate->format('Y-m-d'));
+$dailyObjectives = $dailyObjectiveModel->getByRange($userId, $periodStartDate->format('Y-m-d'), $periodEndDate->format('Y-m-d'));
 $habitMap = [];
 foreach ($habits as $habit) {
     $habitMap[(int) $habit['id']] = $habit;
@@ -117,7 +120,12 @@ foreach ($habitLogs as $habitId => $dateMap) {
     $weeklyHabitCoins += $checks * (int) ($habit['points_reward'] ?? 0);
 }
 
-$weeklyXpGain = $weeklyTaskXp + $weeklyHabitXp;
+$weeklyObjectiveXp = array_sum(array_map(
+    static fn(array $objective): int => (int) ($objective['xp_bonus_awarded'] ?? 0),
+    $dailyObjectives
+));
+
+$weeklyXpGain = $weeklyTaskXp + $weeklyHabitXp + $weeklyObjectiveXp;
 $weeklyCoinGain = $weeklyTaskCoins + $weeklyHabitCoins;
 
 $areaCounter = [];
@@ -221,6 +229,7 @@ $xpChart = XpEvolutionChart::build(
     $tasks,
     $habits,
     $habitLogs,
+    $dailyObjectives,
     $periodStartDate,
     $periodEndDate,
     $metricPeriod,
