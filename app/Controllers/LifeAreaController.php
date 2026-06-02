@@ -75,11 +75,17 @@ final class LifeAreaController
             ];
         }
 
+        $existingArea = $this->lifeAreaModel->findByIdAndUser($id, $userId);
+
         if ($name === '') {
             return [
                 'success' => false,
                 'message' => 'El nombre del área es obligatorio.'
             ];
+        }
+
+        if ($icon === '' && $existingArea && isset($existingArea['icon'])) {
+            $icon = trim((string) $existingArea['icon']);
         }
 
         $updated = $this->lifeAreaModel->update(

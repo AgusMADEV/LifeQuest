@@ -101,7 +101,7 @@
 
 .metas-clean-hero p {
     margin: 8px 0 0;
-    color: #64708d;
+    color: var(--muted) ;
     font-size: .95rem;
 }
 
@@ -179,7 +179,6 @@
 .metas-missions-layout .missions-main-header {
     padding: 18px 22px;
     margin: 0;
-    border-bottom: 1px solid #edf1f8;
 }
 
 .metas-missions-layout .lq-panel-header h2,
@@ -198,7 +197,7 @@
 .metas-missions-layout .lq-list-grid {
     display: flex;
     flex-direction: column;
-    gap: 0;
+    padding: 10px;
 }
 
 .metas-missions-layout .mission-item-row {
@@ -234,6 +233,17 @@
     font-size: 1.18rem;
     background: linear-gradient(145deg, #243553, #152033) !important;
     box-shadow: 0 12px 22px rgba(12, 24, 48, .24);
+}
+
+.metas-missions-layout .mission-item-icon-mask {
+    background: var(--area-color, #16c79a) !important;
+    color: transparent;
+    -webkit-mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-size: 66%;
+    mask-position: center;
+    mask-repeat: no-repeat;
+    mask-size: 66%;
 }
 
 .metas-missions-layout .mission-item-copy h3 {
@@ -296,7 +306,10 @@
 }
 
 .metas-missions-layout .missions-list {
-    gap: 0;
+    gap: 10px;
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
 }
 
 .metas-missions-layout .mission-item-progress {
@@ -644,7 +657,6 @@ body.lq-modal-lock {
     gap: 14px;
     padding: 18px 22px;
     margin: 0;
-    border-bottom: 1px solid #edf1f8;
 }
 
 .metas-missions-layout.tasks-mode .missions-main-header > div {

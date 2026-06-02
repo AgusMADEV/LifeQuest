@@ -157,6 +157,27 @@ function e(string|null $value): string
     return htmlspecialchars($value ?? '', ENT_QUOTES, 'UTF-8');
 }
 
+function areaIconMaskUrl(string|null $iconValue): ?string
+{
+    $iconValue = trim((string) $iconValue);
+
+    if ($iconValue === '') {
+        return null;
+    }
+
+    $maskedPath = __DIR__ . '/../icons/areas_masked/' . $iconValue;
+    if (is_file($maskedPath)) {
+        return '../icons/areas_masked/' . rawurlencode($iconValue);
+    }
+
+    $originalPath = __DIR__ . '/../icons/areas/' . $iconValue;
+    if (is_file($originalPath)) {
+        return '../icons/areas/' . rawurlencode($iconValue);
+    }
+
+    return null;
+}
+
 function statusLabelDashboard(string $status): string
 {
     return [
@@ -512,7 +533,8 @@ $heroAvatarSrc = '../referencias/avatares/' . rawurlencode($heroAvatarFile);
                                 <?php
                                 $done = $task['status'] === 'completed';
                                 // Usar datos del área de vida o valores por defecto
-                                $areaIcon = !empty($task['area_icon']) ? $task['area_icon'] : '📋';
+                                $areaIconValue = !empty($task['area_icon']) ? (string) $task['area_icon'] : '';
+                                $areaIcon = areaIconMaskUrl($areaIconValue);
                                 $areaColor = !empty($task['area_color']) ? $task['area_color'] : '#8b5cf6';
                                 $areaName = !empty($task['area_name']) ? e(shortText($task['area_name'], 14)) : 'General';
                                 
@@ -528,7 +550,11 @@ $heroAvatarSrc = '../referencias/avatares/' . rawurlencode($heroAvatarFile);
                                     </label>
 
                                     <div class="mission-icon" style="background-color: <?= $iconBgColor ?>;">
-                                        <?= $areaIcon ?>
+                                        <?php if ($areaIcon): ?>
+                                            <span class="mission-icon-mask" style="--area-color: <?= e($areaColor) ?>; -webkit-mask-image: url('<?= e($areaIcon) ?>'); mask-image: url('<?= e($areaIcon) ?>');"></span>
+                                        <?php else: ?>
+                                            <?= e($areaIconValue !== '' ? $areaIconValue : '📋') ?>
+                                        <?php endif; ?>
                                     </div>
 
                                     <div class="mission-info">

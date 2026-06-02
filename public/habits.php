@@ -408,7 +408,7 @@ function habitEmojiByIndex(int $index): string
                             <select name="area_id">
                                 <option value="">Área</option>
                                 <?php foreach ($areas as $area): ?>
-                                    <option value="<?= (int) $area['id'] ?>"><?= e(($area['icon'] ? $area['icon'] . ' ' : '') . $area['name']) ?></option>
+                                    <option value="<?= (int) $area['id'] ?>"><?= e($area['name']) ?></option>
                                 <?php endforeach; ?>
                             </select>
                             <select name="goal_id">

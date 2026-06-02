@@ -5,34 +5,33 @@
 .lq-page-shell {
     display: grid;
     gap: 24px;
+    padding: 0px 32px;
 }
 
 .lq-page-hero {
-    background:
-        radial-gradient(circle at 92% 12%, rgba(139, 92, 246, .13), transparent 14rem),
-        radial-gradient(circle at 8% 20%, rgba(22, 199, 154, .12), transparent 13rem),
-        rgba(255,255,255,.88);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--soft-shadow);
-    padding: 28px;
     display: flex;
-    justify-content: space-between;
-    gap: 22px;
-    align-items: flex-start;
+    align-items: center;
+    padding: 10px 0 4px;
+    margin-bottom: 0;
+    background: transparent;
+    box-shadow: none;
+    border: 0;
 }
-
+.lq-page-hero .eyebrow {
+    display: none;
+}
 .lq-page-hero h1 {
     margin: 0;
-    font-size: clamp(2rem, 4vw, 3.6rem);
-    letter-spacing: -.08em;
+    font-size: clamp(2rem, 4vw, 2.65rem);
+    line-height: 1;
+    letter-spacing: -.06em;
+    color: #17213c;
 }
 
 .lq-page-hero p {
+    margin: 8px 0 0;
     color: var(--muted);
-    max-width: 720px;
-    line-height: 1.65;
-    margin: 10px 0 0;
+    font-size: .95rem;
 }
 
 .lq-page-actions {
@@ -59,8 +58,8 @@
 }
 
 .lq-form-panel,
-.lq-list-panel {
-    padding: 24px;
+.lq-panel-header {
+    padding: 20px;
 }
 
 .lq-form-panel {
@@ -128,6 +127,80 @@
     padding: 6px;
 }
 
+.lq-icon-picker {
+    display: grid;
+    gap: 12px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.lq-icon-picker legend {
+    padding: 0;
+    color: #263154;
+    font-size: .9rem;
+    font-weight: 900;
+}
+
+.lq-icon-picker-help {
+    margin: -4px 0 0;
+    color: var(--muted);
+    font-size: .84rem;
+    line-height: 1.45;
+}
+
+.lq-icon-picker-grid {
+    --picker-color: var(--primary);
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+    gap: 12px;
+}
+
+.lq-icon-option {
+    position: relative;
+    display: grid;
+    justify-items: center;
+    gap: 8px;
+    padding: 10px 8px 12px;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: #f8fbff;
+    cursor: pointer;
+    transition: .18s ease;
+}
+
+.lq-icon-option:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 20px rgba(55, 65, 120, .08);
+}
+
+.lq-icon-option input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.lq-icon-option-preview {
+    width: 68px;
+    height: 68px;
+    border-radius: 18px;
+    background: var(--picker-color);
+    border: 1px solid rgba(16, 25, 53, .06);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.45), 0 12px 20px rgba(16,25,53,.08);
+    -webkit-mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-size: 68%;
+    mask-position: center;
+    mask-repeat: no-repeat;
+    mask-size: 68%;
+}
+
+.lq-icon-option input:checked ~ .lq-icon-option-preview {
+    outline: 3px solid rgba(22,199,154,.20);
+    outline-offset: 2px;
+    transform: translateY(-1px) scale(1.02);
+}
+
 .lq-form input:focus,
 .lq-form select:focus,
 .lq-form textarea:focus {
@@ -141,9 +214,82 @@
     gap: 14px;
 }
 
+.metas-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 890;
+    display: none;
+    background: rgba(11, 18, 38, .42);
+    backdrop-filter: blur(8px);
+}
+
+.metas-modal-backdrop.is-open {
+    display: block;
+}
+
+.metas-form-modal {
+    position: fixed;
+    z-index: 900;
+    top: 50%;
+    left: 50%;
+    width: min(760px, calc(100vw - 32px));
+    max-height: min(88vh, 900px);
+    overflow: auto;
+    transform: translate(-50%, -48%) scale(.96);
+    display: none;
+    opacity: 0;
+    padding: 24px;
+    border-radius: 24px;
+    background: rgba(255, 255, 255, .98);
+    box-shadow: 0 28px 90px rgba(10, 17, 36, .28);
+}
+
+.metas-form-modal.is-open {
+    display: block;
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+    animation: metasModalIn .18s ease-out;
+}
+
+@keyframes metasModalIn {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -47%) scale(.96);
+    }
+
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+.metas-form-modal .lq-panel-header {
+    padding: 0 0 18px;
+    margin-bottom: 18px;
+    border-bottom: 1px solid #edf1f8;
+}
+
+.metas-modal-close {
+    width: 38px;
+    height: 38px;
+    border-radius: 13px;
+    display: grid;
+    place-items: center;
+    background: #f3f6fb;
+    color: #536486 !important;
+    font-size: 1.45rem !important;
+    line-height: 1;
+    text-decoration: none;
+}
+
+body.lq-modal-lock {
+    overflow: hidden;
+}
+
 .lq-list-grid {
     display: grid;
-    gap: 16px;
+    gap: 10px;
+    padding: 0px 10px;
 }
 
 .lq-object-card {
@@ -176,6 +322,17 @@
     box-shadow: 0 14px 24px rgba(16,25,53,.10);
 }
 
+.lq-object-icon-mask {
+    background: var(--area-color, var(--primary));
+    color: transparent;
+    -webkit-mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-size: 68%;
+    mask-position: center;
+    mask-repeat: no-repeat;
+    mask-size: 68%;
+}
+
 .lq-object-title h2 {
     margin: 0 0 7px;
     letter-spacing: -.045em;
@@ -190,7 +347,7 @@
 
 .lq-object-badges,
 .lq-object-meta,
-.lq-object-actions {
+.mission-item-actions {
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
@@ -201,42 +358,38 @@
 }
 
 .lq-badge {
-    border-radius: 999px;
-    padding: 7px 11px;
-    background: #f2f6ff;
-    color: var(--muted);
-    border: 1px solid var(--line);
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+    color: #41629d;
     font-size: .78rem;
-    font-weight: 900;
-    white-space: nowrap;
+    font-weight: 800;
+    line-height: 1.35;
 }
 
 .lq-badge.green {
-    background: #dcfff5;
     color: #087f5b;
     border-color: rgba(22,199,154,.22);
 }
 
 .lq-badge.blue {
-    background: #e7f0ff;
     color: #2563eb;
     border-color: rgba(37,99,235,.18);
 }
 
 .lq-badge.purple {
-    background: #efe6ff;
     color: #7048e8;
     border-color: rgba(139,92,246,.18);
 }
 
 .lq-badge.orange {
-    background: #fff3d6;
     color: #f08c00;
     border-color: rgba(255,176,32,.25);
 }
 
 .lq-badge.red {
-    background: #ffe9e9;
     color: #c92a2a;
     border-color: rgba(255,107,107,.25);
 }
@@ -275,6 +428,54 @@
     gap: 16px;
     flex-wrap: wrap;
     align-items: center;
+}
+
+.mission-item-actions {
+    justify-content: flex-end;
+    align-items: center;
+    flex-wrap: nowrap;
+}
+
+.mission-item-actions form {
+    margin: 0;
+}
+
+.mission-item-actions .btn {
+    height: 38px;
+    min-width: 38px;
+    border-radius: 14px;
+    padding: 0 11px;
+}
+
+.mission-item-actions .btn-secondary,
+.mission-item-actions .lq-btn-danger {
+    background: #f4f7fb;
+    color: #536486;
+    border: 1px solid #e2e8f1;
+}
+
+.mission-item-actions .btn-secondary::before,
+.mission-item-actions .lq-btn-danger::before {
+    position: relative;
+    z-index: 1;
+}
+
+.mission-item-actions .lq-icon-btn {
+    justify-content: center;
+    padding: 0;
+    width: 38px;
+    min-width: 38px;
+    aspect-ratio: 1;
+}
+
+.mission-item-actions .lq-icon-edit::before {
+    content: '✎';
+    font-size: .9rem;
+}
+
+.mission-item-actions .lq-icon-delete::before {
+    content: "×";
+    font-size: 1.15rem;
 }
 
 .lq-empty {

@@ -2,12 +2,14 @@
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../app/Controllers/AuthController.php';
 require_once __DIR__ . '/../app/Controllers/LifeAreaController.php';
+require_once __DIR__ . '/../app/Models/AreaProgression.php';
 require_once __DIR__ . '/../app/Models/LifeArea.php';
 require_once __DIR__ . '/../app/Models/User.php';
 
 AuthController::requireAuth();
 
 $controller = new LifeAreaController();
+$areaProgressionModel = new AreaProgression();
 $lifeAreaModel = new LifeArea();
 $userModel = new User();
 
@@ -23,6 +25,7 @@ if (!$user) {
 $message = null;
 $messageType = null;
 $editingArea = null;
+$areaFormData = [];
 
 if (isset($_GET['edit'])) {
     $editingArea = $lifeAreaModel->findByIdAndUser((int) $_GET['edit'], $userId);
@@ -44,6 +47,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $message = $result['message'];
     $messageType = $result['success'] ? 'success' : 'error';
 
+    if (!$result['success'] && in_array($action, ['create', 'update'], true)) {
+        $areaFormData = $_POST;
+    }
+
     if ($result['success']) {
         header('Location: areas.php?message=' . urlencode($message) . '&type=' . $messageType);
         exit;
@@ -56,6 +63,7 @@ if (isset($_GET['message'], $_GET['type'])) {
 }
 
 $areas = $controller->index($userId);
+$areaProgressionByArea = $areaProgressionModel->getByUser($userId);
 
 function e(string|null $value): string
 {
@@ -67,6 +75,72 @@ function shortText(string|null $value, int $limit = 42): string
     $value = trim((string) $value);
     return mb_strlen($value) <= $limit ? $value : mb_substr($value, 0, $limit - 1) . '…';
 }
+
+function formValue(array $formData, string $key, mixed $fallback = ''): mixed
+{
+    return array_key_exists($key, $formData) ? $formData[$key] : $fallback;
+}
+
+function areaIconOptions(): array
+{
+    $iconsDirectory = __DIR__ . '/../icons/areas';
+    $labelMap = [
+        'ChatGPT Image 3 jun 2026, 00_33_59 (1).png' => 'Libro',
+        'ChatGPT Image 3 jun 2026, 00_33_59 (2).png' => 'Fitness',
+        'ChatGPT Image 3 jun 2026, 00_33_59 (3).png' => 'Salud',
+        'ChatGPT Image 3 jun 2026, 00_34_00 (4).png' => 'Estudio',
+        'ChatGPT Image 3 jun 2026, 00_34_00 (5).png' => 'Trabajo',
+        'ChatGPT Image 3 jun 2026, 00_34_00 (6).png' => 'Finanzas',
+        'ChatGPT Image 3 jun 2026, 00_34_01 (7).png' => 'Relaciones',
+        'ChatGPT Image 3 jun 2026, 00_34_01 (8).png' => 'Crecimiento',
+    ];
+
+    $options = [];
+    $iconFiles = glob($iconsDirectory . '/*.png') ?: [];
+    natsort($iconFiles);
+
+    foreach ($iconFiles as $iconFile) {
+        $fileName = basename($iconFile);
+
+        $options[] = [
+            'value' => $fileName,
+            'label' => $labelMap[$fileName] ?? 'Icono',
+            'preview' => '../icons/areas/' . rawurlencode($fileName),
+            'masked' => '../icons/areas_masked/' . rawurlencode($fileName),
+        ];
+    }
+
+    return $options;
+}
+
+function areaIconMaskedPath(string|null $iconValue, array $areaIconByValue): ?string
+{
+    $iconValue = trim((string) $iconValue);
+
+    if ($iconValue === '' || !isset($areaIconByValue[$iconValue])) {
+        return null;
+    }
+
+    return $areaIconByValue[$iconValue]['masked'] ?? null;
+}
+
+$modalIsOpen = $editingArea !== null || !empty($areaFormData);
+$areaCurrent = !empty($areaFormData) ? $areaFormData : ($editingArea ?? []);
+$areaIconOptions = areaIconOptions();
+$areaIconByValue = [];
+
+foreach ($areaIconOptions as $areaIconOption) {
+    $areaIconByValue[$areaIconOption['value']] = $areaIconOption;
+}
+
+$selectedIconValue = (string) formValue($areaCurrent, 'icon', '');
+$defaultIconValue = $areaIconOptions[0]['value'] ?? '';
+
+if ($selectedIconValue === '' && !$editingArea) {
+    $selectedIconValue = $defaultIconValue;
+}
+
+$currentAreaColor = (string) formValue($areaCurrent, 'color', '#16C79A');
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -110,110 +184,123 @@ function shortText(string|null $value, int $limit = 42): string
                     <h1>Áreas de vida</h1>
                     <p>Organiza tu progreso por categorías importantes: salud, estudios, trabajo, finanzas, relaciones o desarrollo personal.</p>
                 </div>
-                <div class="lq-page-actions">
-                    <a href="dashboard.php" class="btn btn-secondary">Volver al inicio</a>
-                    <a href="goals.php" class="btn btn-primary">Crear meta</a>
-                </div>
             </header>
 
             <?php if ($message): ?>
                 <div class="lq-alert <?= e($messageType) ?>"><?= e($message) ?></div>
             <?php endif; ?>
 
-            <section class="lq-crud-layout">
-                <article class="lq-form-panel">
-                    <div class="lq-panel-header">
-                        <div>
-                            <h2><?= $editingArea ? 'Editar área' : 'Nueva área' ?></h2>
-                            <p><?= $editingArea ? 'Ajusta esta categoría de progreso.' : 'Crea una categoría para ordenar tus metas.' ?></p>
-                        </div>
-                        <?php if ($editingArea): ?><a href="areas.php">Cancelar</a><?php endif; ?>
+            <div class="metas-modal-backdrop <?= $modalIsOpen ? 'is-open' : '' ?>" data-goal-modal-close></div>
+
+            <article class="lq-form-panel metas-form-modal <?= $modalIsOpen ? 'is-open' : '' ?>" data-goal-form-modal>
+                <div class="lq-panel-header">
+                    <div>
+                        <h2><?= $editingArea ? 'Editar área' : 'Nueva área' ?></h2>
+                        <p><?= $editingArea ? 'Ajusta esta categoría de progreso.' : 'Crea una categoría para ordenar tus metas.' ?></p>
+                    </div>
+                    <a href="areas.php" class="metas-modal-close" data-goal-modal-close>×</a>
+                </div>
+
+                <form method="POST" class="lq-form">
+                    <input type="hidden" name="action" value="<?= $editingArea ? 'update' : 'create' ?>">
+                    <?php if ($editingArea): ?>
+                        <input type="hidden" name="id" value="<?= (int) $editingArea['id'] ?>">
+                    <?php endif; ?>
+
+                    <label>
+                        Nombre del área
+                        <input type="text" name="name" placeholder="Ej: Salud" value="<?= e((string) formValue($areaCurrent, 'name', '')) ?>" required>
+                    </label>
+
+                    <label>
+                        Descripción
+                        <textarea name="description" rows="4" placeholder="Describe qué representa esta área para ti."><?= e((string) formValue($areaCurrent, 'description', '')) ?></textarea>
+                    </label>
+
+                    <div class="lq-form-row">
+                        <label>
+                            Color
+                            <input type="color" name="color" value="<?= e((string) formValue($areaCurrent, 'color', '#16C79A')) ?>">
+                        </label>
                     </div>
 
-                    <form method="POST" class="lq-form">
-                        <input type="hidden" name="action" value="<?= $editingArea ? 'update' : 'create' ?>">
-                        <?php if ($editingArea): ?>
-                            <input type="hidden" name="id" value="<?= (int) $editingArea['id'] ?>">
-                        <?php endif; ?>
+                    <fieldset class="lq-icon-picker">
+                        <legend>Icono</legend>
+                        <p class="lq-icon-picker-help">Elige un icono para esta área. Se pintará con el color seleccionado.</p>
 
-                        <label>
-                            Nombre del área
-                            <input type="text" name="name" placeholder="Ej: Salud" value="<?= e($editingArea['name'] ?? '') ?>" required>
-                        </label>
-
-                        <label>
-                            Descripción
-                            <textarea name="description" rows="4" placeholder="Describe qué representa esta área para ti."><?= e($editingArea['description'] ?? '') ?></textarea>
-                        </label>
-
-                        <div class="lq-form-row">
-                            <label>
-                                Icono
-                                <input type="text" name="icon" placeholder="Ej: 💪" value="<?= e($editingArea['icon'] ?? '') ?>">
-                            </label>
-
-                            <label>
-                                Color
-                                <input type="color" name="color" value="<?= e($editingArea['color'] ?? '#16C79A') ?>">
-                            </label>
+                        <div class="lq-icon-picker-grid" data-area-icon-picker style="--picker-color: <?= e($currentAreaColor) ?>;">
+                            <?php foreach ($areaIconOptions as $areaIconOption): ?>
+                                <?php $isChecked = $selectedIconValue === $areaIconOption['value']; ?>
+                                <label class="lq-icon-option" title="<?= e($areaIconOption['label']) ?>">
+                                    <input type="radio" name="icon" value="<?= e($areaIconOption['value']) ?>" <?= $isChecked ? 'checked' : '' ?>>
+                                    <span class="lq-icon-option-preview" style="-webkit-mask-image: url('<?= e($areaIconOption['masked']) ?>'); mask-image: url('<?= e($areaIconOption['masked']) ?>');"></span>
+                                </label>
+                            <?php endforeach; ?>
                         </div>
+                    </fieldset>
 
-                        <button type="submit" class="btn btn-primary full"><?= $editingArea ? 'Guardar cambios' : 'Crear área' ?></button>
-                    </form>
-                </article>
+                    <button type="submit" class="btn btn-primary full"><?= $editingArea ? 'Guardar cambios' : 'Crear área' ?></button>
+                </form>
+            </article>
 
-                <section class="lq-list-panel">
-                    <div class="lq-panel-header">
-                        <div>
-                            <h2>Tus áreas</h2>
-                            <p><?= count($areas) ?> áreas creadas</p>
-                        </div>
+            <section class="lq-list-panel">
+                <div class="lq-panel-header">
+                    <div>
+                        <h2>Tus áreas</h2>
+                        <p><?= count($areas) ?> áreas creadas</p>
                     </div>
+                    <button type="button" class="btn btn-primary metas-add-btn" data-goal-modal-open>+ área</button>
+                </div>
 
-                    <div class="lq-list-grid">
-                        <?php if (empty($areas)): ?>
-                            <article class="lq-empty">
-                                <h2>No hay áreas todavía</h2>
-                                <p>Empieza creando áreas como Salud, Estudios, Trabajo o Finanzas.</p>
-                            </article>
-                        <?php endif; ?>
+                <div class="lq-list-grid">
+                    <?php if (empty($areas)): ?>
+                        <article class="lq-empty">
+                            <h2>No hay áreas todavía</h2>
+                            <p>Empieza creando áreas como Salud, Estudios, Trabajo o Finanzas.</p>
+                        </article>
+                    <?php endif; ?>
 
-                        <?php foreach ($areas as $area): ?>
-                            <article class="lq-object-card">
-                                <div class="lq-object-top">
+                    <?php foreach ($areas as $area): ?>
+                        <?php $areaLevel = (int) ($areaProgressionByArea[(int) $area['id']]['level'] ?? 1); ?>
+                        <?php $areaIconPath = areaIconMaskedPath((string) ($area['icon'] ?? ''), $areaIconByValue); ?>
+                        <article class="lq-object-card">
+                            <div class="lq-object-top">
+                                <?php if ($areaIconPath): ?>
+                                    <div class="lq-object-icon lq-object-icon-mask" style="--area-color: <?= e($area['color'] ?: '#16C79A') ?>; -webkit-mask-image: url('<?= e($areaIconPath) ?>'); mask-image: url('<?= e($areaIconPath) ?>');"></div>
+                                <?php else: ?>
                                     <div class="lq-object-icon" style="background: <?= e($area['color'] ?: '#16C79A') ?>;">
                                         <?= e($area['icon'] ?: '●') ?>
                                     </div>
+                                <?php endif; ?>
 
-                                    <div class="lq-object-title">
-                                        <h2><?= e($area['name']) ?></h2>
-                                        <p><?= e($area['description'] ?: 'Sin descripción.') ?></p>
-                                    </div>
-
-                                    <div class="lq-object-badges">
-                                        <span class="lq-badge green">Activa</span>
-                                    </div>
+                                <div class="lq-object-title">
+                                    <h2><?= e($area['name']) ?></h2>
+                                    <p><?= e($area['description'] ?: 'Sin descripción.') ?></p>
                                 </div>
 
-                                <div class="lq-object-footer">
-                                    <div class="lq-object-meta">
-                                        <span class="lq-badge">Progreso inicial: 0%</span>
-                                        <span class="lq-badge">Creada el <?= date('d/m/Y', strtotime($area['created_at'])) ?></span>
-                                    </div>
-
-                                    <div class="lq-object-actions">
-                                        <a href="areas.php?edit=<?= (int) $area['id'] ?>" class="btn btn-secondary">Editar</a>
-                                        <form method="POST" onsubmit="return confirm('¿Seguro que quieres eliminar esta área?');">
-                                            <input type="hidden" name="action" value="delete">
-                                            <input type="hidden" name="id" value="<?= (int) $area['id'] ?>">
-                                            <button type="submit" class="btn lq-btn-danger">Eliminar</button>
-                                        </form>
-                                    </div>
+                                <div class="lq-object-badges">
+                                    <span class="lq-badge green">Activa</span>
                                 </div>
-                            </article>
-                        <?php endforeach; ?>
-                    </div>
-                </section>
+                            </div>
+
+                            <div class="lq-object-footer">
+                                <div class="lq-object-meta">
+                                    <span class="lq-badge">Nivel actual: <?= $areaLevel ?></span>
+                                    <span class="lq-badge">Creada el <?= date('d/m/Y', strtotime($area['created_at'])) ?></span>
+                                </div>
+
+                                <div class="mission-item-actions">
+                                    <a href="areas.php?edit=<?= (int) $area['id'] ?>" class="btn btn-secondary lq-icon-btn lq-icon-edit" aria-label="Editar área"></a>
+                                    <form method="POST" onsubmit="return confirm('¿Seguro que quieres eliminar esta área?');">
+                                        <input type="hidden" name="action" value="delete">
+                                        <input type="hidden" name="id" value="<?= (int) $area['id'] ?>">
+                                        <button type="submit" class="btn lq-btn-danger lq-icon-btn lq-icon-delete" aria-label="Eliminar área"></button>
+                                    </form>
+                                </div>
+                            </div>
+                        </article>
+                    <?php endforeach; ?>
+                </div>
             </section>
         </section>
     </main>

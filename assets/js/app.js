@@ -102,3 +102,20 @@ console.log('LifeQuest iniciado correctamente.');
         }
     }
 })();
+
+(function initAreaIconPicker() {
+    const picker = document.querySelector('[data-area-icon-picker]');
+    const colorInput = document.querySelector('.metas-form-modal input[name="color"]');
+
+    if (!picker || !colorInput) {
+        return;
+    }
+
+    const syncPickerColor = () => {
+        picker.style.setProperty('--picker-color', colorInput.value || '#16C79A');
+    };
+
+    colorInput.addEventListener('input', syncPickerColor);
+    colorInput.addEventListener('change', syncPickerColor);
+    syncPickerColor();
+})();

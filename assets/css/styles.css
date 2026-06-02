@@ -1101,15 +1101,6 @@ a {
     letter-spacing: -.07em;
 }
 
-.eyebrow {
-    margin: 0 0 8px;
-    color: var(--primary);
-    font-weight: 900;
-    text-transform: uppercase;
-    letter-spacing: .12em;
-    font-size: .75rem;
-}
-
 .card,
 .area-card,
 .goal-card {

@@ -119,6 +119,45 @@ final class AreaProgression
         return $rows;
     }
 
+    public function getByUser(int $userId): array
+    {
+        if (!$this->isEnabled() || !$this->hasTable('area_progression')) {
+            return [];
+        }
+
+        $stmt = $this->db->prepare(
+            "SELECT area_id,
+                    xp,
+                    level
+             FROM area_progression
+             WHERE user_id = :user_id"
+        );
+        $stmt->execute(['user_id' => $userId]);
+
+        $rows = [];
+
+        foreach ($stmt->fetchAll() as $row) {
+            $areaId = (int) ($row['area_id'] ?? 0);
+            $xp = max(0, (int) ($row['xp'] ?? 0));
+            $level = max(1, (int) ($row['level'] ?? $this->levelFromXp($xp)));
+
+            if ($areaId <= 0) {
+                continue;
+            }
+
+            $rows[$areaId] = [
+                'area_id' => $areaId,
+                'xp' => $xp,
+                'level' => $level,
+                'level_percent' => (int) round((($xp % 1000) / 1000) * 100),
+                'level_xp' => $xp % 1000,
+                'level_xp_target' => 1000,
+            ];
+        }
+
+        return $rows;
+    }
+
     private function isEnabled(): bool
     {
         return defined('FEATURE_AREA_PROGRESSION') ? (bool) FEATURE_AREA_PROGRESSION : false;

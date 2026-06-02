@@ -433,6 +433,20 @@
     /* Background color will be set inline based on area */
 }
 
+.mission-icon-mask {
+    width: 42px;
+    height: 42px;
+    display: block;
+    background: var(--area-color, var(--primary));
+    color: transparent;
+    -webkit-mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-size: 66%;
+    mask-position: center;
+    mask-repeat: no-repeat;
+    mask-size: 66%;
+}
+
 /* Fallback colors for missions without area assigned */
 .green {
     background: #dcfff5;

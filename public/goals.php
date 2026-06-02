@@ -9,7 +9,6 @@ require_once __DIR__ . '/../app/Models/Project.php';
 require_once __DIR__ . '/../app/Models/Task.php';
 require_once __DIR__ . '/../app/Models/LifeArea.php';
 require_once __DIR__ . '/../app/Models/User.php';
-
 AuthController::requireAuth();
 
 $userId = (int) $_SESSION['user_id'];
@@ -53,11 +52,9 @@ $editingTask = null;
 $goalFormData = [];
 $projectFormData = [];
 $taskFormData = [];
-
 $goalFormErrors = [];
 $projectFormErrors = [];
 $taskFormErrors = [];
-
 if ($section === 'goals' && isset($_GET['edit_goal'])) {
     $editingGoal = $goalModel->findByIdAndUser((int) $_GET['edit_goal'], $userId);
 }
@@ -413,6 +410,27 @@ function formValue(array $formData, string $key, mixed $fallback = ''): mixed
     return array_key_exists($key, $formData) ? $formData[$key] : $fallback;
 }
 
+function areaIconMaskUrl(string|null $iconValue): ?string
+{
+    $iconValue = trim((string) $iconValue);
+
+    if ($iconValue === '') {
+        return null;
+    }
+
+    $maskedPath = __DIR__ . '/../icons/areas_masked/' . $iconValue;
+    if (is_file($maskedPath)) {
+        return '../icons/areas_masked/' . rawurlencode($iconValue);
+    }
+
+    $originalPath = __DIR__ . '/../icons/areas/' . $iconValue;
+    if (is_file($originalPath)) {
+        return '../icons/areas/' . rawurlencode($iconValue);
+    }
+
+    return null;
+}
+
 function fieldError(array $errors, string $key): string
 {
     return (string) ($errors[$key] ?? '');
@@ -508,7 +526,7 @@ function fieldError(array $errors, string $key): string
                                             <option value="">Sin área</option>
                                             <?php foreach ($areas as $area): ?>
                                                 <option value="<?= (int) $area['id'] ?>" <?= selected(formValue($goalCurrent, 'area_id', ''), $area['id']) ?>>
-                                                    <?= e(($area['icon'] ? $area['icon'] . ' ' : '') . $area['name']) ?>
+                                                    <?= e($area['name']) ?>
                                                 </option>
                                             <?php endforeach; ?>
                                         </select>
@@ -590,9 +608,14 @@ function fieldError(array $errors, string $key): string
                                     <?php endif; ?>
 
                                     <?php foreach ($goals as $goal): ?>
+                                        <?php $goalAreaIcon = areaIconMaskUrl($goal['area_icon'] ?? null); ?>
                                         <article class="mission-item-row">
                                             <div class="mission-item-left">
-                                                <div class="mission-item-icon" style="background: <?= e($goal['area_color'] ?: '#16C79A') ?>;"><?= e($goal['area_icon'] ?: '🎯') ?></div>
+                                                <?php if ($goalAreaIcon): ?>
+                                                    <div class="mission-item-icon mission-item-icon-mask" style="--area-color: <?= e($goal['area_color'] ?: '#16C79A') ?>; -webkit-mask-image: url('<?= e($goalAreaIcon) ?>'); mask-image: url('<?= e($goalAreaIcon) ?>');"></div>
+                                                <?php else: ?>
+                                                    <div class="mission-item-icon" style="background: <?= e($goal['area_color'] ?: '#16C79A') ?>;"><?= e($goal['area_icon'] ?: '🎯') ?></div>
+                                                <?php endif; ?>
                                                 <div class="mission-item-copy">
                                                     <h3><?= e($goal['title']) ?></h3>
                                                     <p><?= e($goal['description'] ?: 'Sin descripción.') ?></p>
@@ -668,7 +691,7 @@ function fieldError(array $errors, string $key): string
                                         <select name="area_id">
                                             <option value="">Sin área</option>
                                             <?php foreach ($areas as $area): ?>
-                                                <option value="<?= (int) $area['id'] ?>" <?= selected(formValue($projectCurrent, 'area_id', ''), $area['id']) ?>><?= e(($area['icon'] ? $area['icon'] . ' ' : '') . $area['name']) ?></option>
+                                                <option value="<?= (int) $area['id'] ?>" <?= selected(formValue($projectCurrent, 'area_id', ''), $area['id']) ?>><?= e($area['name']) ?></option>
                                             <?php endforeach; ?>
                                         </select>
                                         <?php if (fieldError($projectFormErrors, 'area_id') !== ''): ?>
@@ -720,9 +743,14 @@ function fieldError(array $errors, string $key): string
                                     <?php endif; ?>
 
                                     <?php foreach ($projects as $project): ?>
+                                        <?php $projectAreaIcon = areaIconMaskUrl($project['area_icon'] ?? null); ?>
                                         <article class="mission-item-row">
                                             <div class="mission-item-left">
-                                                <div class="mission-item-icon" style="background: <?= e($project['area_color'] ?: '#16C79A') ?>;"><?= e($project['area_icon'] ?: '🚀') ?></div>
+                                                <?php if ($projectAreaIcon): ?>
+                                                    <div class="mission-item-icon mission-item-icon-mask" style="--area-color: <?= e($project['area_color'] ?: '#16C79A') ?>; -webkit-mask-image: url('<?= e($projectAreaIcon) ?>'); mask-image: url('<?= e($projectAreaIcon) ?>');"></div>
+                                                <?php else: ?>
+                                                    <div class="mission-item-icon" style="background: <?= e($project['area_color'] ?: '#16C79A') ?>;"><?= e($project['area_icon'] ?: '🚀') ?></div>
+                                                <?php endif; ?>
                                                 <div class="mission-item-copy">
                                                     <h3><?= e($project['title']) ?></h3>
                                                     <p><?= e($project['description'] ?: 'Sin descripción.') ?></p>
@@ -782,9 +810,16 @@ function fieldError(array $errors, string $key): string
                                     <?php foreach ($tasks as $task): ?>
                                         <?php $taskProgress = taskVisualProgress((string) $task['status']); ?>
                                         <?php $taskStatus = (string) $task['status']; ?>
+                                        <?php $taskAreaIcon = areaIconMaskUrl($task['area_icon'] ?? null); ?>
                                         <article class="mission-item-row task-status-<?= e($taskStatus) ?>">
                                             <div class="mission-item-left">
-                                                <div class="mission-item-icon" style="background: <?= e($task['area_color'] ?: '#1f335e') ?>;"><?= e($task['area_icon'] ?: '✅') ?></div>
+                                                <?php if ($taskAreaIcon): ?>
+                                                    <div class="mission-item-icon mission-item-icon-mask" style="--area-color: <?= e($task['area_color'] ?: '#1f335e') ?>; -webkit-mask-image: url('<?= e($taskAreaIcon) ?>'); mask-image: url('<?= e($taskAreaIcon) ?>'); -webkit-mask-position: center; mask-position: center; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-size: 66%; mask-size: 66%;"></div>
+                                                <?php else: ?>
+                                                    <div class="mission-item-icon" style="background: <?= e($task['area_color'] ?: '#1f335e') ?>;">
+                                                        <?= e($task['area_icon'] ?: '✅') ?>
+                                                    </div>
+                                                <?php endif; ?>
                                                 <div class="mission-item-copy">
                                                     <h3><?= e($task['title']) ?></h3>
                                                     <p><?= e(shortText($task['description'] ?: 'Sin descripción.', 64)) ?></p>
@@ -929,7 +964,7 @@ function fieldError(array $errors, string $key): string
                                     <select name="area_id">
                                         <option value="">Sin área</option>
                                         <?php foreach ($areas as $area): ?>
-                                            <option value="<?= (int) $area['id'] ?>" <?= selected(formValue($taskCurrent, 'area_id', ''), $area['id']) ?>><?= e(($area['icon'] ? $area['icon'] . ' ' : '') . $area['name']) ?></option>
+                                                <option value="<?= (int) $area['id'] ?>" <?= selected(formValue($taskCurrent, 'area_id', ''), $area['id']) ?>><?= e($area['name']) ?></option>
                                         <?php endforeach; ?>
                                     </select>
                                     <?php if (fieldError($taskFormErrors, 'area_id') !== ''): ?>

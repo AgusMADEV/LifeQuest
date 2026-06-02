@@ -9,6 +9,9 @@
 .habits-hero {
     padding: 24px 28px;
     align-items: center;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
 }
 
 .habit-hero-controls {
