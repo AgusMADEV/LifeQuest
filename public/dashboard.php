@@ -8,6 +8,7 @@ require_once __DIR__ . '/../app/Models/Project.php';
 require_once __DIR__ . '/../app/Models/Task.php';
 require_once __DIR__ . '/../app/Models/Habit.php';
 require_once __DIR__ . '/../app/Models/AreaProgression.php';
+require_once __DIR__ . '/../app/Models/DailyObjective.php';
 require_once __DIR__ . '/../app/Support/StreakWeek.php';
 require_once __DIR__ . '/../app/Support/XpEvolutionChart.php';
 
@@ -34,6 +35,8 @@ $activeProjects = $projectModel->getActiveByUser((int) $user['id'], 4);
 $taskModel = new Task();
 $habitModel = new Habit();
 $todayTasks = $taskModel->getTodayByUser((int) $user['id'], 4);
+$upcomingTasks = $taskModel->getUpcomingByUser((int) $user['id'], 5);
+$taskDistribution = $taskModel->getDistributionByArea((int) $user['id']);
 $weekActivity = buildWeeklyActivityByUser((int) $user['id']);
 
 $chartTasks = $taskModel->getAllByUser((int) $user['id']);
@@ -107,6 +110,24 @@ $dailyCompleted = count(array_filter($todayTasks, static fn($task) => ($task['st
 $dailyTotal = max(4, count($todayTasks));
 $objectivePercent = (int) (($dailyCompleted / max(1, $dailyTotal)) * 100);
 
+// Calcular recompensa XP del objetivo diario
+$dailyTotalXp = array_sum(array_map(static fn($task) => (int) ($task['xp_reward'] ?? 0), $todayTasks));
+$dailyBonusXp = max(100, (int) round($dailyTotalXp * 0.25)); // Bonus del 25% del XP total (mínimo 100 XP)
+$dailyBonusXp = min($dailyBonusXp, 500); // Máximo 500 XP de bonus
+
+// Verificar si el objetivo ya se completó hoy
+$dailyObjectiveModel = new DailyObjective();
+$objectiveCompletedToday = $dailyObjectiveModel->isCompletedToday((int) $user['id']);
+$todayObjective = $dailyObjectiveModel->getTodayObjective((int) $user['id']);
+
+// Si ya se completó, usar los valores reales
+if ($objectiveCompletedToday && $todayObjective) {
+    $dailyCompleted = (int) $todayObjective['tasks_completed'];
+    $dailyTotal = (int) $todayObjective['tasks_required'];
+    $dailyBonusXp = (int) $todayObjective['xp_bonus_awarded'];
+    $objectivePercent = 100;
+}
+
 function e(string|null $value): string
 {
     return htmlspecialchars($value ?? '', ENT_QUOTES, 'UTF-8');
@@ -131,6 +152,27 @@ function shortText(string|null $value, int $limit = 42): string
     }
 
     return mb_substr($value, 0, $limit - 1) . '…';
+}
+
+function buildDonutGradient(array $distribution): string
+{
+    if (empty($distribution)) {
+        return 'conic-gradient(#e2e8f0 0 100%)';
+    }
+
+    $gradientParts = [];
+    $currentPercent = 0;
+
+    foreach ($distribution as $area) {
+        $percentage = (float) ($area['percentage'] ?? 0);
+        $color = e($area['area_color'] ?? '#8b5cf6');
+        $nextPercent = $currentPercent + $percentage;
+        
+        $gradientParts[] = "{$color} {$currentPercent}% {$nextPercent}%";
+        $currentPercent = $nextPercent;
+    }
+
+    return 'conic-gradient(' . implode(', ', $gradientParts) . ')';
 }
 
 $stylesCssVersion = (int) (@filemtime(__DIR__ . '/../assets/css/styles.css') ?: time());
@@ -555,7 +597,10 @@ $heroAvatarSrc = '../referencias/avatares/' . rawurlencode($heroAvatarFile);
             </section>
 
             <aside class="lq-right">
-                <section class="lq-card objective-card">
+                <section class="lq-card objective-card<?= $objectiveCompletedToday ? ' objective-completed' : '' ?>">
+                    <?php if ($objectiveCompletedToday): ?>
+                        <div class="objective-completed-badge">✅ Completado</div>
+                    <?php endif; ?>
                     <div class="objective-card-main">
                         <div class="objective-copy">
                             <div class="objective-title-row">
@@ -571,7 +616,7 @@ $heroAvatarSrc = '../referencias/avatares/' . rawurlencode($heroAvatarFile);
                                 </span>
                                 <h2>Objetivo diario</h2>
                             </div>
-                            <p>Completa <?= $dailyTotal ?> misiones al día</p>
+                            <p><?= $objectiveCompletedToday ? '¡Objetivo cumplido!' : "Completa {$dailyTotal} misiones al día" ?></p>
                         </div>
                         <div class="circle-progress" style="--value: <?= $objectivePercent ?>;">
                             <strong><?= $dailyCompleted ?><span>/<?= $dailyTotal ?></span></strong>
@@ -608,7 +653,7 @@ $heroAvatarSrc = '../referencias/avatares/' . rawurlencode($heroAvatarFile);
                                     <circle cx="19" cy="19" r="0.5" fill="#fff"/>
                                 </g>
                             </svg>
-                    </span> +200 XP</small>
+                    </span> +<?= number_format($dailyBonusXp, 0, ',', '.') ?> XP</small>
                 </section>
 
                 <section class="lq-card upcoming-card">
@@ -616,22 +661,49 @@ $heroAvatarSrc = '../referencias/avatares/' . rawurlencode($heroAvatarFile);
                         <h2>Próximas misiones</h2>
                     </div>
 
-                    <?php if (empty($mainGoals)): ?>
-                        <p class="muted">Crea metas para generar próximas misiones.</p>
+                    <?php if (empty($upcomingTasks)): ?>
+                        <p class="muted">No hay misiones próximas con fecha de vencimiento. <a href="goals.php?section=tasks">Crea una misión</a></p>
                     <?php else: ?>
-                        <?php foreach (array_slice($mainGoals, 0, 3) as $goal): ?>
+                        <?php
+                        function formatDaysUntil(string $dueDate): string {
+                            $due = new DateTimeImmutable($dueDate);
+                            $today = new DateTimeImmutable('today');
+                            $diff = $today->diff($due);
+                            
+                            if ($diff->days === 0) {
+                                return 'Hoy';
+                            } elseif ($diff->days === 1) {
+                                return 'Mañana';
+                            } elseif ($diff->days <= 7) {
+                                return 'En ' . $diff->days . ' días';
+                            } else {
+                                return $due->format('d/m');
+                            }
+                        }
+                        
+                        function priorityIcon(string $priority): string {
+                            return [
+                                'low' => '📌',
+                                'medium' => '⚡',
+                                'high' => '🔥',
+                                'critical' => '⚠️',
+                            ][$priority] ?? '📋';
+                        }
+                        ?>
+                        
+                        <?php foreach (array_slice($upcomingTasks, 0, 5) as $task): ?>
                             <div class="upcoming-item">
-                                <span>🎯</span>
+                                <span><?= priorityIcon($task['priority']) ?></span>
                                 <div>
-                                    <strong><?= e(shortText($goal['title'], 24)) ?></strong>
-                                    <small><?= statusLabelDashboard($goal['status']) ?></small>
+                                    <strong><?= e(shortText($task['title'], 26)) ?></strong>
+                                    <small><?= formatDaysUntil($task['due_date']) ?><?= !empty($task['area_name']) ? ' · ' . e($task['area_name']) : '' ?></small>
                                 </div>
-                                <em>+<?= (int) $goal['xp_reward'] ?> XP</em>
+                                <em>+<?= (int) $task['xp_reward'] ?> XP</em>
                             </div>
                         <?php endforeach; ?>
                     <?php endif; ?>
 
-                    <a href="goals.php" class="center-link">Ver calendario</a>
+                    <a href="goals.php?section=tasks" class="center-link">Ver todas las misiones</a>
                 </section>
 
                 <?php if ($areaProgressionEnabled): ?>
@@ -686,15 +758,22 @@ $heroAvatarSrc = '../referencias/avatares/' . rawurlencode($heroAvatarFile);
                     <div class="lq-card-header">
                         <h2>Distribución de misiones</h2>
                     </div>
-                    <div class="donut-wrap">
-                        <div class="donut"></div>
-                        <div class="donut-legend">
-                            <span><i class="green-dot"></i>Salud 28%</span>
-                            <span><i class="blue-dot"></i>Aprendizaje 28%</span>
-                            <span><i class="purple-dot"></i>Hábitos 22%</span>
-                            <span><i class="orange-dot"></i>Enfoque 18%</span>
+                    
+                    <?php if (empty($taskDistribution)): ?>
+                        <p class="muted">Crea misiones con áreas de vida asignadas para ver tu distribución.</p>
+                    <?php else: ?>
+                        <div class="donut-wrap">
+                            <div class="donut" style="background: radial-gradient(circle, #fff 55%, transparent 56%), <?= buildDonutGradient($taskDistribution) ?>;"></div>
+                            <div class="donut-legend">
+                                <?php foreach ($taskDistribution as $area): ?>
+                                    <span>
+                                        <i style="background: <?= e($area['area_color']) ?>;"></i>
+                                        <?= e($area['area_icon']) ?> <?= e(shortText($area['area_name'], 12)) ?> <?= number_format($area['percentage'], 0) ?>%
+                                    </span>
+                                <?php endforeach; ?>
+                            </div>
                         </div>
-                    </div>
+                    <?php endif; ?>
                 </section>
             </aside>
         </div>

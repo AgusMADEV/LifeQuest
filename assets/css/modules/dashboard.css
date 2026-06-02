@@ -606,6 +606,26 @@
     position: relative;
     padding: 18px 20px 16px;
     display: grid;
+    transition: background .3s ease, border-color .3s ease;
+}
+
+.objective-card.objective-completed {
+    background: linear-gradient(135deg, rgba(22,199,154,.08), rgba(22,199,154,.03));
+    border-color: rgba(22,199,154,.35);
+}
+
+.objective-completed-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: linear-gradient(135deg, #14b57c, #0e9e4a);
+    color: white;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: .70rem;
+    font-weight: 700;
+    letter-spacing: -.02em;
+    box-shadow: 0 2px 8px rgba(22,199,154,.25);
 }
 
 .objective-card-main {
@@ -873,20 +893,25 @@
     width: 128px;
     height: 128px;
     border-radius: 50%;
+    /* Background will be set inline with dynamic gradient */
     background:
         radial-gradient(circle, #fff 55%, transparent 56%),
-        conic-gradient(var(--primary) 0 28%, var(--blue) 28% 56%, var(--purple) 56% 78%, var(--orange) 78% 100%);
+        conic-gradient(#e2e8f0 0 100%);
 }
 
 .donut-legend {
     display: grid;
     gap: 12px;
+    max-height: 180px;
+    overflow-y: auto;
 }
 
 .donut-legend span {
     color: var(--muted);
     font-weight: 800;
     font-size: .86rem;
+    display: flex;
+    align-items: center;
 }
 
 .donut-legend i {
@@ -895,12 +920,8 @@
     display: inline-block;
     border-radius: 999px;
     margin-right: 8px;
+    flex-shrink: 0;
 }
-
-.green-dot { background: var(--primary); }
-.blue-dot { background: var(--blue); }
-.purple-dot { background: var(--purple); }
-.orange-dot { background: var(--orange); }
 
 .friendly-empty,
 .mini-empty {
