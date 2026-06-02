@@ -125,6 +125,7 @@ $xpFloor = ($level - 1) * $xpPerLevel;
 $xpCurrentLevel = max(0, $xpCurrent - $xpFloor);
 $xpPercent = min(100, (int) (($xpCurrentLevel / max(1, $xpPerLevel)) * 100));
 $negativeHabitsEnabled = defined('FEATURE_NEGATIVE_HABITS') ? (bool) FEATURE_NEGATIVE_HABITS : false;
+$habitAvatarSrc = AvatarLibrary::getAvatarSrc($user['avatar'] ?? null);
 
 foreach ($habits as $habit) {
     $hid = (int) $habit['id'];
@@ -262,7 +263,6 @@ function habitEmojiByIndex(int $index): string
         </section>
 
         <section class="lq-sidebar-card habit-side-user">
-            <?php $habitAvatarSrc = AvatarLibrary::getAvatarSrc($user['avatar'] ?? null); ?>
             <div class="mini-avatar">
                 <?php if ($habitAvatarSrc !== null): ?>
                     <img src="<?= e($habitAvatarSrc) ?>" alt="" class="mini-avatar-image">
@@ -437,7 +437,13 @@ function habitEmojiByIndex(int $index): string
 
                     <aside class="habits-aside">
                         <article class="habit-side-card profile">
-                            <div class="habit-avatar">🧑</div>
+                            <div class="habit-avatar">
+                                <?php if ($habitAvatarSrc !== null): ?>
+                                    <img src="<?= e($habitAvatarSrc) ?>" alt="" class="mini-avatar-image">
+                                <?php else: ?>
+                                    🧑
+                                <?php endif; ?>
+                            </div>
                             <strong>Nivel <?= $level ?></strong>
                             <div class="lq-progress"><span style="width: <?= $xpPercent ?>%"></span></div>
                             <small><?= number_format($xpCurrentLevel, 0, ',', '.') ?> / <?= number_format($xpPerLevel, 0, ',', '.') ?> XP</small>
