@@ -3,6 +3,7 @@ require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../app/Controllers/AuthController.php';
 require_once __DIR__ . '/../app/Models/User.php';
 require_once __DIR__ . '/../app/Models/Reward.php';
+require_once __DIR__ . '/../app/Support/AvatarLibrary.php';
 
 AuthController::requireAuth();
 

@@ -6,6 +6,7 @@ require_once __DIR__ . '/../app/Models/Task.php';
 require_once __DIR__ . '/../app/Models/Habit.php';
 require_once __DIR__ . '/../app/Models/Badge.php';
 require_once __DIR__ . '/../app/Support/StreakWeek.php';
+require_once __DIR__ . '/../app/Support/AvatarLibrary.php';
 
 AuthController::requireAuth();
 

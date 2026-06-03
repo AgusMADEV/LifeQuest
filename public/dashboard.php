@@ -11,6 +11,7 @@ require_once __DIR__ . '/../app/Models/AreaProgression.php';
 require_once __DIR__ . '/../app/Models/DailyObjective.php';
 require_once __DIR__ . '/../app/Support/StreakWeek.php';
 require_once __DIR__ . '/../app/Support/XpEvolutionChart.php';
+require_once __DIR__ . '/../app/Support/AvatarLibrary.php';
 
 AuthController::requireAuth();
 

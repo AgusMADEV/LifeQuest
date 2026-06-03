@@ -9,6 +9,7 @@ require_once __DIR__ . '/../app/Models/Project.php';
 require_once __DIR__ . '/../app/Models/Task.php';
 require_once __DIR__ . '/../app/Models/LifeArea.php';
 require_once __DIR__ . '/../app/Models/User.php';
+require_once __DIR__ . '/../app/Support/AvatarLibrary.php';
 AuthController::requireAuth();
 
 $userId = (int) $_SESSION['user_id'];
