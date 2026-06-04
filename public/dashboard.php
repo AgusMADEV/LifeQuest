@@ -548,37 +548,74 @@ $heroAvatarSrc = AvatarLibrary::getAvatarSrc($user['avatar'] ?? null);
                                 $iconBgColor = hexToRgba($areaColor, 0.15);
                                 $tagBgColor = hexToRgba($areaColor, 0.12);
                                 $tagBorderColor = hexToRgba($areaColor, 0.25);
+                                $taskXpIconSuffix = (int) $task['id'];
                                 ?>
                                 <article class="mission-item">
-                                    <label class="check-wrap">
-                                        <input type="checkbox" <?= $done ? 'checked' : '' ?> disabled>
-                                        <span></span>
-                                    </label>
+                                    <div class="mission-item-left">
+                                        <label class="check-wrap">
+                                            <input type="checkbox" <?= $done ? 'checked' : '' ?> disabled>
+                                            <span></span>
+                                        </label>
 
-                                    <div class="mission-icon" style="background-color: <?= $iconBgColor ?>;">
-                                        <?php if ($areaIcon): ?>
-                                            <span class="mission-icon-mask" style="--area-color: <?= e($areaColor) ?>; -webkit-mask-image: url('<?= e($areaIcon) ?>'); mask-image: url('<?= e($areaIcon) ?>');"></span>
-                                        <?php else: ?>
-                                            <?= e($areaIconValue !== '' ? $areaIconValue : '📋') ?>
-                                        <?php endif; ?>
+                                        <div class="mission-icon" style="background-color: <?= $iconBgColor ?>;">
+                                            <?php if ($areaIcon): ?>
+                                                <span class="mission-icon-mask" style="--area-color: <?= e($areaColor) ?>; -webkit-mask-image: url('<?= e($areaIcon) ?>'); mask-image: url('<?= e($areaIcon) ?>');"></span>
+                                            <?php else: ?>
+                                                <?= e($areaIconValue !== '' ? $areaIconValue : '📋') ?>
+                                            <?php endif; ?>
+                                        </div>
+
+                                        <div class="mission-info">
+                                            <strong><?= e(shortText($task['title'], 36)) ?></strong>
+                                            <small><?= !empty($task['project_title']) ? e(shortText($task['project_title'], 42)) : 'Misión independiente' ?></small>
+                                        </div>
                                     </div>
+                                    <div class="mission-item-center">               
+                                        <span class="mission-tag" style="background-color: <?= $tagBgColor ?>; color: <?= e($areaColor) ?>; border-color: <?= $tagBorderColor ?>;">
+                                            <?= $areaName ?>
+                                        </span>
 
-                                    <div class="mission-info">
-                                        <strong><?= e(shortText($task['title'], 36)) ?></strong>
-                                        <small><?= !empty($task['project_title']) ? e(shortText($task['project_title'], 42)) : 'Misión independiente' ?></small>
+                                        <div class="mission-progress">
+                                            <small><?= (int) $task['estimated_minutes'] ?> min</small>
+                                            <div class="mini-progress"><i style="width: <?= $done ? 100 : 35 ?>%"></i></div>
+                                        </div>
                                     </div>
-
-                                    <span class="mission-tag" style="background-color: <?= $tagBgColor ?>; color: <?= e($areaColor) ?>; border-color: <?= $tagBorderColor ?>;">
-                                        <?= $areaName ?>
-                                    </span>
-
-                                    <div class="mission-progress">
-                                        <small><?= (int) $task['estimated_minutes'] ?> min</small>
-                                        <div class="mini-progress"><i style="width: <?= $done ? 100 : 35 ?>%"></i></div>
+                                    <div class="mission-item-right">
+                                        <strong class="reward">
+                                            <span class="hero-stat-icon" aria-hidden="true">
+                                                <svg width="24" height="24" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                    <defs>
+                                                        <linearGradient id="dashboardRewardXpOuter<?= $taskXpIconSuffix ?>" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+                                                            <stop stop-color="#3cffb0"/>
+                                                            <stop offset="1" stop-color="#0bb86c"/>
+                                                        </linearGradient>
+                                                        <linearGradient id="dashboardRewardXpInner<?= $taskXpIconSuffix ?>" x1="8" y1="8" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+                                                            <stop stop-color="#2be98a"/>
+                                                            <stop offset="1" stop-color="#0e9e4a"/>
+                                                        </linearGradient>
+                                                        <radialGradient id="dashboardRewardXpGlow<?= $taskXpIconSuffix ?>" cx="16" cy="16" r="16" gradientUnits="userSpaceOnUse">
+                                                            <stop stop-color="#baffc9" stop-opacity=".7"/>
+                                                            <stop offset="1" stop-color="#00ffb0" stop-opacity="0"/>
+                                                        </radialGradient>
+                                                    </defs>
+                                                    <polygon points="16,3 29,11 29,25 16,31 3,25 3,11" fill="url(#dashboardRewardXpOuter<?= $taskXpIconSuffix ?>)" stroke="#0bb86c" stroke-width="1.5"/>
+                                                    <polygon points="16,6.5 26,13 26,23 16,28 6,23 6,13" fill="url(#dashboardRewardXpInner<?= $taskXpIconSuffix ?>)"/>
+                                                    <circle cx="16" cy="16" r="10" fill="url(#dashboardRewardXpGlow<?= $taskXpIconSuffix ?>)"/>
+                                                    <g>
+                                                        <path d="M16 10V21" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
+                                                        <path d="M16 10L12.5 14M16 10L19.5 14" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
+                                                    </g>
+                                                    <g opacity=".7">
+                                                        <circle cx="11" cy="13" r="1.1" fill="#fff"/>
+                                                        <circle cx="21" cy="12" r="0.7" fill="#fff"/>
+                                                        <circle cx="19" cy="19" r="0.5" fill="#fff"/>
+                                                    </g>
+                                                </svg>
+                                            </span>
+                                            +<?= (int) $task['xp_reward'] ?> XP
+                                        </strong>
+                                        <span class="flag"><?= $done ? '✅' : '⚑' ?></span>
                                     </div>
-
-                                    <strong class="reward">✦ +<?= (int) $task['xp_reward'] ?> XP</strong>
-                                    <span class="flag"><?= $done ? '✅' : '⚑' ?></span>
                                 </article>
                             <?php endforeach; ?>
                         </div>

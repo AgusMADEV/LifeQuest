@@ -488,28 +488,28 @@ function fieldError(array $errors, string $key): string
         <?php require __DIR__ . '/partials/topbar.php'; ?>
 
         <section class="lq-page-shell metas-shell metas-missions-look">
-            <header class="lq-page-hero metas-hero metas-clean-hero">
-                <div>
-                    <h1><?= e($heroTitle) ?></h1>
-                    <p>Completa acciones, registra progreso y gana XP, LifeCoins y recompensas.</p>
-                </div>
-            </header>
+            <section class="hub-layout metas-missions-layout tasks-mode metas-sidepanel-mode">
+                <section class="metas-main-column">
+                    <header class="lq-page-hero metas-hero metas-clean-hero">
+                        <div>
+                            <h1><?= e($heroTitle) ?></h1>
+                            <p>Completa acciones, registra progreso y gana XP, LifeCoins y recompensas.</p>
+                        </div>
+                    </header>
 
-            <div class="metas-tabs-bar">
-                <nav class="metas-tabs" aria-label="Navegación metas">
-                    <a href="goals.php?section=goals" class="<?= $section === 'goals' ? 'active' : '' ?>">Metas</a>
-                    <a href="goals.php?section=projects" class="<?= $section === 'projects' ? 'active' : '' ?>">Retos</a>
-                    <a href="goals.php?section=tasks&period=<?= e($period) ?>" class="<?= $section === 'tasks' ? 'active' : '' ?>">Misiones</a>
-                </nav>
-            </div>
+                    <div class="metas-tabs-bar">
+                        <nav class="metas-tabs" aria-label="Navegación metas">
+                            <a href="goals.php?section=goals" class="<?= $section === 'goals' ? 'active' : '' ?>">Metas</a>
+                            <a href="goals.php?section=projects" class="<?= $section === 'projects' ? 'active' : '' ?>">Retos</a>
+                            <a href="goals.php?section=tasks&period=<?= e($period) ?>" class="<?= $section === 'tasks' ? 'active' : '' ?>">Misiones</a>
+                        </nav>
+                    </div>
 
-            <?php if ($message): ?>
-                <div class="lq-alert <?= e($messageType) ?>"><?= e($message) ?></div>
-            <?php endif; ?>
-            <div class="metas-modal-backdrop <?= $modalIsOpen ? 'is-open' : '' ?>" data-goal-modal-close></div>
+                    <?php if ($message): ?>
+                        <div class="lq-alert <?= e($messageType) ?>"><?= e($message) ?></div>
+                    <?php endif; ?>
+                    <div class="metas-modal-backdrop <?= $modalIsOpen ? 'is-open' : '' ?>" data-goal-modal-close></div>
 
-            <section class="hub-layout metas-missions-layout tasks-mode <?= $section !== 'tasks' ? 'metas-sidepanel-mode' : '' ?>">
-                <section>
                     <?php if ($section === 'goals'): ?>
                         <section class="lq-crud-layout">
                             <article class="lq-form-panel metas-form-modal <?= ($editingGoal || !empty($goalFormErrors)) ? 'is-open' : '' ?>" data-goal-form-modal>
@@ -899,48 +899,6 @@ function fieldError(array $errors, string $key): string
                                 </div>
                             </article>
 
-                            <aside class="missions-side-panel">
-                                <article class="mission-side-card level">
-                                    <small>Nivel</small>
-                                    <strong><?= (int) ($user['level'] ?? 1) ?></strong>
-                                    <span><?= number_format((int) ($user['xp'] ?? 0), 0, ',', '.') ?> / 2.000 XP</span>
-                                    <div class="lq-progress"><span style="width: <?= min(100, (int) (((int) ($user['xp'] ?? 0) % 2000) / 20)) ?>%"></span></div>
-                                </article>
-
-                                <article class="mission-side-card streak">
-                                    <small>Racha actual</small>
-                                    <strong><?= (int) ($user['current_streak'] ?? 0) ?> días</strong>
-                                    <span>¡Sigue así, lo estás logrando!</span>
-                                </article>
-
-                                <article class="mission-side-card stats">
-                                    <div>
-                                        <small><?= e($sectionStatsLabel) ?></small>
-                                        <strong><?= $sectionCompletedCount ?></strong>
-                                    </div>
-                                    <div>
-                                        <small><?= $section === 'tasks' ? 'Tiempo enfocado' : 'Progreso medio' ?></small>
-                                        <strong><?= e($sectionStatsSecondary) ?></strong>
-                                    </div>
-                                </article>
-
-                                <article class="mission-side-card daily-goal">
-                                    <div class="daily-goal-head">
-                                        <small><?= e($sectionGoalTitle) ?></small>
-                                        <strong><?= $sectionCompletedCount ?>/<?= max(1, $sectionTotalCount) ?></strong>
-                                    </div>
-                                    <span><?= e($sectionGoalSubtitle) ?></span>
-                                    <div class="lq-progress"><span style="width: <?= $sectionProgressPercent ?>%"></span></div>
-                                    <ul>
-                                        <?php foreach ($sectionPreviewItems as $miniTask): ?>
-                                            <li>
-                                                <span><?= e(shortText($miniTask['title'], 22)) ?></span>
-                                                <strong><?= sectionItemProgress($miniTask, $section) ?>%</strong>
-                                            </li>
-                                        <?php endforeach; ?>
-                                    </ul>
-                                </article>
-                            </aside>
                         </section>
 
                         <section class="missions-editor-card lq-form-panel metas-form-modal <?= ($editingTask || !empty($taskFormErrors)) ? 'is-open' : '' ?>" data-goal-form-modal>
@@ -1048,58 +1006,55 @@ function fieldError(array $errors, string $key): string
                         </section>
                     <?php endif; ?>
                 </section>
+                <aside class="missions-side-panel">
+                    <article class="mission-side-card level">
+                        <small>Nivel</small>
+                        <strong><?= (int) ($user['level'] ?? 1) ?></strong>
+                        <span><?= number_format((int) ($user['xp'] ?? 0), 0, ',', '.') ?> / 2.000 XP</span>
+                        <div class="lq-progress">
+                            <span style="width: <?= min(100, (int) (((int) ($user['xp'] ?? 0) % 2000) / 20)) ?>%"></span>
+                        </div>
+                    </article>
 
-                <?php if ($section !== 'tasks'): ?>
-                    <aside class="missions-side-panel">
-                        <article class="mission-side-card level">
-                            <small>Nivel</small>
-                            <strong><?= (int) ($user['level'] ?? 1) ?></strong>
-                            <span><?= number_format((int) ($user['xp'] ?? 0), 0, ',', '.') ?> / 2.000 XP</span>
-                            <div class="lq-progress">
-                                <span style="width: <?= min(100, (int) (((int) ($user['xp'] ?? 0) % 2000) / 20)) ?>%"></span>
-                            </div>
-                        </article>
+                    <article class="mission-side-card streak">
+                        <small>Racha actual</small>
+                        <strong><?= (int) ($user['current_streak'] ?? 0) ?> días</strong>
+                        <span>¡Sigue así, lo estás logrando!</span>
+                    </article>
 
-                        <article class="mission-side-card streak">
-                            <small>Racha actual</small>
-                            <strong><?= (int) ($user['current_streak'] ?? 0) ?> días</strong>
-                            <span>¡Sigue así, lo estás logrando!</span>
-                        </article>
+                    <article class="mission-side-card stats">
+                        <div>
+                            <small><?= e($sectionStatsLabel) ?></small>
+                            <strong><?= $sectionCompletedCount ?></strong>
+                        </div>
+                        <div>
+                            <small><?= $section === 'tasks' ? 'Tiempo enfocado' : 'Progreso medio' ?></small>
+                            <strong><?= e($sectionStatsSecondary) ?></strong>
+                        </div>
+                    </article>
 
-                        <article class="mission-side-card stats">
-                            <div>
-                                <small><?= e($sectionStatsLabel) ?></small>
-                                <strong><?= $sectionCompletedCount ?></strong>
-                            </div>
-                            <div>
-                                <small><?= $section === 'tasks' ? 'Tiempo enfocado' : 'Progreso medio' ?></small>
-                                <strong><?= e($sectionStatsSecondary) ?></strong>
-                            </div>
-                        </article>
+                    <article class="mission-side-card daily-goal">
+                        <div class="daily-goal-head">
+                            <small><?= e($sectionGoalTitle) ?></small>
+                            <strong><?= $sectionCompletedCount ?>/<?= max(1, $sectionTotalCount) ?></strong>
+                        </div>
 
-                        <article class="mission-side-card daily-goal">
-                            <div class="daily-goal-head">
-                                <small><?= e($sectionGoalTitle) ?></small>
-                                <strong><?= $sectionCompletedCount ?>/<?= max(1, $sectionTotalCount) ?></strong>
-                            </div>
+                        <span><?= e($sectionGoalSubtitle) ?></span>
 
-                            <span><?= e($sectionGoalSubtitle) ?></span>
+                        <div class="lq-progress">
+                            <span style="width: <?= $sectionProgressPercent ?>%"></span>
+                        </div>
 
-                            <div class="lq-progress">
-                                <span style="width: <?= $sectionProgressPercent ?>%"></span>
-                            </div>
-
-                            <ul>
-                                <?php foreach ($sectionPreviewItems as $miniTask): ?>
-                                    <li>
-                                        <span><?= e(shortText($miniTask['title'], 22)) ?></span>
-                                        <strong><?= sectionItemProgress($miniTask, $section) ?>%</strong>
-                                    </li>
-                                <?php endforeach; ?>
-                            </ul>
-                        </article>
-                    </aside>
-                <?php endif; ?>
+                        <ul>
+                            <?php foreach ($sectionPreviewItems as $miniTask): ?>
+                                <li>
+                                    <span><?= e(shortText($miniTask['title'], 22)) ?></span>
+                                    <strong><?= sectionItemProgress($miniTask, $section) ?>%</strong>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    </article>
+                </aside>
             </section>
         </section>
     </main>

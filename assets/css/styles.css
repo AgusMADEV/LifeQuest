@@ -9,6 +9,7 @@
     --muted: #7b86a3;
     --primary: #16c79a;
     --primary-dark: #0ca678;
+    --xp: #14b57c;
     --blue: #3b82f6;
     --purple: #8b5cf6;
     --orange: #ffb020;
@@ -138,7 +139,7 @@ a {
 
 .alert-success {
     background: #dcfff5;
-    color: #087f5b;
+    color: var(--xp);
 }
 
 .alert-error {
@@ -148,6 +149,7 @@ a {
 
 .muted {
     color: var(--muted);
+    font-size: .75rem;
 }
 
 .badge-toast {
@@ -1189,7 +1191,7 @@ a {
 }
 
 .card-header a {
-    color: #087f5b;
+    color: var(--xp);
     font-weight: 900;
 }
 
@@ -1335,7 +1337,7 @@ a {
 
 .badge-low {
     background: #dcfff5;
-    color: #087f5b;
+    color: var(--xp);
 }
 
 .badge-status {

@@ -77,9 +77,6 @@
 .metas-missions-look {
     padding: 0 30px 34px;
     gap: 18px;
-    background:
-        radial-gradient(circle at 85% 10%, rgba(22, 199, 154, .08), transparent 26%),
-        linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
 }
 
 .metas-clean-hero {
@@ -158,6 +155,12 @@
 }
 
 .metas-missions-layout > section {
+    min-width: 0;
+}
+
+.metas-main-column {
+    display: grid;
+    gap: 16px;
     min-width: 0;
 }
 
@@ -640,10 +643,7 @@ body.lq-modal-lock {
 }
 
 .metas-missions-layout.tasks-mode .missions-board {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 310px;
-    gap: 24px;
-    align-items: start;
+    display: block;
 }
 
 .metas-missions-layout.tasks-mode .missions-main-card {

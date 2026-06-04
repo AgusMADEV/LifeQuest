@@ -145,8 +145,8 @@
 }
 
 .hero-stat-icon {
-    width: 20px;
-    height: 20px;
+    width: 15px;
+    height: 15px;
     border-radius: 999px;
     flex: 0 0 20px;
     display: inline-flex;
@@ -200,7 +200,7 @@
 }
 
 .hero-stats em {
-    font-weight: 800;
+    font-weight: 600;
     color: #7d89a6;
 }
 
@@ -311,12 +311,14 @@
 
 .streak-row small {
     color: var(--muted);
-    font-weight: 800;
+    font-weight: 700;
+    font-size: .65rem;
 }
 
 .streak-row strong {
     display: block;
-    font-size: 1.25rem;
+    font-size: 1.05rem;
+    font-weight: 600;
 }
 
 .motivation-chip {
@@ -341,7 +343,7 @@
     border: 1px solid var(--line);
     border-radius: var(--radius-lg);
     box-shadow: var(--soft-shadow);
-    padding: 22px;
+    padding: 18px 20px 16px;;
 }
 
 .lq-card-header {
@@ -349,23 +351,24 @@
     align-items: center;
     justify-content: space-between;
     gap: 14px;
-    margin-bottom: 18px;
 }
 
 .lq-card-header h2 {
     margin: 0;
     letter-spacing: -.045em;
-    font-size: 1.25rem;
+    font-size: 1.05rem;
 }
 
 .lq-card-header a,
 .center-link,
 .mini-empty a {
     color: #087f5b;
-    font-weight: 900;
-    font-size: .88rem;
+    font-weight: 600;
+    font-size: .75rem;
 }
-
+.lq-card-header a{
+    margin-right: 20px;
+}
 .lq-card-header h2 span {
     background: #eef3ff;
     color: var(--muted);
@@ -376,22 +379,57 @@
 }
 
 .mission-list {
-    display: grid;
-    gap: 2px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
 }
 
 .mission-item {
-    display: grid;
-    grid-template-columns: 34px 44px minmax(170px, 1fr) 110px minmax(140px, 220px) 90px 30px;
-    gap: 14px;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    position: relative;
+    justify-content: space-between;
     align-items: center;
-    padding: 13px 10px;
-    border-radius: 18px;
+    gap: 14px;
+    padding: 6px 14px;
     transition: .18s ease;
+    border-bottom: 1px solid var(--line);
 }
 
+.mission-item .mission-item-left,
+.mission-item .mission-item-center,
+.mission-item .mission-item-right {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.mission-item .mission-item-left {
+    flex: 1 1 0;
+}
+
+.mission-item .mission-item-center {
+    justify-content: space-between;
+    width: 35%;
+        transform: translateX(-50%);
+}
+
+.mission-item .mission-item-right {
+    gap: 96px;
+}
 .mission-item:hover {
     background: #f8fbff;
+}
+
+.mission-list .mission-item:last-child {
+    border-bottom: 0;
+    border-bottom-left-radius: var(--radius-md);
+    border-bottom-right-radius: var(--radius-md);
 }
 
 .check-wrap input {
@@ -424,9 +462,9 @@
 }
 
 .mission-icon {
-    width: 42px;
-    height: 42px;
-    border-radius: 14px;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
     display: grid;
     place-items: center;
     font-size: 1.15rem;
@@ -434,8 +472,8 @@
 }
 
 .mission-icon-mask {
-    width: 42px;
-    height: 42px;
+    width: 36px;
+    height: 36px;
     display: block;
     background: var(--area-color, var(--primary));
     color: transparent;
@@ -446,7 +484,9 @@
     mask-repeat: no-repeat;
     mask-size: 66%;
 }
-
+.lq-card.missions-card .lq-card-header {
+    padding-bottom: 15px;
+}
 /* Fallback colors for missions without area assigned */
 .green {
     background: #dcfff5;
@@ -472,7 +512,12 @@
     display: grid;
     gap: 4px;
 }
-
+.mission-info small {
+    font-size: .6rem;
+}
+.mission-info strong {
+    font-size: .75rem;
+}
 .mission-info small,
 .mission-progress small,
 .reward,
@@ -481,10 +526,10 @@
 }
 
 .mission-tag {
-    border-radius: 999px;
+    border-radius: 8px;
     padding: 7px 10px;
-    font-size: .76rem;
-    font-weight: 900;
+    font-size: .75rem;
+    font-weight: 600;
     text-align: center;
     border: 1px solid;
     /* Colors will be set inline based on area */
@@ -493,15 +538,17 @@
 .mission-progress {
     display: grid;
     gap: 7px;
+    width: 210px;
 }
 
 .reward {
-    color: #087f5b;
-    font-size: .9rem;
+    color: var(--xp);
+    font-size: .75rem;
 }
 
 .flag {
     font-size: 1.1rem;
+    margin-right: 24px;
 }
 
 .bottom-widgets {
@@ -777,9 +824,9 @@
 
 .upcoming-item em {
     font-style: normal;
-    color: #087f5b;
-    font-weight: 900;
-    font-size: .85rem;
+    color: var(--xp);
+    font-weight: 600;
+    font-size: .75rem;
 }
 
 .center-link {
