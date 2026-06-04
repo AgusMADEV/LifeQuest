@@ -109,11 +109,19 @@ final class HabitController
 
         $allowedFrequencies = ['daily', 'weekly', 'custom'];
         $frequency = in_array(($data['frequency'] ?? ''), $allowedFrequencies, true) ? $data['frequency'] : 'daily';
-        $negativeHabitsEnabled = defined('FEATURE_NEGATIVE_HABITS') ? (bool) FEATURE_NEGATIVE_HABITS : false;
-        $isNegative = $negativeHabitsEnabled && isset($data['is_negative'])
-            && in_array((string) $data['is_negative'], ['1', 'on', 'true'], true);
-        $hpPenalty = $isNegative ? max(1, (int) ($data['hp_penalty'] ?? 15)) : 0;
-        $reward = RewardCalculator::forHabit($frequency, $isNegative);
+        $habitKind = strtolower(trim((string) ($data['kind'] ?? '')));
+
+        if ($habitKind === '' && isset($data['is_negative'])) {
+            $habitKind = in_array((string) $data['is_negative'], ['1', 'on', 'true'], true) ? 'control' : 'positive';
+        }
+
+        if (!in_array($habitKind, ['positive', 'control'], true)) {
+            $habitKind = 'positive';
+        }
+
+        $isNegative = $habitKind === 'control';
+        $hpPenalty = 0;
+        $reward = RewardCalculator::forHabit($frequency, false);
 
         return [
             'success' => true,

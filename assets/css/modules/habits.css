@@ -402,12 +402,6 @@ button.habit-check {
     display: block;
 }
 
-.habit-side-card.profile {
-    text-align: center;
-    display: grid;
-    gap: 8px;
-}
-
 .habit-side-card.profile small,
 .habit-side-card p {
     color: var(--muted);
@@ -787,6 +781,548 @@ body.lq-modal-lock {
 
     .habit-modal-span-2 {
         grid-column: auto;
+    }
+}
+
+/* Mockup-aligned overrides for the habits page */
+.habits-shell {
+    gap: 18px;
+}
+
+.habits-hero {
+    padding: 20px 4px 6px;
+    align-items: end;
+    gap: 16px;
+}
+
+.habits-hero h1 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+    font-size: clamp(2rem, 2.9vw, 2.7rem);
+}
+
+.habit-title-icon {
+    color: #243860;
+    font-size: .92em;
+    line-height: 1;
+}
+
+.habit-hero-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.habit-tabs-main {
+    padding: 5px;
+    border: 1px solid rgba(220, 228, 240, .96);
+    background: rgba(255,255,255,.94);
+    box-shadow: 0 10px 30px rgba(33, 53, 97, .05);
+}
+
+.habit-tabs-main a {
+    min-width: 170px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 18px;
+    border-radius: 12px;
+    color: #64769a;
+    background: transparent;
+    border-bottom: 3px solid transparent;
+}
+
+.habit-tabs-main a.active {
+    background: rgba(237, 255, 248, .95);
+    color: #139f6f;
+    box-shadow: inset 0 -3px 0 #17c38d;
+}
+
+.habit-period-form select {
+    min-width: 118px;
+    border-radius: 14px;
+    border: 1px solid rgba(220, 228, 240, .96);
+    background: #fff;
+    box-shadow: 0 10px 24px rgba(33, 53, 97, .05);
+    padding: 10px 12px;
+}
+
+.habit-create-btn {
+    padding: 11px 16px;
+    border-radius: 14px;
+    font-size: .84rem;
+    letter-spacing: -.01em;
+}
+
+.habit-kpis {
+    gap: 14px;
+}
+
+.habit-kpi-card {
+    min-height: 86px;
+    border-radius: 18px;
+    border-color: rgba(226, 233, 245, .92);
+}
+
+.habit-kpi-card strong {
+    font-size: 1.16rem;
+}
+
+.habit-kpi-card em {
+    color: #6b7b9a;
+}
+
+.habit-kpi-visual {
+    width: 50px;
+    height: 50px;
+    border-radius: 16px;
+}
+
+.habit-kpi-visual.ring::after {
+    inset: 8px;
+}
+
+.habits-board {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 14px;
+    align-items: start;
+}
+
+.habits-content-column {
+    min-width: 0;
+    display: grid;
+    gap: 14px;
+}
+
+.habits-main-card,
+.habit-side-card {
+    border-radius: 20px;
+    border-color: rgba(226, 233, 245, .94);
+    box-shadow: 0 12px 30px rgba(33, 53, 97, .06);
+}
+
+.habits-main-card {
+    overflow: hidden;
+    padding: 0;
+    background: rgba(255,255,255,.97);
+    border-color: #dfe7f4;
+    box-shadow: 0 16px 42px rgba(30, 47, 89, .07);
+}
+
+.habit-section-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid #e7edf7;
+}
+
+.habit-section-title {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.habit-section-badge {
+    width: 28px;
+    height: 28px;
+    border-radius: 9px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    background: linear-gradient(145deg, #ecf3ff, #efeaff);
+    box-shadow: inset 0 0 0 1px rgba(111, 104, 255, .12);
+    font-size: 1rem;
+}
+
+.habit-section-title h2 {
+    margin: 0;
+    color: #162653;
+    font-size: 1.18rem;
+    letter-spacing: -.02em;
+}
+
+.habit-table-subtitle {
+    margin: 4px 0 0;
+    color: #4f6392;
+    font-size: .86rem;
+    font-weight: 700;
+}
+
+.habit-table-legend {
+    display: inline-flex;
+    align-items: center;
+    gap: 18px;
+    flex-wrap: wrap;
+}
+
+.habit-table-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: .8rem;
+    font-weight: 800;
+    color: #617398;
+}
+
+.habit-table-legend .dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    display: inline-block;
+    box-shadow: 0 0 0 3px rgba(255,255,255,.9);
+}
+
+.habit-table-legend .dot.done { background: #15bd86; }
+.habit-table-legend .dot.partial { background: #ffb22b; }
+.habit-table-legend .dot.empty {
+    background: #fff;
+    border: 2px solid #cfd9eb;
+}
+
+.habit-table-frame {
+    overflow-x: auto;
+}
+
+.habit-table-columns {
+    display: grid;
+    grid-template-columns: minmax(300px, 1.25fr) minmax(286px, .95fr) 146px;
+    min-width: 760px;
+    padding: 18px 24px;
+    color: #17285a;
+    align-items: center;
+    border-bottom: 1px solid #e7edf7;
+    background: rgba(250, 252, 255, .72);
+    font-size: .92rem;
+    font-weight: 900;
+}
+
+.habit-metric-head {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-left: 1px solid #e7edf7;
+}
+
+.habit-list .habit-row {
+    display: grid;
+    grid-template-columns: minmax(300px, 1.25fr) minmax(286px, .95fr) 146px;
+    min-width: 760px;
+    padding: 16px 24px;
+    align-items: center;
+    gap: 0;
+    border: 0;
+    border-bottom: 1px solid #e7edf7;
+    border-radius: 0;
+    background: #fff;
+    box-shadow: none;
+}
+
+.habit-list .habit-row:last-child {
+    border-bottom: 0;
+}
+
+.habit-title-wrap {
+    grid-template-columns: 56px minmax(0, 1fr);
+    gap: 16px;
+}
+
+.habit-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(145deg, #eaf2ff, #f1e9ff);
+    color: #6259f6;
+    font-size: 1.45rem;
+    box-shadow: inset 0 0 0 1px rgba(113, 100, 255, .12);
+}
+
+.habit-title-wrap strong {
+    color: #142453;
+    font-size: .98rem;
+    font-weight: 900;
+    letter-spacing: -.01em;
+}
+
+.habit-title-wrap small {
+    color: #526897;
+    display: block;
+    font-size: .82rem;
+    font-weight: 700;
+    margin-top: 4px;
+}
+
+.habit-week-head,
+.habit-week-cells {
+    width: 100%;
+    max-width: 336px;
+    grid-template-columns: repeat(7, 32px);
+    gap: 10px;
+    justify-content: center;
+    justify-items: center;
+    margin-inline: auto;
+}
+
+.habit-week-head span {
+    color: #23396b;
+    font-size: .84rem;
+    font-weight: 900;
+}
+
+.habit-day {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: .58rem;
+    font-weight: 900;
+    border: 2px solid #d3dceb;
+    background: #fff;
+    color: transparent;
+    line-height: 1;
+}
+
+.habit-day.is-completed {
+    background: #15bd86;
+    border-color: #15bd86;
+    color: #fff;
+}
+
+.habit-day.is-partial {
+    background: #ffb22b;
+    border-color: #ffb22b;
+    color: transparent;
+}
+
+.habit-day.is-empty {
+    background: #fff;
+    color: transparent;
+}
+
+.habit-day--today {
+    cursor: pointer;
+    box-shadow: 0 0 0 5px rgba(21, 189, 134, .1);
+}
+
+.habit-row-metric {
+    min-height: 100%;
+    border-left: 1px solid #e7edf7;
+    padding-left: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: #162653;
+}
+
+.habit-row-metric-icon {
+    width: 26px;
+    height: 26px;
+    border-radius: 9px;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(145deg, #7b63ff, #6657f2);
+    color: #fff;
+    font-size: 1rem;
+    box-shadow: 0 10px 18px rgba(99, 87, 242, .18);
+}
+
+.habit-row-metric strong {
+    color: #17285a;
+    font-size: 1rem;
+    font-weight: 900;
+}
+
+.habit-row-metric small {
+    color: #526897;
+    display: block;
+    font-size: .72rem;
+    font-weight: 800;
+    margin-top: 2px;
+}
+
+.habit-add-bar {
+    display: grid;
+    grid-template-columns: 1fr;
+    margin: 18px 18px 18px;
+    padding: 0;
+}
+
+.habit-add-bar button {
+    min-height: 64px;
+    border-radius: 14px;
+    background: transparent;
+    color: #4453ff;
+    border: 1.5px dashed #c8d5ee;
+    font-weight: 900;
+    font-size: .95rem;
+    box-shadow: none;
+}
+
+.habit-add-bar button:hover {
+    background: #f7f8ff;
+}
+
+.habits-aside {
+    display: grid;
+    gap: 14px;
+}
+
+.habit-side-card.profile {
+    padding: 18px 16px 16px;
+    text-align: center;
+    display: grid;
+    gap: 8px;
+}
+
+.habit-avatar {
+    width: 100%;
+    height: 204px;
+    border-radius: 22px;
+    margin-bottom: 12px;
+    background: radial-gradient(circle at 50% 24%, #dffbf4 0, #eef7ff 58%, #fff 100%);
+}
+
+.habit-side-card.profile strong {
+    font-size: 1rem;
+    font-weight: 900;
+}
+
+.habit-side-card.profile small {
+    color: #7182a5;
+    font-size: .8rem;
+    font-weight: 800;
+}
+
+.habit-side-card.profile .lq-progress {
+    height: 8px;
+    border-radius: 999px;
+}
+
+.habit-side-card.profile .lq-progress span {
+    height: 8px;
+}
+
+.habit-side-card.profile img,
+.habit-side-card.profile .mini-avatar-image {
+    object-fit: contain;
+    padding: 14px;
+}
+
+.impact-card,
+.habit-side-card.tip-card,
+.habit-side-card.donut-card-mini {
+    padding: 15px;
+}
+
+.impact-card {
+    grid-template-columns: 64px minmax(0, 1fr);
+}
+
+.impact-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 20px;
+    font-size: 2rem;
+}
+
+.habit-donut {
+    --size: 118px;
+}
+
+.habit-donut-legend span {
+    font-size: .77rem;
+}
+
+.habit-stats-layout {
+    grid-template-columns: 1.2fr .95fr;
+}
+
+.habit-discover-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 1200px) {
+    .habits-board,
+    .habit-stats-layout,
+    .habit-discover-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .habit-side-card.profile {
+        position: static;
+    }
+
+    .habit-tabs-main a {
+        min-width: 0;
+    }
+
+}
+
+@media (max-width: 900px) {
+    .habits-hero {
+        align-items: flex-start;
+    }
+
+    .habit-hero-controls {
+        justify-content: flex-start;
+    }
+
+    .habit-tabs-main {
+        width: 100%;
+    }
+
+    .habit-tabs-main a {
+        flex: 1 1 0;
+        min-width: 0;
+        padding-inline: 12px;
+    }
+
+    .habit-period-form {
+        width: 100%;
+    }
+
+    .habit-period-form select,
+    .habit-create-btn {
+        width: 100%;
+    }
+
+    .habit-table-legend {
+        gap: 12px;
+    }
+}
+
+@media (max-width: 760px) {
+    .habit-section-head {
+        flex-direction: column;
+    }
+
+    .habit-table-columns,
+    .habit-list .habit-row {
+        grid-template-columns: 1fr;
+        min-width: 0;
+    }
+
+    .habit-metric-head,
+    .habit-row-metric {
+        border-left: 0;
+        padding-left: 0;
+        justify-content: flex-start;
+    }
+
+    .habit-week-head,
+    .habit-week-cells {
+        justify-content: start;
+        margin-inline: 0;
     }
 }
 

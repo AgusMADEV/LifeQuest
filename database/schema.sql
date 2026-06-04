@@ -114,6 +114,7 @@ CREATE TABLE habit_logs (
     habit_id INT NOT NULL,
     user_id INT NOT NULL,
     completed_date DATE NOT NULL,
+    status ENUM('completed', 'partial') NOT NULL DEFAULT 'completed',
     completed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY unique_habit_day (habit_id, completed_date),
     FOREIGN KEY (habit_id) REFERENCES habits(id) ON DELETE CASCADE,

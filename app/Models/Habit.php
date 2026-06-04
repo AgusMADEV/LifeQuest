@@ -84,11 +84,20 @@ final class Habit
 
     public function getLogsByRange(int $userId, string $startDate, string $endDate): array
     {
-        $sql = "SELECT habit_logs.habit_id, habit_logs.completed_date
+        $hasStatusColumn = $this->hasColumn('habit_logs', 'status');
+
+        $sql = $hasStatusColumn
+            ? "SELECT habit_logs.habit_id, habit_logs.completed_date, habit_logs.status
                 FROM habit_logs
                 INNER JOIN habits ON habits.id = habit_logs.habit_id
-                                WHERE habit_logs.user_id = :logs_user_id
-                                    AND habits.user_id = :habits_user_id
+                WHERE habit_logs.user_id = :logs_user_id
+                  AND habits.user_id = :habits_user_id
+                  AND habit_logs.completed_date BETWEEN :start_date AND :end_date"
+            : "SELECT habit_logs.habit_id, habit_logs.completed_date
+                FROM habit_logs
+                INNER JOIN habits ON habits.id = habit_logs.habit_id
+                WHERE habit_logs.user_id = :logs_user_id
+                  AND habits.user_id = :habits_user_id
                   AND habit_logs.completed_date BETWEEN :start_date AND :end_date";
 
         $stmt = $this->db->prepare($sql);
@@ -104,7 +113,7 @@ final class Habit
         foreach ($stmt->fetchAll() as $row) {
             $habitId = (int) $row['habit_id'];
             $date = (string) $row['completed_date'];
-            $map[$habitId][$date] = true;
+            $map[$habitId][$date] = $hasStatusColumn ? (string) ($row['status'] ?? 'completed') : 'completed';
         }
 
         return $map;
@@ -112,6 +121,8 @@ final class Habit
 
     public function getStats(int $userId): array
     {
+        $hasStatusColumn = $this->hasColumn('habit_logs', 'status');
+
         $activeStmt = $this->db->prepare(
             "SELECT COUNT(*) AS total, MAX(best_streak) AS best_streak, SUM(xp_reward) AS daily_xp
              FROM habits
@@ -121,12 +132,18 @@ final class Habit
         $active = $activeStmt->fetch() ?: [];
 
         $monthKey = date('Y-m');
-        $monthStmt = $this->db->prepare(
-            "SELECT COUNT(*) AS completed_month
-             FROM habit_logs
-             WHERE user_id = :user_id
-               AND DATE_FORMAT(completed_date, '%Y-%m') = :month_key"
-        );
+                $monthSql = $hasStatusColumn
+                        ? "SELECT COUNT(*) AS completed_month
+                         FROM habit_logs
+                         WHERE user_id = :user_id
+                             AND DATE_FORMAT(completed_date, '%Y-%m') = :month_key
+                             AND (status = 'completed' OR status IS NULL)"
+                        : "SELECT COUNT(*) AS completed_month
+                         FROM habit_logs
+                         WHERE user_id = :user_id
+                             AND DATE_FORMAT(completed_date, '%Y-%m') = :month_key";
+
+                $monthStmt = $this->db->prepare($monthSql);
         $monthStmt->execute([
             'user_id' => $userId,
             'month_key' => $monthKey,
@@ -154,18 +171,36 @@ final class Habit
         }
 
         $today = date('Y-m-d');
+        $hasStatusColumn = $this->hasColumn('habit_logs', 'status');
+        $habitIsControl = $hasStatusColumn && (bool) ($habit['is_negative'] ?? false);
+        $rewardMultiplier = static function (bool $isControl, ?string $status): float {
+            if ($isControl) {
+                return $status === 'partial' ? 0.5 : 1.0;
+            }
+
+            return $status === 'completed' ? 1.0 : 0.0;
+        };
 
         try {
             $this->db->beginTransaction();
 
-            $existsStmt = $this->db->prepare(
-                "SELECT id
+            $existsStmt = $hasStatusColumn
+                ? $this->db->prepare(
+                    "SELECT id, status
                  FROM habit_logs
                  WHERE habit_id = :habit_id
                    AND user_id = :user_id
                    AND completed_date = :completed_date
                  LIMIT 1"
-            );
+                )
+                : $this->db->prepare(
+                    "SELECT id
+                 FROM habit_logs
+                 WHERE habit_id = :habit_id
+                   AND user_id = :user_id
+                   AND completed_date = :completed_date
+                 LIMIT 1"
+                );
             $existsStmt->execute([
                 'habit_id' => $habitId,
                 'user_id' => $userId,
@@ -175,59 +210,99 @@ final class Habit
             $existing = $existsStmt->fetch();
             $xpDelta = (int) $habit['xp_reward'];
             $pointsDelta = (int) $habit['points_reward'];
-            $negativeHabitsEnabled = defined('FEATURE_NEGATIVE_HABITS') ? (bool) FEATURE_NEGATIVE_HABITS : false;
-            $habitIsNegative = $negativeHabitsEnabled && (bool) ($habit['is_negative'] ?? false);
-            $hpPenalty = max(0, (int) ($habit['hp_penalty'] ?? 0));
+            $oldStatus = $hasStatusColumn ? (string) ($existing['status'] ?? 'completed') : ($existing ? 'completed' : null);
+            $newStatus = null;
 
-            if ($existing) {
+            if ($habitIsControl) {
+                if (!$existing) {
+                    $newStatus = 'completed';
+                } elseif ($oldStatus === 'completed') {
+                    $newStatus = 'partial';
+                } else {
+                    $newStatus = null;
+                }
+            } else {
+                $newStatus = $existing ? null : 'completed';
+            }
+
+            $oldFactor = $rewardMultiplier($habitIsControl, $oldStatus);
+            $newFactor = $rewardMultiplier($habitIsControl, $newStatus);
+
+            $deltaXp = (int) round($xpDelta * ($newFactor - $oldFactor));
+            $deltaPoints = (int) round($pointsDelta * ($newFactor - $oldFactor));
+
+            if ($existing && $newStatus === null) {
                 $deleteStmt = $this->db->prepare(
                     "DELETE FROM habit_logs
                      WHERE id = :id"
                 );
                 $deleteStmt->execute(['id' => (int) $existing['id']]);
+            } elseif ($existing) {
+                $updateSql = $hasStatusColumn
+                    ? "UPDATE habit_logs
+                       SET status = :status
+                       WHERE id = :id"
+                    : "UPDATE habit_logs
+                       SET completed_date = completed_date
+                       WHERE id = :id";
 
-                if ($habitIsNegative) {
-                    $this->applyUserHpDelta($userId, $hpPenalty);
-                    $message = $hpPenalty > 0
-                        ? 'Hábito de riesgo desmarcado. Recuperaste +' . $hpPenalty . ' HP.'
-                        : 'Hábito de riesgo desmarcado para hoy.';
-                } else {
-                    $this->applyUserRewards($userId, -$xpDelta, -$pointsDelta, isset($habit['area_id']) ? (int) $habit['area_id'] : null);
-                    $message = 'Hábito desmarcado para hoy.';
+                $updateStmt = $this->db->prepare($updateSql);
+                $params = ['id' => (int) $existing['id']];
+
+                if ($hasStatusColumn) {
+                    $params['status'] = $newStatus;
                 }
+
+                $updateStmt->execute($params);
             } else {
-                $insertStmt = $this->db->prepare(
-                    "INSERT INTO habit_logs (habit_id, user_id, completed_date)
-                     VALUES (:habit_id, :user_id, :completed_date)"
-                );
-                $insertStmt->execute([
+                $insertSql = $hasStatusColumn
+                    ? "INSERT INTO habit_logs (habit_id, user_id, completed_date, status)
+                     VALUES (:habit_id, :user_id, :completed_date, :status)"
+                    : "INSERT INTO habit_logs (habit_id, user_id, completed_date)
+                     VALUES (:habit_id, :user_id, :completed_date)";
+
+                $insertStmt = $this->db->prepare($insertSql);
+                $params = [
                     'habit_id' => $habitId,
                     'user_id' => $userId,
                     'completed_date' => $today,
-                ]);
+                ];
 
-                if ($habitIsNegative) {
-                    $this->applyUserHpDelta($userId, -$hpPenalty);
-                    $message = $hpPenalty > 0
-                        ? 'Hábito de riesgo registrado. -' . $hpPenalty . ' HP.'
-                        : 'Hábito de riesgo registrado para hoy.';
-                } else {
-                    $this->applyUserRewards($userId, $xpDelta, $pointsDelta, isset($habit['area_id']) ? (int) $habit['area_id'] : null);
-                    $message = 'Hábito completado para hoy. +' . $xpDelta . ' XP y +' . $pointsDelta . ' LifeCoins.';
+                if ($hasStatusColumn) {
+                    $params['status'] = $newStatus;
                 }
+
+                $insertStmt->execute($params);
             }
 
-            if ($habitIsNegative) {
-                $this->resetHabitStreaks($habitId, $userId);
+            if ($habitIsControl) {
+                $this->recalculateStreaks($habitId, $userId);
             } else {
                 $this->recalculateStreaks($habitId, $userId);
             }
+
+            if ($deltaXp !== 0 || $deltaPoints !== 0) {
+                $this->applyUserRewards($userId, $deltaXp, $deltaPoints, isset($habit['area_id']) ? (int) $habit['area_id'] : null);
+            }
+
             $this->syncUserCurrentStreak($userId);
             $this->db->commit();
 
             $badgeModel = new Badge($this->db);
             $newlyUnlockedBadges = $badgeModel->syncAndCollectNewlyUnlocked($userId);
             $this->pushBadgeUnlockToast($newlyUnlockedBadges);
+
+            if ($habitIsControl) {
+                $message = $newStatus === 'completed'
+                    ? 'Día en control registrado. +' . max(0, $deltaXp) . ' XP y +' . max(0, $deltaPoints) . ' LifeCoins.'
+                    : ($newStatus === 'partial'
+                        ? 'Se guardó una recaída parcial. Sigues avanzando.'
+                        : 'Estado parcial retirado para hoy.');
+            } else {
+                $message = $existing
+                    ? 'Hábito desmarcado para hoy.'
+                    : 'Hábito completado para hoy. +' . $xpDelta . ' XP y +' . $pointsDelta . ' LifeCoins.';
+            }
 
             return ['success' => true, 'message' => $message];
         } catch (Throwable $exception) {
@@ -359,17 +434,26 @@ final class Habit
 
     private function recalculateStreaks(int $habitId, int $userId): void
     {
-        $stmt = $this->db->prepare(
-            "SELECT completed_date
-             FROM habit_logs
-             WHERE habit_id = :habit_id
-               AND user_id = :user_id
-             ORDER BY completed_date DESC"
-        );
-        $stmt->execute([
-            'habit_id' => $habitId,
-            'user_id' => $userId,
-        ]);
+                $hasStatusColumn = $this->hasColumn('habit_logs', 'status');
+
+                $sql = $hasStatusColumn
+                        ? "SELECT completed_date
+                         FROM habit_logs
+                         WHERE habit_id = :habit_id
+                             AND user_id = :user_id
+                             AND (status = 'completed' OR status IS NULL)
+                         ORDER BY completed_date DESC"
+                        : "SELECT completed_date
+                         FROM habit_logs
+                         WHERE habit_id = :habit_id
+                             AND user_id = :user_id
+                         ORDER BY completed_date DESC";
+
+                $stmt = $this->db->prepare($sql);
+                $stmt->execute([
+                        'habit_id' => $habitId,
+                        'user_id' => $userId,
+                ]);
 
         $dates = array_map(
             static fn(array $row): string => (string) $row['completed_date'],
