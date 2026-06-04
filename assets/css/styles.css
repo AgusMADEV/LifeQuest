@@ -637,6 +637,8 @@ a {
 
 .lq-main {
     min-width: 0;
+    display: flex;
+    flex-direction: column;
     /*padding: 28px 28px 36px;*/
 }
 

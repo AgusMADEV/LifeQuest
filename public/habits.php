@@ -447,36 +447,35 @@ function hexToRgba(string $hex, float $alpha = 1.0): string
         <?php require __DIR__ . '/partials/topbar.php'; ?>
 
         <section class="lq-page-shell habits-shell">
-            <header class="lq-page-hero habits-hero">
-                <div>
-                    <p class="eyebrow">Rutinas cotidianas</p>
-                    <h1><span class="habit-title-icon" aria-hidden="true">♡</span> Hábitos</h1>
-                    <p>Construye rutinas positivas y transforma tu día a día.</p>
-                </div>
-                <div class="habit-hero-controls">
-                    <div class="habit-tabs habit-tabs-main">
-                        <a href="habits.php?tab=positive&amp;period=<?= e($period) ?>" class="<?= $activeHabitTab === 'positive' ? 'active' : '' ?>"><span aria-hidden="true">♡</span> Hábitos positivos</a>
-                        <a href="habits.php?tab=control&amp;period=<?= e($period) ?>" class="<?= $activeHabitTab === 'control' ? 'active' : '' ?>"><span aria-hidden="true">🛡</span> Hábitos en control</a>
-                    </div>
-                    <form method="GET" class="habit-period-form">
-                        <input type="hidden" name="tab" value="<?= e($tab) ?>">
-                        <select name="period" onchange="this.form.submit()">
-                            <option value="week" <?= $period === 'week' ? 'selected' : '' ?>>Esta semana</option>
-                            <option value="month" <?= $period === 'month' ? 'selected' : '' ?>>Este mes</option>
-                        </select>
-                    </form>
-                    <?php if (in_array($tab, $mainHabitTabs, true)): ?>
-                        <button type="button" class="habit-create-btn habit-create-btn--<?= e($activeHabitTab) ?>" data-habit-modal-open><?= e($currentTabConfig['cta']) ?></button>
-                    <?php endif; ?>
-                </div>
-            </header>
-
             <?php if ($message): ?>
                 <div class="lq-alert <?= e($messageType) ?>"><?= e($message) ?></div>
             <?php endif; ?>
 
             <?php if (in_array($tab, $mainHabitTabs, true)): ?>
                 <section class="habits-board habits-board--<?= e($activeHabitTab) ?>">
+                    <header class="lq-page-hero habits-hero">
+                        <div>
+                            <p class="eyebrow">Rutinas cotidianas</p>
+                            <h1><span class="habit-title-icon" aria-hidden="true">♡</span> Hábitos</h1>
+                            <p>Construye rutinas positivas y transforma tu día a día.</p>
+                        </div>
+                        <div class="habit-hero-controls">
+                            <div class="habit-tabs habit-tabs-main">
+                                <a href="habits.php?tab=positive&amp;period=<?= e($period) ?>" class="<?= $activeHabitTab === 'positive' ? 'active' : '' ?>"><span aria-hidden="true">♡</span> Hábitos positivos</a>
+                                <a href="habits.php?tab=control&amp;period=<?= e($period) ?>" class="<?= $activeHabitTab === 'control' ? 'active' : '' ?>"><span aria-hidden="true">🛡</span> Hábitos en control</a>
+                            </div>
+                            <form method="GET" class="habit-period-form">
+                                <input type="hidden" name="tab" value="<?= e($tab) ?>">
+                                <select name="period" onchange="this.form.submit()">
+                                    <option value="week" <?= $period === 'week' ? 'selected' : '' ?>>Esta semana</option>
+                                    <option value="month" <?= $period === 'month' ? 'selected' : '' ?>>Este mes</option>
+                                </select>
+                            </form>
+                            <?php if (in_array($tab, $mainHabitTabs, true)): ?>
+                                <button type="button" class="habit-create-btn habit-create-btn--<?= e($activeHabitTab) ?>" data-habit-modal-open><?= e($currentTabConfig['cta']) ?></button>
+                            <?php endif; ?>
+                        </div>
+                    </header>
                     <div class="habits-content-column">
                         <section class="habit-kpis habit-kpis--<?= e($activeHabitTab) ?>">
                             <article class="habit-kpi-card habit-kpi-card--accent">
@@ -578,7 +577,7 @@ function hexToRgba(string $hex, float $alpha = 1.0): string
                                             <div class="habit-title-wrap">
                                                 <?php if ($habitAreaIcon): ?>
                                                     <div class="habit-icon habit-icon--area" style="--area-bg: <?= e($habitAreaBg) ?>;">
-                                                        <span class="habit-icon-mask" style="--area-color: <?= e($habitAreaColor !== '' ? $habitAreaColor : '#16C79A') ?>; -webkit-mask-image: url('<?= e($habitAreaIcon) ?>'); mask-image: url('<?= e($habitAreaIcon) ?>'); -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-position: center; mask-position: center; -webkit-mask-size: 66%; mask-size: 66%;"></span>
+                                                        <span class="habit-icon-mask" style="--area-color: <?= e($habitAreaColor !== '' ? $habitAreaColor : '#16C79A') ?>; -webkit-mask-image: url('<?= e($habitAreaIcon) ?>'); mask-image: url('<?= e($habitAreaIcon) ?>');"></span>
                                                     </div>
                                                 <?php else: ?>
                                                     <div class="habit-icon habit-icon--<?= e($habitType) ?>"><?= $habitType === 'control' ? controlHabitEmojiByIndex($index) : habitEmojiByIndex($index) ?></div>
@@ -643,48 +642,47 @@ function hexToRgba(string $hex, float $alpha = 1.0): string
                             </div>
                         </article>
                     </div>
-
-                    <aside class="habits-aside">
-                        <article class="habit-side-card profile habit-side-card--<?= e($activeHabitTab) ?>">
-                            <div class="habit-avatar habit-avatar--<?= e($activeHabitTab) ?>">
-                                <?php if ($habitAvatarSrc !== null): ?>
-                                    <img src="<?= e($habitAvatarSrc) ?>" alt="" class="mini-avatar-image">
-                                <?php else: ?>
-                                    🧑
-                                <?php endif; ?>
-                            </div>
-                            <strong><?= $activeHabitTab === 'control' ? $visibleBestStreak . ' días en control' : 'Nivel ' . $level ?></strong>
-                            <div class="lq-progress"><span style="width: <?= $xpPercent ?>%"></span></div>
-                            <small><?= $activeHabitTab === 'control' ? 'Cada día en control cuenta' : number_format($xpCurrentLevel, 0, ',', '.') . ' / ' . number_format($xpPerLevel, 0, ',', '.') . ' XP' ?></small>
-                        </article>
-
-                        <article class="habit-side-card impact-card habit-side-card--<?= e($activeHabitTab) ?>">
-                            <div class="impact-icon"><?= $activeHabitTab === 'control' ? '🪴' : '✨' ?></div>
-                            <div>
-                                <h3>Tu impacto</h3>
-                                <p><?= $activeHabitTab === 'control' ? 'Llevas ' . $visibleCompleted . ' días cuidando de ti. Sigue así, cada pequeño paso cuenta.' : 'Llevas ' . $visibleCompleted . ' check-ins completados en ' . e($periodLabel) . '.' ?></p>
-                            </div>
-                        </article>
-
-                        <article class="habit-side-card donut-card-mini habit-side-card--<?= e($activeHabitTab) ?>">
-                            <div class="donut-head">
-                                <h3>Hábitos completados</h3>
-                                <span><?= e($periodLabel) ?></span>
-                            </div>
-                            <div class="habit-donut habit-donut--<?= e($activeHabitTab) ?>" style="--seg-a: <?= $visibleCompletedPct ?>; --seg-b: <?= $visiblePartialPct ?>; --seg-c: <?= $visibleRemainingPct ?>;"></div>
-                            <div class="habit-donut-legend">
-                                <span><i class="dot done"></i><?= e($currentTabConfig['legendCompleted']) ?> <b><?= $visibleCompletedPct ?>%</b></span>
-                                <span><i class="dot partial"></i><?= e($currentTabConfig['legendPartial']) ?> <b><?= $visiblePartialPct ?>%</b></span>
-                                <span><i class="dot empty"></i><?= e($currentTabConfig['legendEmpty']) ?> <b><?= $visibleRemainingPct ?>%</b></span>
-                            </div>
-                        </article>
-
-                        <article class="habit-side-card tip-card habit-side-card--<?= e($activeHabitTab) ?>">
-                            <h3>Consejo del día</h3>
-                            <p><?= e($activeHabitTab === 'control' ? 'No se trata de hacerlo perfecto, sino de volver a elegir mejor.' : 'La disciplina también es una forma de cariño propio.') ?></p>
-                        </article>
-                    </aside>
                 </section>
+                <section class="habits-aside">
+                    <article class="habit-side-card profile habit-side-card--<?= e($activeHabitTab) ?>">
+                        <div class="habit-avatar habit-avatar--<?= e($activeHabitTab) ?>">
+                            <?php if ($habitAvatarSrc !== null): ?>
+                                <img src="<?= e($habitAvatarSrc) ?>" alt="" class="mini-avatar-image">
+                            <?php else: ?>
+                                🧑
+                            <?php endif; ?>
+                        </div>
+                        <strong><?= $activeHabitTab === 'control' ? $visibleBestStreak . ' días en control' : 'Nivel ' . $level ?></strong>
+                        <div class="lq-progress"><span style="width: <?= $xpPercent ?>%"></span></div>
+                        <small><?= $activeHabitTab === 'control' ? 'Cada día en control cuenta' : number_format($xpCurrentLevel, 0, ',', '.') . ' / ' . number_format($xpPerLevel, 0, ',', '.') . ' XP' ?></small>
+                    </article>
+
+                    <article class="habit-side-card impact-card habit-side-card--<?= e($activeHabitTab) ?>">
+                        <div class="impact-icon"><?= $activeHabitTab === 'control' ? '🪴' : '✨' ?></div>
+                        <div>
+                            <h3>Tu impacto</h3>
+                            <p><?= $activeHabitTab === 'control' ? 'Llevas ' . $visibleCompleted . ' días cuidando de ti. Sigue así, cada pequeño paso cuenta.' : 'Llevas ' . $visibleCompleted . ' check-ins completados en ' . e($periodLabel) . '.' ?></p>
+                        </div>
+                    </article>
+
+                    <article class="habit-side-card donut-card-mini habit-side-card--<?= e($activeHabitTab) ?>">
+                        <div class="donut-head">
+                            <h3>Hábitos completados</h3>
+                            <span><?= e($periodLabel) ?></span>
+                        </div>
+                        <div class="habit-donut habit-donut--<?= e($activeHabitTab) ?>" style="--seg-a: <?= $visibleCompletedPct ?>; --seg-b: <?= $visiblePartialPct ?>; --seg-c: <?= $visibleRemainingPct ?>;"></div>
+                        <div class="habit-donut-legend">
+                            <span><i class="dot done"></i><?= e($currentTabConfig['legendCompleted']) ?> <b><?= $visibleCompletedPct ?>%</b></span>
+                            <span><i class="dot partial"></i><?= e($currentTabConfig['legendPartial']) ?> <b><?= $visiblePartialPct ?>%</b></span>
+                            <span><i class="dot empty"></i><?= e($currentTabConfig['legendEmpty']) ?> <b><?= $visibleRemainingPct ?>%</b></span>
+                        </div>
+                    </article>
+
+                    <article class="habit-side-card tip-card habit-side-card--<?= e($activeHabitTab) ?>">
+                        <h3>Consejo del día</h3>
+                        <p><?= e($activeHabitTab === 'control' ? 'No se trata de hacerlo perfecto, sino de volver a elegir mejor.' : 'La disciplina también es una forma de cariño propio.') ?></p>
+                    </article>
+                            </section>
             <?php elseif ($tab === 'stats'): ?>
                 <section class="habit-stats-layout">
                     <article class="habit-side-card stats-chart-card">
@@ -748,6 +746,7 @@ function hexToRgba(string $hex, float $alpha = 1.0): string
                 </section>
             <?php endif; ?>
         </section>
+        
     </main>
 
     <div class="habit-modal-overlay<?= $habitModalShouldOpen ? ' is-open' : '' ?>" data-habit-modal<?= $habitModalShouldOpen ? '' : ' hidden' ?>>
