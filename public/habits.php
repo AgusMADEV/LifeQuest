@@ -39,15 +39,30 @@ $message = null;
 $messageType = null;
 $habitFormData = [];
 $habitModalShouldOpen = false;
+$habitModalMode = 'create';
+
+function habitFormValue(array $data, string $key, string $default = ''): string
+{
+    return e((string) ($data[$key] ?? $default));
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     $habitFormData = $_POST;
+    $habitModalMode = $action === 'update' ? 'edit' : 'create';
 
     if ($action === 'create') {
         $result = $habitController->store($userId, $_POST);
+    } elseif ($action === 'update') {
+        $result = $habitController->update($userId, (int) ($_POST['habit_id'] ?? 0), $_POST);
+    } elseif ($action === 'delete') {
+        $result = $habitController->delete($userId, (int) ($_POST['habit_id'] ?? 0));
     } elseif ($action === 'toggle_today') {
-        $result = $habitController->toggleToday($userId, (int) ($_POST['habit_id'] ?? 0));
+        $result = $habitController->toggleToday(
+            $userId,
+            (int) ($_POST['habit_id'] ?? 0),
+            isset($_POST['status']) ? (string) $_POST['status'] : null
+        );
     } else {
         $result = ['success' => false, 'message' => 'Acción no válida.'];
     }
@@ -80,7 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
-    if ($action === 'create') {
+    if (in_array($action, ['create', 'update'], true)) {
         $habitModalShouldOpen = true;
     }
 }
@@ -326,6 +341,44 @@ function controlHabitEmojiByIndex(int $index): string
 
     return $emojis[$index % count($emojis)];
 }
+
+function areaIconMaskUrl(string|null $iconValue): ?string
+{
+    $iconValue = trim((string) $iconValue);
+
+    if ($iconValue === '') {
+        return null;
+    }
+
+    $baseName = pathinfo($iconValue, PATHINFO_FILENAME);
+    $svgFile = $baseName . '.svg';
+    $svgPath = __DIR__ . '/../icons/areas_svg/' . $svgFile;
+    if (is_file($svgPath)) {
+        return '../icons/areas_svg/' . rawurlencode($svgFile);
+    }
+
+    $pngPath = __DIR__ . '/../icons/areas/' . $iconValue;
+    if (is_file($pngPath)) {
+        return '../icons/areas/' . rawurlencode($iconValue);
+    }
+
+    return null;
+}
+
+function hexToRgba(string $hex, float $alpha = 1.0): string
+{
+    $hex = ltrim($hex, '#');
+
+    if (strlen($hex) === 3) {
+        $hex = $hex[0] . $hex[0] . $hex[1] . $hex[1] . $hex[2] . $hex[2];
+    }
+
+    $r = hexdec(substr($hex, 0, 2));
+    $g = hexdec(substr($hex, 2, 2));
+    $b = hexdec(substr($hex, 4, 2));
+
+    return 'rgba(' . $r . ', ' . $g . ', ' . $b . ', ' . $alpha . ')';
+}
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -501,10 +554,35 @@ function controlHabitEmojiByIndex(int $index): string
                                             $hid = (int) ($habit['id'] ?? 0);
                                             $habitType = !empty($habit['is_negative']) ? 'control' : 'positive';
                                             $metricText = (int) ($habit['current_streak'] ?? 0) . ' días';
+                                            $habitAreaIconValue = trim((string) ($habit['area_icon'] ?? ''));
+                                            $habitAreaIcon = areaIconMaskUrl($habitAreaIconValue);
+                                            $habitAreaColor = (string) ($habit['area_color'] ?? '');
+                                            $habitAreaBg = hexToRgba($habitAreaColor !== '' ? $habitAreaColor : '#16C79A', 0.15);
                                         ?>
-                                        <article class="habit-row habit-row--<?= e($habitType) ?> <?= (int) ($habit['active'] ?? 1) === 0 ? 'is-inactive' : '' ?>">
+                                        <article
+                                            class="habit-row habit-row--<?= e($habitType) ?> <?= (int) ($habit['active'] ?? 1) === 0 ? 'is-inactive' : '' ?>"
+                                            tabindex="0"
+                                            role="button"
+                                            data-habit-edit-open
+                                            data-habit-id="<?= $hid ?>"
+                                            data-habit-name="<?= e((string) ($habit['name'] ?? '')) ?>"
+                                            data-habit-description="<?= e((string) ($habit['description'] ?? '')) ?>"
+                                            data-habit-frequency="<?= e((string) ($habit['frequency'] ?? 'daily')) ?>"
+                                            data-habit-area-id="<?= (int) ($habit['area_id'] ?? 0) ?>"
+                                            data-habit-goal-id="<?= (int) ($habit['goal_id'] ?? 0) ?>"
+                                            data-habit-kind="<?= e($habitType) ?>"
+                                            data-habit-active="<?= (int) ($habit['active'] ?? 1) ?>"
+                                            data-habit-xp="<?= (int) ($habit['xp_reward'] ?? 0) ?>"
+                                            data-habit-points="<?= (int) ($habit['points_reward'] ?? 0) ?>"
+                                        >
                                             <div class="habit-title-wrap">
-                                                <div class="habit-icon habit-icon--<?= e($habitType) ?>"><?= $habitType === 'control' ? controlHabitEmojiByIndex($index) : habitEmojiByIndex($index) ?></div>
+                                                <?php if ($habitAreaIcon): ?>
+                                                    <div class="habit-icon habit-icon--area" style="--area-bg: <?= e($habitAreaBg) ?>;">
+                                                        <span class="habit-icon-mask" style="--area-color: <?= e($habitAreaColor !== '' ? $habitAreaColor : '#16C79A') ?>; -webkit-mask-image: url('<?= e($habitAreaIcon) ?>'); mask-image: url('<?= e($habitAreaIcon) ?>'); -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-position: center; mask-position: center; -webkit-mask-size: 66%; mask-size: 66%;"></span>
+                                                    </div>
+                                                <?php else: ?>
+                                                    <div class="habit-icon habit-icon--<?= e($habitType) ?>"><?= $habitType === 'control' ? controlHabitEmojiByIndex($index) : habitEmojiByIndex($index) ?></div>
+                                                <?php endif; ?>
                                                 <div>
                                                     <strong><?= e((string) ($habit['name'] ?? '')) ?></strong>
                                                     <small><?= e((string) ($habit['description'] ?: ($habitType === 'control' ? 'Pequeñas decisiones que te ayudan a volver al centro.' : 'Hábito sin descripción.'))) ?></small>
@@ -520,15 +598,30 @@ function controlHabitEmojiByIndex(int $index): string
                                                         $isToday = $date === $today;
                                                     ?>
                                                     <?php if ($isToday && (int) ($habit['active'] ?? 1) === 1): ?>
-                                                        <form method="POST" class="habit-toggle-form">
-                                                            <input type="hidden" name="current_tab" value="<?= e($tab) ?>">
-                                                            <input type="hidden" name="current_period" value="<?= e($period) ?>">
-                                                            <input type="hidden" name="action" value="toggle_today">
-                                                            <input type="hidden" name="habit_id" value="<?= $hid ?>">
-                                                            <button type="submit" class="habit-day <?= e($stateMeta['class']) ?> habit-day--today" title="<?= $habitType === 'control' ? 'Cambiar estado de hoy' : ($status === 'completed' ? 'Desmarcar hoy' : 'Marcar hoy') ?>">
-                                                                <?= e($stateMeta['icon']) ?>
-                                                            </button>
-                                                        </form>
+                                                                <?php if ($habitType === 'control'): ?>
+                                                                    <button
+                                                                        type="button"
+                                                                        class="habit-day <?= e($stateMeta['class']) ?> habit-day--today"
+                                                                        title="Seleccionar estado de hoy"
+                                                                        aria-expanded="false"
+                                                                        data-habit-state-open
+                                                                        data-habit-id="<?= $hid ?>"
+                                                                        data-habit-name="<?= e((string) ($habit['name'] ?? '')) ?>"
+                                                                        data-habit-current-status="<?= e($status !== '' ? $status : 'empty') ?>"
+                                                                    >
+                                                                        <?= e($stateMeta['icon']) ?>
+                                                                    </button>
+                                                                <?php else: ?>
+                                                                    <form method="POST" class="habit-toggle-form">
+                                                                        <input type="hidden" name="current_tab" value="<?= e($tab) ?>">
+                                                                        <input type="hidden" name="current_period" value="<?= e($period) ?>">
+                                                                        <input type="hidden" name="action" value="toggle_today">
+                                                                        <input type="hidden" name="habit_id" value="<?= $hid ?>">
+                                                                        <button type="submit" class="habit-day <?= e($stateMeta['class']) ?> habit-day--today" title="<?= $status === 'completed' ? 'Desmarcar hoy' : 'Marcar hoy' ?>">
+                                                                            <?= e($stateMeta['icon']) ?>
+                                                                        </button>
+                                                                    </form>
+                                                                <?php endif; ?>
                                                     <?php else: ?>
                                                         <span class="habit-day <?= e($stateMeta['class']) ?>" title="<?= e($date) ?>">
                                                             <?= e($stateMeta['icon']) ?>
@@ -547,10 +640,6 @@ function controlHabitEmojiByIndex(int $index): string
                                         </article>
                                     <?php endforeach; ?>
                                 </div>
-                            </div>
-
-                            <div class="habit-add-bar habit-add-bar--<?= e($activeHabitTab) ?>">
-                                <button type="button" data-habit-modal-open>+ <?= e($currentTabConfig['cta']) ?></button>
                             </div>
                         </article>
                     </div>
@@ -665,28 +754,29 @@ function controlHabitEmojiByIndex(int $index): string
         <div class="habit-modal-card" role="dialog" aria-modal="true" aria-labelledby="habit-modal-title">
             <div class="habit-modal-head">
                 <div>
-                    <p class="habit-modal-eyebrow">Nuevo hábito</p>
-                    <h2 id="habit-modal-title">Crear nuevo hábito</h2>
+                    <p class="habit-modal-eyebrow" data-habit-modal-eyebrow><?= $habitModalMode === 'edit' ? 'Editar hábito' : 'Nuevo hábito' ?></p>
+                    <h2 id="habit-modal-title" data-habit-modal-title><?= $habitModalMode === 'edit' ? 'Editar hábito' : 'Crear nuevo hábito' ?></h2>
                 </div>
                 <button type="button" class="habit-modal-close" data-habit-modal-close aria-label="Cerrar modal">×</button>
             </div>
 
-            <p class="habit-modal-sub">Añádelo a tu rutina y empieza a seguir su progreso desde hoy.</p>
+            <p class="habit-modal-sub" data-habit-modal-sub><?= $habitModalMode === 'edit' ? 'Actualiza la información de este hábito o elimínalo si ya no lo necesitas.' : 'Añádelo a tu rutina y empieza a seguir su progreso desde hoy.' ?></p>
 
-            <form method="POST" class="habit-modal-form">
+            <form method="POST" class="habit-modal-form" data-habit-modal-form>
                 <input type="hidden" name="current_tab" value="<?= e($tab) ?>">
                 <input type="hidden" name="current_period" value="<?= e($period) ?>">
-                <input type="hidden" name="action" value="create">
+                <input type="hidden" name="action" value="<?= $habitModalMode === 'edit' ? 'update' : 'create' ?>" data-habit-modal-action>
+                <input type="hidden" name="habit_id" value="<?= (int) ($habitFormData['habit_id'] ?? 0) ?>" data-habit-modal-id>
 
                 <div class="habit-modal-grid">
                     <label>
                         <span>Nombre del hábito</span>
-                        <input type="text" name="name" placeholder="Ej. Leer 20 minutos" value="<?= e((string) ($habitFormData['name'] ?? '')) ?>" required>
+                        <input type="text" name="name" placeholder="Ej. Leer 20 minutos" value="<?= habitFormValue($habitFormData, 'name') ?>" required data-habit-field="name">
                     </label>
 
                     <label>
                         <span>Frecuencia</span>
-                        <select name="frequency">
+                        <select name="frequency" data-habit-field="frequency">
                             <option value="daily" <?= (($habitFormData['frequency'] ?? 'daily') === 'daily') ? 'selected' : '' ?>>Diaria</option>
                             <option value="weekly" <?= (($habitFormData['frequency'] ?? '') === 'weekly') ? 'selected' : '' ?>>Semanal</option>
                             <option value="custom" <?= (($habitFormData['frequency'] ?? '') === 'custom') ? 'selected' : '' ?>>Personalizada</option>
@@ -695,12 +785,12 @@ function controlHabitEmojiByIndex(int $index): string
 
                     <label class="habit-modal-span-2">
                         <span>Descripción</span>
-                        <input type="text" name="description" placeholder="Descripción corta (opcional)" value="<?= e((string) ($habitFormData['description'] ?? '')) ?>">
+                        <input type="text" name="description" placeholder="Descripción corta (opcional)" value="<?= habitFormValue($habitFormData, 'description') ?>" data-habit-field="description">
                     </label>
 
                     <label>
                         <span>Área</span>
-                        <select name="area_id">
+                        <select name="area_id" data-habit-field="area_id">
                             <option value="">Área</option>
                             <?php foreach ($areas as $area): ?>
                                 <option value="<?= (int) $area['id'] ?>" <?= ((string) ($habitFormData['area_id'] ?? '') === (string) $area['id']) ? 'selected' : '' ?>><?= e((string) $area['name']) ?></option>
@@ -710,7 +800,7 @@ function controlHabitEmojiByIndex(int $index): string
 
                     <label>
                         <span>Meta</span>
-                        <select name="goal_id">
+                        <select name="goal_id" data-habit-field="goal_id">
                             <option value="">Meta</option>
                             <?php foreach ($goals as $goal): ?>
                                 <option value="<?= (int) $goal['id'] ?>" <?= ((string) ($habitFormData['goal_id'] ?? '') === (string) $goal['id']) ? 'selected' : '' ?>><?= e(shortText((string) $goal['title'], 26)) ?></option>
@@ -718,15 +808,15 @@ function controlHabitEmojiByIndex(int $index): string
                         </select>
                     </label>
 
-                    <div class="habit-modal-span-2 habit-kind-field">
+                    <div class="habit-modal-span-2 habit-kind-field" data-habit-kind-field>
                         <span>Tipo de hábito</span>
                         <div class="habit-kind-options">
-                            <label class="habit-kind-option habit-kind-option--positive <?= (($habitFormData['kind'] ?? $activeHabitTab) === 'positive') ? 'is-selected' : '' ?>">
+                            <label class="habit-kind-option habit-kind-option--positive <?= (($habitFormData['kind'] ?? $activeHabitTab) === 'positive') ? 'is-selected' : '' ?>" data-habit-kind-option>
                                 <input type="radio" name="kind" value="positive" <?= (($habitFormData['kind'] ?? $activeHabitTab) === 'positive') ? 'checked' : '' ?>>
                                 <strong>Hábitos positivos</strong>
                                 <small>Acciones que quieres repetir y fortalecer.</small>
                             </label>
-                            <label class="habit-kind-option habit-kind-option--control <?= (($habitFormData['kind'] ?? $activeHabitTab) === 'control') ? 'is-selected' : '' ?>">
+                            <label class="habit-kind-option habit-kind-option--control <?= (($habitFormData['kind'] ?? $activeHabitTab) === 'control') ? 'is-selected' : '' ?>" data-habit-kind-option>
                                 <input type="radio" name="kind" value="control" <?= (($habitFormData['kind'] ?? $activeHabitTab) === 'control') ? 'checked' : '' ?>>
                                 <strong>Hábitos en control</strong>
                                 <small>Rutinas que te ayudan a volver al equilibrio.</small>
@@ -736,11 +826,48 @@ function controlHabitEmojiByIndex(int $index): string
                 </div>
 
                 <div class="habit-modal-actions">
-                    <button type="button" class="habit-modal-secondary" data-habit-modal-close>Cancelar</button>
-                    <button type="submit" class="habit-modal-primary">Crear hábito</button>
+                    <button type="button" class="habit-modal-danger" data-habit-modal-delete hidden>Eliminar hábito</button>
+                    <div class="habit-modal-actions-right">
+                        <button type="button" class="habit-modal-secondary" data-habit-modal-close>Cancelar</button>
+                        <button type="submit" class="habit-modal-primary" data-habit-modal-submit><?= $habitModalMode === 'edit' ? 'Guardar cambios' : 'Crear hábito' ?></button>
+                    </div>
                 </div>
             </form>
         </div>
+    </div>
+
+    <div class="habit-state-popover" data-habit-state-popover hidden>
+        <div class="habit-state-popover-head">
+            <p class="habit-modal-eyebrow">Estado de hoy</p>
+            <button type="button" class="habit-state-popover-close" data-habit-state-popover-close aria-label="Cerrar menú">×</button>
+        </div>
+
+        <h2 class="habit-state-popover-title" data-habit-state-popover-title>Seleccionar estado</h2>
+        <p class="habit-state-popover-summary" data-habit-state-popover-summary>Elige un estado para hoy.</p>
+
+        <form method="POST" class="habit-state-form" data-habit-state-form>
+            <input type="hidden" name="current_tab" value="<?= e($tab) ?>">
+            <input type="hidden" name="current_period" value="<?= e($period) ?>">
+            <input type="hidden" name="action" value="toggle_today">
+            <input type="hidden" name="habit_id" value="">
+            <input type="hidden" name="current_status" value="">
+            <input type="hidden" name="status" value="">
+
+            <div class="habit-state-options">
+                <button type="button" class="habit-state-option habit-state-option--completed" data-habit-state-option data-status="completed">
+                    <strong>Día controlado</strong>
+                    <small>Sumar XP y dejar el día en orden.</small>
+                </button>
+                <button type="button" class="habit-state-option habit-state-option--partial" data-habit-state-option data-status="partial">
+                    <strong>Recaída</strong>
+                    <small>Registrar una recaída parcial y restar HP.</small>
+                </button>
+                <button type="button" class="habit-state-option habit-state-option--empty" data-habit-state-option data-status="empty">
+                    <strong>Sin registrar</strong>
+                    <small>Quitar el estado de hoy.</small>
+                </button>
+            </div>
+        </form>
     </div>
 
     <script src="../assets/js/app.js"></script>

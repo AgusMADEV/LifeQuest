@@ -20,7 +20,7 @@ final class Habit
 
     public function getAllByUser(int $userId): array
     {
-        $sql = "SELECT habits.*, life_areas.name AS area_name, life_areas.icon AS area_icon
+        $sql = "SELECT habits.*, life_areas.name AS area_name, life_areas.icon AS area_icon, life_areas.color AS area_color
                 FROM habits
                 LEFT JOIN life_areas ON habits.area_id = life_areas.id
                 WHERE habits.user_id = :user_id
@@ -75,6 +75,69 @@ final class Habit
         }
 
         return $stmt->execute($params);
+    }
+
+    public function update(int $userId, int $habitId, array $data): bool
+    {
+        $hasNegativeColumns = $this->hasColumn('habits', 'is_negative') && $this->hasColumn('habits', 'hp_penalty');
+
+        if ($hasNegativeColumns) {
+            $sql = "UPDATE habits
+                    SET area_id = :area_id,
+                        goal_id = :goal_id,
+                        name = :name,
+                        description = :description,
+                        frequency = :frequency,
+                        xp_reward = :xp_reward,
+                        points_reward = :points_reward,
+                        is_negative = :is_negative,
+                        hp_penalty = :hp_penalty
+                    WHERE id = :habit_id AND user_id = :user_id";
+        } else {
+            $sql = "UPDATE habits
+                    SET area_id = :area_id,
+                        goal_id = :goal_id,
+                        name = :name,
+                        description = :description,
+                        frequency = :frequency,
+                        xp_reward = :xp_reward,
+                        points_reward = :points_reward
+                    WHERE id = :habit_id AND user_id = :user_id";
+        }
+
+        $stmt = $this->db->prepare($sql);
+
+        $params = [
+            'habit_id' => $habitId,
+            'user_id' => $userId,
+            'area_id' => $data['area_id'],
+            'goal_id' => $data['goal_id'],
+            'name' => $data['name'],
+            'description' => $data['description'],
+            'frequency' => $data['frequency'],
+            'xp_reward' => $data['xp_reward'],
+            'points_reward' => $data['points_reward'],
+        ];
+
+        if ($hasNegativeColumns) {
+            $params['is_negative'] = (int) ($data['is_negative'] ?? 0);
+            $params['hp_penalty'] = (int) ($data['hp_penalty'] ?? 0);
+        }
+
+        return $stmt->execute($params);
+    }
+
+    public function delete(int $userId, int $habitId): bool
+    {
+        $stmt = $this->db->prepare(
+            "DELETE FROM habits
+             WHERE id = :habit_id AND user_id = :user_id"
+        );
+
+        return $stmt->execute([
+            'habit_id' => $habitId,
+            'user_id' => $userId,
+        ]);
     }
 
     public function getWeekLogs(int $userId, string $startDate, string $endDate): array
@@ -158,7 +221,7 @@ final class Habit
         ];
     }
 
-    public function toggleToday(int $habitId, int $userId): array
+    public function toggleToday(int $habitId, int $userId, ?string $targetStatus = null): array
     {
         $habit = $this->findByIdAndUser($habitId, $userId);
 
@@ -173,7 +236,32 @@ final class Habit
         $today = date('Y-m-d');
         $hasStatusColumn = $this->hasColumn('habit_logs', 'status');
         $habitIsControl = $hasStatusColumn && (bool) ($habit['is_negative'] ?? false);
+        $hpPenalty = max(1, (int) ($habit['hp_penalty'] ?? 0));
+
+        if ($hpPenalty <= 0) {
+            $hpPenalty = max(1, (int) ($habit['xp_reward'] ?? 0));
+        }
+
+        $requestedStatus = null;
+        $hasRequestedStatus = $habitIsControl && $targetStatus !== null;
+
+        if ($hasRequestedStatus) {
+            $normalizedStatus = strtolower(trim($targetStatus));
+
+            if (in_array($normalizedStatus, ['completed', 'partial'], true)) {
+                $requestedStatus = $normalizedStatus;
+            } elseif (in_array($normalizedStatus, ['empty', 'none', 'unregistered'], true)) {
+                $requestedStatus = null;
+            } else {
+                return ['success' => false, 'message' => 'Estado de hábito no válido.'];
+            }
+        }
+
         $rewardMultiplier = static function (bool $isControl, ?string $status): float {
+            if ($status === null) {
+                return 0.0;
+            }
+
             if ($isControl) {
                 return $status === 'partial' ? 0.5 : 1.0;
             }
@@ -210,13 +298,25 @@ final class Habit
             $existing = $existsStmt->fetch();
             $xpDelta = (int) $habit['xp_reward'];
             $pointsDelta = (int) $habit['points_reward'];
-            $oldStatus = $hasStatusColumn ? (string) ($existing['status'] ?? 'completed') : ($existing ? 'completed' : null);
+
+            if ($habitIsControl && $xpDelta <= 0) {
+                $xpDelta = 5;
+            }
+
+            if ($habitIsControl && $pointsDelta <= 0) {
+                $pointsDelta = 3;
+            }
+            $currentStatus = $existing
+                ? ($hasStatusColumn ? (string) ($existing['status'] ?? 'completed') : 'completed')
+                : null;
             $newStatus = null;
 
             if ($habitIsControl) {
-                if (!$existing) {
+                if ($hasRequestedStatus) {
+                    $newStatus = $requestedStatus;
+                } elseif (!$existing) {
                     $newStatus = 'completed';
-                } elseif ($oldStatus === 'completed') {
+                } elseif ($currentStatus === 'completed') {
                     $newStatus = 'partial';
                 } else {
                     $newStatus = null;
@@ -225,7 +325,14 @@ final class Habit
                 $newStatus = $existing ? null : 'completed';
             }
 
-            $oldFactor = $rewardMultiplier($habitIsControl, $oldStatus);
+            if ($habitIsControl && $hasRequestedStatus && $currentStatus === $newStatus) {
+                return [
+                    'success' => true,
+                    'message' => 'El estado de hoy ya estaba registrado así.',
+                ];
+            }
+
+            $oldFactor = $rewardMultiplier($habitIsControl, $currentStatus);
             $newFactor = $rewardMultiplier($habitIsControl, $newStatus);
 
             $deltaXp = (int) round($xpDelta * ($newFactor - $oldFactor));
@@ -276,10 +383,14 @@ final class Habit
             }
 
             if ($habitIsControl) {
-                $this->recalculateStreaks($habitId, $userId);
-            } else {
-                $this->recalculateStreaks($habitId, $userId);
+                if ($currentStatus !== 'partial' && $newStatus === 'partial') {
+                    $this->applyUserHpDelta($userId, -$hpPenalty);
+                } elseif ($currentStatus === 'partial' && $newStatus !== 'partial') {
+                    $this->applyUserHpDelta($userId, $hpPenalty);
+                }
             }
+
+            $this->recalculateStreaks($habitId, $userId);
 
             if ($deltaXp !== 0 || $deltaPoints !== 0) {
                 $this->applyUserRewards($userId, $deltaXp, $deltaPoints, isset($habit['area_id']) ? (int) $habit['area_id'] : null);
@@ -296,8 +407,8 @@ final class Habit
                 $message = $newStatus === 'completed'
                     ? 'Día en control registrado. +' . max(0, $deltaXp) . ' XP y +' . max(0, $deltaPoints) . ' LifeCoins.'
                     : ($newStatus === 'partial'
-                        ? 'Se guardó una recaída parcial. Sigues avanzando.'
-                        : 'Estado parcial retirado para hoy.');
+                        ? 'Se guardó una recaída parcial. Has perdido ' . $hpPenalty . ' HP.'
+                        : 'Se retiró la recaída parcial de hoy y se devolvió el HP perdido.');
             } else {
                 $message = $existing
                     ? 'Hábito desmarcado para hoy.'
@@ -402,6 +513,10 @@ final class Habit
     private function applyUserHpDelta(int $userId, int $hpDelta): void
     {
         if ($hpDelta === 0 || !$this->hasColumn('users', 'hp')) {
+            return;
+        }
+
+        if (defined('FEATURE_HP_SYSTEM') && !FEATURE_HP_SYSTEM) {
             return;
         }
 

@@ -231,12 +231,17 @@
     place-items: center;
     color: #fff;
     font-size: 1.18rem;
-    background: linear-gradient(145deg, #243553, #152033) !important;
-    box-shadow: 0 12px 22px rgba(12, 24, 48, .24);
+}
+
+.metas-missions-layout .mission-item-icon--area {
+    background-color: var(--area-bg, rgba(91, 153, 200, 0.15)) !important;
 }
 
 .metas-missions-layout .mission-item-icon-mask {
-    background: var(--area-color, #16c79a) !important;
+    width: 100%;
+    height: 100%;
+    display: block;
+    background: var(--area-color, var(--primary));
     color: transparent;
     -webkit-mask-position: center;
     -webkit-mask-repeat: no-repeat;

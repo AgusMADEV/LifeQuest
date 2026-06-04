@@ -213,6 +213,13 @@
     border-radius: 16px;
     padding: 10px 12px;
 }
+.habit-row[data-habit-edit-open] {
+    cursor: pointer;
+}
+.habit-row[data-habit-edit-open]:hover {
+    border-color: rgba(22, 199, 154, .4);
+    box-shadow: 0 18px 34px rgba(22, 199, 154, .12);
+}
 
 .habit-row.is-inactive {
     opacity: .55;
@@ -266,9 +273,26 @@
     width: 40px;
     height: 40px;
     border-radius: 13px;
-    background: linear-gradient(145deg, #ecf7ff, #f3edff);
     display: grid;
     place-items: center;
+}
+
+.habit-icon--area {
+    background: var(--area-bg, rgba(91, 153, 200, 0.15)) !important;
+}
+
+.habit-icon-mask {
+    width: 100%;
+    height: 100%;
+    display: block;
+    background: var(--area-color, #16C79A);
+    color: transparent;
+    -webkit-mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-size: 66%;
+    mask-position: center;
+    mask-repeat: no-repeat;
+    mask-size: 66%;
 }
 
 .habit-title-wrap strong {
@@ -327,30 +351,6 @@ button.habit-check {
     font-weight: 800;
 }
 
-.habit-add-bar {
-    margin-top: 10px;
-    border-top: 1px dashed var(--line);
-    padding: 10px 6px 2px;
-    display: grid;
-    grid-template-columns: minmax(130px, 1fr) minmax(130px, 1fr) 108px 108px auto;
-    gap: 8px;
-}
-
-.habit-add-bar input,
-.habit-add-bar select,
-.habit-add-bar button {
-    border-radius: 12px;
-    border: 1px solid var(--line);
-    padding: 10px 12px;
-    background: #f8fbff;
-}
-
-.habit-add-bar button {
-    border: none;
-    background: linear-gradient(135deg, var(--primary), #18d7af);
-    color: #fff;
-    font-weight: 900;
-}
 
 .habit-negative-switch {
     display: inline-flex;
@@ -643,6 +643,62 @@ button.habit-check {
     display: grid;
 }
 
+.habit-state-popover {
+    position: fixed;
+    z-index: 132;
+    width: min(280px, calc(100vw - 24px));
+    border-radius: 18px;
+    background: #fff;
+    border: 1px solid #dbe4f4;
+    box-shadow: 0 18px 36px rgba(10, 18, 37, .22);
+    padding: 12px;
+    display: none;
+    gap: 10px;
+}
+
+.habit-state-popover.is-open {
+    display: grid;
+}
+
+.habit-state-popover[hidden] {
+    display: none !important;
+}
+
+.habit-state-popover-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.habit-state-popover-title {
+    margin: 0;
+    color: #162653;
+    font-size: 1.02rem;
+    font-weight: 900;
+    letter-spacing: -.02em;
+}
+
+.habit-state-popover-summary {
+    margin: -4px 0 0;
+    color: #5d6e96;
+    font-size: .84rem;
+    font-weight: 700;
+}
+
+.habit-state-popover-close {
+    width: 30px;
+    height: 30px;
+    border: 1px solid #d7deed;
+    border-radius: 10px;
+    background: #f7faff;
+    color: #4f5d84;
+    font-size: 1.25rem;
+    line-height: 1;
+    cursor: pointer;
+    flex: 0 0 auto;
+}
+
 .habit-modal-card {
     width: min(840px, 100%);
     border-radius: 22px;
@@ -746,8 +802,76 @@ button.habit-check {
 
 .habit-modal-actions {
     display: flex;
-    justify-content: flex-end;
+    justify-content: space-between;
     gap: 10px;
+    align-items: center;
+}
+.habit-modal-actions-right {
+    display: inline-flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.habit-state-form {
+    display: grid;
+    gap: 10px;
+}
+
+.habit-state-options {
+    display: grid;
+    gap: 8px;
+}
+
+.habit-state-option {
+    width: 100%;
+    border: 1px solid #d7deed;
+    border-radius: 14px;
+    background: #f7faff;
+    padding: 12px 14px;
+    text-align: left;
+    cursor: pointer;
+    display: grid;
+    gap: 4px;
+    transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease, background .16s ease;
+}
+
+.habit-state-option strong {
+    color: #162653;
+    font-size: 1rem;
+    font-weight: 900;
+}
+
+.habit-state-option small {
+    color: #5d6e96;
+    font-weight: 700;
+}
+
+.habit-state-option:hover,
+.habit-state-option:focus-visible,
+.habit-state-option.is-selected {
+    transform: translateY(-1px);
+    border-color: #16c79a;
+    box-shadow: 0 12px 22px rgba(22, 199, 154, .10);
+    background: #f2fffb;
+    outline: 0;
+}
+
+.habit-state-option--completed.is-selected,
+.habit-state-option--completed:hover,
+.habit-state-option--completed:focus-visible {
+    border-color: #16c79a;
+}
+
+.habit-state-option--partial.is-selected,
+.habit-state-option--partial:hover,
+.habit-state-option--partial:focus-visible {
+    border-color: #ffb22b;
+}
+
+.habit-state-option--empty.is-selected,
+.habit-state-option--empty:hover,
+.habit-state-option--empty:focus-visible {
+    border-color: #9aa8c3;
 }
 
 .habit-modal-secondary,
@@ -757,6 +881,11 @@ button.habit-check {
     padding: 11px 16px;
     font-weight: 900;
     cursor: pointer;
+}
+.habit-modal-danger {
+    border-color: rgba(239, 86, 86, .22);
+    background: #fff5f5;
+    color: #cd3b3b;
 }
 
 .habit-modal-secondary {
@@ -1035,16 +1164,6 @@ body.lq-modal-lock {
     gap: 16px;
 }
 
-.habit-icon {
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
-    background: linear-gradient(145deg, #eaf2ff, #f1e9ff);
-    color: #6259f6;
-    font-size: 1.45rem;
-    box-shadow: inset 0 0 0 1px rgba(113, 100, 255, .12);
-}
-
 .habit-title-wrap strong {
     color: #142453;
     font-size: .98rem;
@@ -1148,28 +1267,6 @@ body.lq-modal-lock {
     font-size: .72rem;
     font-weight: 800;
     margin-top: 2px;
-}
-
-.habit-add-bar {
-    display: grid;
-    grid-template-columns: 1fr;
-    margin: 18px 18px 18px;
-    padding: 0;
-}
-
-.habit-add-bar button {
-    min-height: 64px;
-    border-radius: 14px;
-    background: transparent;
-    color: #4453ff;
-    border: 1.5px dashed #c8d5ee;
-    font-weight: 900;
-    font-size: .95rem;
-    box-shadow: none;
-}
-
-.habit-add-bar button:hover {
-    background: #f7f8ff;
 }
 
 .habits-aside {

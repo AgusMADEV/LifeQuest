@@ -50,7 +50,7 @@ final class HabitController
         ];
     }
 
-    public function toggleToday(int $userId, int $habitId): array
+    public function update(int $userId, int $habitId, array $data): array
     {
         if ($habitId <= 0) {
             return [
@@ -59,7 +59,47 @@ final class HabitController
             ];
         }
 
-        return $this->habitModel->toggleToday($habitId, $userId);
+        $clean = $this->validate($userId, $data);
+
+        if (!$clean['success']) {
+            return $clean;
+        }
+
+        $ok = $this->habitModel->update($userId, $habitId, $clean['data']);
+
+        return [
+            'success' => $ok,
+            'message' => $ok ? 'Hábito actualizado correctamente.' : 'No se pudo actualizar el hábito.',
+        ];
+    }
+
+    public function delete(int $userId, int $habitId): array
+    {
+        if ($habitId <= 0) {
+            return [
+                'success' => false,
+                'message' => 'Hábito no válido.',
+            ];
+        }
+
+        $ok = $this->habitModel->delete($userId, $habitId);
+
+        return [
+            'success' => $ok,
+            'message' => $ok ? 'Hábito eliminado correctamente.' : 'No se pudo eliminar el hábito.',
+        ];
+    }
+
+    public function toggleToday(int $userId, int $habitId, ?string $status = null): array
+    {
+        if ($habitId <= 0) {
+            return [
+                'success' => false,
+                'message' => 'Hábito no válido.',
+            ];
+        }
+
+        return $this->habitModel->toggleToday($habitId, $userId, $status);
     }
 
     private function validate(int $userId, array $data): array
@@ -120,8 +160,19 @@ final class HabitController
         }
 
         $isNegative = $habitKind === 'control';
-        $hpPenalty = 0;
         $reward = RewardCalculator::forHabit($frequency, false);
+
+        if ($isNegative) {
+            $reward = [
+                'xp' => 5,
+                'points' => 3,
+            ];
+        }
+
+        $hpPenalty = $isNegative ? max(5, (int) round($reward['xp'])) : 0;
+        $active = isset($data['active'])
+            ? in_array((string) $data['active'], ['1', 'on', 'true'], true) ? 1 : 0
+            : 1;
 
         return [
             'success' => true,
@@ -135,6 +186,7 @@ final class HabitController
                 'points_reward' => $reward['points'],
                 'is_negative' => $isNegative ? 1 : 0,
                 'hp_penalty' => $hpPenalty,
+                'active' => $active,
             ],
         ];
     }
