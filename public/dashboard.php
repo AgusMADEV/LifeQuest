@@ -489,7 +489,6 @@ $heroAvatarSrc = AvatarLibrary::getAvatarSrc($user['avatar'] ?? null);
                                     </small>
                                     <strong><?= number_format($hp, 0, ',', '.') ?></strong>
                                     <span><?= number_format($maxHp, 0, ',', '.') ?> HP máximos</span>
-                                    <div class="mini-progress"><i style="width: <?= $hpPercent ?>%"></i></div>
                                 </article>
                             <?php endif; ?>
                         </div>
@@ -625,9 +624,18 @@ $heroAvatarSrc = AvatarLibrary::getAvatarSrc($user['avatar'] ?? null);
                 </section>
 
                 <section class="bottom-widgets">
-                    <article class="lq-card compact">
-                        <div class="lq-card-header">
-                            <h2>Metas del día</h2>
+                    <article class="lq-card compact daily-goals-card">
+                        <div class="lq-card-header daily-goals-header">
+                            <div class="daily-goals-title">
+                                <span class="daily-goals-header-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" focusable="false">
+                                        <rect x="4" y="5" width="16" height="16" rx="3" stroke="currentColor" stroke-width="2"/>
+                                        <path d="M8 3V7M16 3V7M4 10H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                        <path d="M8 14H10M14 14H16M8 17H10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                    </svg>
+                                </span>
+                                <h2>Metas del día</h2>
+                            </div>
                             <span><?= count($mainGoals) ?>/4</span>
                         </div>
 
@@ -638,8 +646,18 @@ $heroAvatarSrc = AvatarLibrary::getAvatarSrc($user['avatar'] ?? null);
                             </div>
                         <?php else: ?>
                             <?php foreach ($mainGoals as $goal): ?>
+                                <?php
+                                $goalAreaIconValue = trim((string) ($goal['area_icon'] ?? ''));
+                                $goalAreaIcon = areaIconMaskUrl($goalAreaIconValue);
+                                ?>
                                 <div class="mini-goal">
-                                    <span>🎯</span>
+                                    <span class="mini-goal-icon" aria-hidden="true">
+                                        <?php if ($goalAreaIcon): ?>
+                                            <span class="mini-goal-icon-mask" style="-webkit-mask-image: url('<?= e($goalAreaIcon) ?>'); mask-image: url('<?= e($goalAreaIcon) ?>');"></span>
+                                        <?php else: ?>
+                                            <?= e($goalAreaIconValue !== '' ? $goalAreaIconValue : '🎯') ?>
+                                        <?php endif; ?>
+                                    </span>
                                     <strong><?= e(shortText($goal['title'], 28)) ?></strong>
                                     <div class="mini-progress"><i style="width: <?= (int) $goal['progress'] ?>%"></i></div>
                                     <small><?= (int) $goal['progress'] ?>%</small>
@@ -777,8 +795,8 @@ $heroAvatarSrc = AvatarLibrary::getAvatarSrc($user['avatar'] ?? null);
                     <div class="lq-card-header">
                         <span class="objective-title-icon" aria-hidden="true">
                             <svg viewBox="0 0 68 68" fill="none" xmlns="http://www.w3.org/2000/svg" focusable="false">
-                                <circle cx="32" cy="32" r="28" stroke="currentColor" stroke-width="4.5"/>
-                                <path d="M32 15V32L44 44" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <circle cx="32" cy="32" r="28" stroke="currentColor" stroke-width="6"/>
+                                <path d="M32 15V32L44 44" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
                                 <circle cx="32" cy="32" r="2.8" fill="currentColor"/>
                             </svg>
                         </span>
@@ -833,10 +851,19 @@ $heroAvatarSrc = AvatarLibrary::getAvatarSrc($user['avatar'] ?? null);
                 <?php if ($areaProgressionEnabled): ?>
                     <section class="lq-card area-levels-card">
                         <div class="lq-card-header">
-                            <span class="objective-title-icon" aria-hidden="true">
-                                <img src="../icons/level-area.png" alt="" class="level-area-icon-image">
-                            </span>
-                            <h2>Nivel por áreas</h2>
+                            <div class="objective-title-row">
+                                <span class="objective-title-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 128 80" fill="none" xmlns="http://www.w3.org/2000/svg" focusable="false">
+                                        <path d="M14 68H68" stroke="currentColor" stroke-width="10" stroke-linecap="round"/>
+                                        <path d="M14 48H56" stroke="currentColor" stroke-width="10" stroke-linecap="round"/>
+                                        <path d="M14 28H44" stroke="currentColor" stroke-width="10" stroke-linecap="round"/>
+                                        <path d="M82 64V14" stroke="currentColor" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+                                        <path d="M62 34L82 14L102 34" stroke="currentColor" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+                                        <path d="M110 58V68" stroke="currentColor" stroke-width="10" stroke-linecap="round"/>
+                                    </svg>
+                                </span>
+                                <h2>Nivel por áreas</h2>
+                            </div>
                             <a href="areas.php">Ver áreas</a>
                         </div>
 
