@@ -614,7 +614,9 @@ $heroAvatarSrc = AvatarLibrary::getAvatarSrc($user['avatar'] ?? null);
                                             </span>
                                             +<?= (int) $task['xp_reward'] ?> XP
                                         </strong>
-                                        <span class="flag"><?= $done ? '✅' : '⚑' ?></span>
+                                        <span class="flag" aria-hidden="true">
+                                            <img src="../icons/<?= $done ? 'flag-complete.png' : 'flag.png' ?>" alt="" class="flag-image">
+                                        </span>
                                     </div>
                                 </article>
                             <?php endforeach; ?>
