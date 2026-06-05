@@ -1023,13 +1023,90 @@ body.lq-modal-lock {
 
 }
 
+.lq-alert.habit-toast {
+    position: fixed;
+    top: 18px;
+    right: 18px;
+    z-index: 9999;
+    width: min(420px, calc(100vw - 36px));
+    padding: 12px 12px;
+    border-radius: 16px;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid rgba(22, 199, 154, .24);
+    background: linear-gradient(135deg, #f6fff9, #ecfff6);
+    color: #185f50;
+    box-shadow: 0 18px 42px rgba(22, 120, 84, .18);
+    animation: habit-toast-in .24s ease-out;
+}
+
+.lq-alert.habit-toast.error {
+    border-color: rgba(255, 107, 107, .28);
+    background: linear-gradient(135deg, #fff8f8, #ffeaea);
+    color: #b42323;
+    box-shadow: 0 18px 42px rgba(201, 42, 42, .16);
+}
+
+.habit-toast.is-hiding {
+    opacity: 0;
+    transform: translateY(-8px);
+    transition: opacity .2s ease, transform .2s ease;
+}
+
+.habit-toast-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 12px;
+    display: grid;
+    place-items: center;
+    background: rgba(22, 199, 154, .16);
+    color: #087f5b;
+    font-weight: 1000;
+}
+
+.habit-toast.error .habit-toast-icon {
+    background: rgba(255, 107, 107, .16);
+    color: #c92a2a;
+}
+
+.habit-toast-message {
+    min-width: 0;
+    font-size: .9rem;
+    font-weight: 900;
+    line-height: 1.35;
+}
+
+.habit-toast-close {
+    width: 30px;
+    height: 30px;
+    border: 0;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, .74);
+    color: inherit;
+    cursor: pointer;
+    font-size: 1.15rem;
+    line-height: 1;
+}
+
+@keyframes habit-toast-in {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 .habits-content-column {
     min-width: 0;
     display: grid;
     gap: 14px;
 }
 
-.habits-main-card,
 .habit-side-card {
     border-radius: 20px;
     border-color: rgba(226, 233, 245, .94);
@@ -1401,6 +1478,13 @@ body.lq-modal-lock {
 }
 
 @media (max-width: 760px) {
+    .lq-alert.habit-toast {
+        left: 12px;
+        right: 12px;
+        top: 12px;
+        width: auto;
+    }
+
     .habit-section-head {
         flex-direction: column;
     }

@@ -447,12 +447,16 @@ function hexToRgba(string $hex, float $alpha = 1.0): string
         <?php require __DIR__ . '/partials/topbar.php'; ?>
 
         <section class="lq-page-shell habits-shell">
-            <?php if ($message): ?>
-                <div class="lq-alert <?= e($messageType) ?>"><?= e($message) ?></div>
-            <?php endif; ?>
-
             <?php if (in_array($tab, $mainHabitTabs, true)): ?>
                 <section class="habits-board habits-board--<?= e($activeHabitTab) ?>">
+                    <?php if ($message): ?>
+                        <div class="lq-alert habit-toast <?= e($messageType) ?>" data-habit-toast role="<?= $messageType === 'error' ? 'alert' : 'status' ?>" aria-live="<?= $messageType === 'error' ? 'assertive' : 'polite' ?>">
+                            <span class="habit-toast-icon" aria-hidden="true"><?= $messageType === 'error' ? '!' : '✓' ?></span>
+                            <span class="habit-toast-message"><?= e($message) ?></span>
+                            <button type="button" class="habit-toast-close" data-habit-toast-close aria-label="Cerrar notificacion">×</button>
+                        </div>
+                    <?php endif; ?>
+
                     <header class="lq-page-hero habits-hero">
                         <div>
                             <p class="eyebrow">Rutinas cotidianas</p>

@@ -34,6 +34,42 @@ console.log('LifeQuest iniciado correctamente.');
         );
     });
 })();
+
+(function initHabitToast() {
+    const toast = document.querySelector('[data-habit-toast]');
+
+    if (!(toast instanceof HTMLElement)) {
+        return;
+    }
+
+    const closeButton = toast.querySelector('[data-habit-toast-close]');
+    let closeTimer = null;
+
+    const closeToast = () => {
+        if (!toast.parentNode) {
+            return;
+        }
+
+        toast.classList.add('is-hiding');
+        window.setTimeout(() => {
+            if (toast.parentNode) {
+                toast.parentNode.removeChild(toast);
+            }
+        }, 220);
+    };
+
+    if (closeButton instanceof HTMLButtonElement) {
+        closeButton.addEventListener('click', () => {
+            if (closeTimer) {
+                window.clearTimeout(closeTimer);
+            }
+
+            closeToast();
+        });
+    }
+
+    closeTimer = window.setTimeout(closeToast, 5200);
+})();
 // Goals / metas / retos / misiones modal
 (function initGoalsModal() {
     const modal = document.querySelector('[data-goal-form-modal]');
