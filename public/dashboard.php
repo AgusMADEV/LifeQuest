@@ -775,6 +775,13 @@ $heroAvatarSrc = AvatarLibrary::getAvatarSrc($user['avatar'] ?? null);
 
                 <section class="lq-card upcoming-card">
                     <div class="lq-card-header">
+                        <span class="objective-title-icon" aria-hidden="true">
+                            <svg viewBox="0 0 68 68" fill="none" xmlns="http://www.w3.org/2000/svg" focusable="false">
+                                <circle cx="32" cy="32" r="28" stroke="currentColor" stroke-width="4.5"/>
+                                <path d="M32 15V32L44 44" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <circle cx="32" cy="32" r="2.8" fill="currentColor"/>
+                            </svg>
+                        </span>
                         <h2>Próximas misiones</h2>
                     </div>
 
@@ -826,6 +833,9 @@ $heroAvatarSrc = AvatarLibrary::getAvatarSrc($user['avatar'] ?? null);
                 <?php if ($areaProgressionEnabled): ?>
                     <section class="lq-card area-levels-card">
                         <div class="lq-card-header">
+                            <span class="objective-title-icon" aria-hidden="true">
+                                <img src="../icons/level-area.png" alt="" class="level-area-icon-image">
+                            </span>
                             <h2>Nivel por áreas</h2>
                             <a href="areas.php">Ver áreas</a>
                         </div>

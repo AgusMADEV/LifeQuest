@@ -160,13 +160,6 @@
     display: block;
 }
 
-.hero-stat-icon--hp {
-    background: #ffe8ee;
-    color: #d6336c;
-    font-size: .95rem;
-    font-weight: 900;
-}
-
 .hero-stat-label {
     min-width: 0;
 }
@@ -349,8 +342,7 @@
 .lq-card-header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 14px;
+    gap: 10px;
 }
 
 .lq-card-header h2 {
@@ -367,7 +359,7 @@
     font-size: .75rem;
 }
 .lq-card-header a{
-    margin-right: 20px;
+    margin-left: 100px;
 }
 .lq-card-header h2 span {
     background: #eef3ff;
@@ -740,6 +732,13 @@
     display: block;
 }
 
+.objective-title-icon img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: contain;
+}
+
 .objective-card h2 {
     margin: 0;
     font-size: 1.05rem;
@@ -1031,7 +1030,11 @@
     color: var(--muted);
 }
 
-
+.hero-panel--with-hp .hero-stats .hero-stat-icon--hp {
+    color: #21252f;
+    font-size: 22px;
+    font-weight: 900;
+}
 
 
 
