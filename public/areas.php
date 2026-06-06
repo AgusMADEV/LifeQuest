@@ -240,7 +240,22 @@ usort($areaRows, static function (array $left, array $right): int {
         <=> [$left['level'], $left['xp'], (int) $left['area']['id']];
 });
 
-$featuredAreaRow = $areaRows[0] ?? null;
+$featuredAreaRow = null;
+
+foreach ($areaRows as $areaRow) {
+    if ($featuredAreaRow === null) {
+        $featuredAreaRow = $areaRow;
+        continue;
+    }
+
+    $strengthComparison = [$areaRow['level'], $areaRow['xp'], (int) $areaRow['area']['id']]
+        <=> [$featuredAreaRow['level'], $featuredAreaRow['xp'], (int) $featuredAreaRow['area']['id']];
+
+    if ($strengthComparison > 0) {
+        $featuredAreaRow = $areaRow;
+    }
+}
+
 $averageAreaLevel = count($areaRows) > 0 ? round($levelSum / count($areaRows), 1) : 0;
 $activeAreasTab = (string) ($_GET['tab'] ?? 'summary') === 'balance' ? 'balance' : 'summary';
 

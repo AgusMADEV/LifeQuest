@@ -607,18 +607,18 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    color: var(--area-color, var(--xp));
-    background: var(--area-bg, rgba(22, 199, 154, .15));
-    border: 1px solid var(--area-color-border, rgba(22, 199, 154, .24));
+    color: var(--xp);
+    background: transparent;
+    border: 0;
     font-size: 1.28rem;
     line-height: 1;
 }
 
 .mini-goal-icon-mask {
-    width: 100%;
-    height: 100%;
+    width: 75%;
+    height: 75%;
     display: block;
-    background: var(--area-color, var(--xp));
+    background: var(--xp);
     -webkit-mask-position: center;
     -webkit-mask-repeat: no-repeat;
     -webkit-mask-size: contain;
@@ -875,7 +875,7 @@
 
 .lq-right {
     display: grid;
-    gap: 22px;
+    gap: 15px;
     align-self: start;
 }
 
