@@ -792,23 +792,54 @@ $areasCssVersion = (int) (@filemtime(__DIR__ . '/../assets/css/modules/areas.css
                         </div>
                     </section>
 
-                    <section class="areas-feature-card areas-current-balance-card">
-                        <div class="areas-side-title">
-                            <h2>Balance actual</h2>
-                            <span>★</span>
-                        </div>
-                        <div class="areas-feature-main areas-current-balance-main">
-                            <span class="areas-summary-icon area-teal">⚖</span>
-                            <div>
-                                <strong><?= e($balanceStatusLabel) ?></strong>
-                                <div class="areas-current-balance-progress">
-                                    <div class="areas-progress-track"><i style="width: <?= $balanceScore ?>%;"></i></div>
-                                    <b><?= $balanceScore ?>%</b>
+                    <?php if ($activeAreasTab === 'summary'): ?>
+                        <section class="areas-feature-card">
+                            <div class="areas-side-title">
+                                <h2>Área destacada</h2>
+                                <span>★</span>
+                            </div>
+                            <?php if ($featuredAreaRow): ?>
+                                <?php $featuredArea = $featuredAreaRow['area']; ?>
+                                <?php $featuredAreaColor = (string) ($featuredArea['color'] ?: '#16C79A'); ?>
+                                <?php $featuredAreaColorSoft = hexToRgba($featuredAreaColor, 0.14); ?>
+                                <?php $featuredAreaColorBorder = hexToRgba($featuredAreaColor, 0.24); ?>
+                                <div class="areas-feature-main">
+                                    <?php if ($featuredAreaRow['icon_path']): ?>
+                                        <span class="areas-level-icon areas-level-icon-shell" style="--area-color: <?= e($featuredAreaColor) ?>; --area-color-soft: <?= e($featuredAreaColorSoft) ?>; --area-color-border: <?= e($featuredAreaColorBorder) ?>;">
+                                            <span class="areas-level-icon-mask" style="-webkit-mask-image: url('<?= e($featuredAreaRow['icon_path']) ?>'); mask-image: url('<?= e($featuredAreaRow['icon_path']) ?>');"></span>
+                                        </span>
+                                    <?php else: ?>
+                                        <span class="areas-level-icon" style="background: <?= e($featuredAreaColorSoft) ?>; color: <?= e($featuredAreaColor) ?>; border: 1px solid <?= e($featuredAreaColorBorder) ?>;"><?= e($featuredArea['icon'] ?: '●') ?></span>
+                                    <?php endif; ?>
+                                    <div>
+                                        <strong><?= e($featuredArea['name']) ?></strong>
+                                        <small>Tu área más fuerte</small>
+                                    </div>
+                                </div>
+                                <p>¡Excelente trabajo cuidando de ti! Sigue manteniendo esos hábitos.</p>
+                            <?php else: ?>
+                                <p>Crea un área para verla destacada aquí.</p>
+                            <?php endif; ?>
+                        </section>
+                    <?php else: ?>
+                        <section class="areas-feature-card areas-current-balance-card">
+                            <div class="areas-side-title">
+                                <h2>Balance actual</h2>
+                                <span>★</span>
+                            </div>
+                            <div class="areas-feature-main areas-current-balance-main">
+                                <span class="areas-summary-icon area-teal">⚖</span>
+                                <div>
+                                    <strong><?= e($balanceStatusLabel) ?></strong>
+                                    <div class="areas-current-balance-progress">
+                                        <div class="areas-progress-track"><i style="width: <?= $balanceScore ?>%;"></i></div>
+                                        <b><?= $balanceScore ?>%</b>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        <p><?= e($balanceStatusText) ?></p>
-                    </section>
+                            <p><?= e($balanceStatusText) ?></p>
+                        </section>
+                    <?php endif; ?>
 
                     <section class="areas-balance-card">
                         <div class="areas-side-title">
