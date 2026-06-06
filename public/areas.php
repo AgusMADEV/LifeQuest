@@ -242,18 +242,179 @@ usort($areaRows, static function (array $left, array $right): int {
 
 $featuredAreaRow = $areaRows[0] ?? null;
 $averageAreaLevel = count($areaRows) > 0 ? round($levelSum / count($areaRows), 1) : 0;
+$activeAreasTab = (string) ($_GET['tab'] ?? 'summary') === 'balance' ? 'balance' : 'summary';
+
+$taskDistributionByArea = [];
+$balanceTotalTasks = 0;
+
+foreach ($taskDistribution as $distributionArea) {
+    $distributionAreaId = (int) ($distributionArea['area_id'] ?? 0);
+
+    if ($distributionAreaId <= 0) {
+        continue;
+    }
+
+    $taskCount = (int) ($distributionArea['task_count'] ?? 0);
+    $taskDistributionByArea[$distributionAreaId] = $distributionArea;
+    $balanceTotalTasks += max(0, $taskCount);
+}
+
+$balanceAreaRows = [];
+
+foreach ($areas as $area) {
+    $areaId = (int) ($area['id'] ?? 0);
+    $distributionArea = $taskDistributionByArea[$areaId] ?? [];
+    $taskCount = (int) ($distributionArea['task_count'] ?? 0);
+    $percentage = $balanceTotalTasks > 0
+        ? round(($taskCount / max(1, $balanceTotalTasks)) * 100, 1)
+        : 0;
+    $areaColor = (string) ($area['color'] ?: '#16C79A');
+
+    $balanceAreaRows[] = [
+        'id' => $areaId,
+        'name' => (string) ($area['name'] ?? 'Área'),
+        'icon' => (string) ($area['icon'] ?? ''),
+        'icon_path' => areaIconMaskedPath((string) ($area['icon'] ?? ''), $areaIconByValue),
+        'color' => $areaColor,
+        'color_soft' => hexToRgba($areaColor, 0.14),
+        'color_border' => hexToRgba($areaColor, 0.24),
+        'task_count' => max(0, $taskCount),
+        'percentage' => $percentage,
+        'level' => (int) ($areaProgressionByArea[$areaId]['level'] ?? 1),
+    ];
+}
+
 $balanceScore = 0;
 
-if (!empty($taskDistribution)) {
-    $idealPercent = 100 / count($taskDistribution);
+if (!empty($balanceAreaRows) && $balanceTotalTasks > 0) {
+    $idealPercent = 100 / count($balanceAreaRows);
     $deviation = 0;
 
-    foreach ($taskDistribution as $distributionArea) {
-        $deviation += abs(((float) ($distributionArea['percentage'] ?? 0)) - $idealPercent);
+    foreach ($balanceAreaRows as $balanceAreaRow) {
+        $deviation += abs(((float) $balanceAreaRow['percentage']) - $idealPercent);
     }
 
     $balanceScore = min(100, max(0, (int) round(100 - $deviation)));
 }
+
+$balanceStrongestArea = null;
+$balanceWeakestArea = null;
+
+if (!empty($balanceAreaRows)) {
+    $balanceStrongestArea = $balanceAreaRows[0];
+    $balanceWeakestArea = $balanceAreaRows[0];
+
+    foreach ($balanceAreaRows as $balanceAreaRow) {
+        if ((float) $balanceAreaRow['percentage'] > (float) $balanceStrongestArea['percentage']) {
+            $balanceStrongestArea = $balanceAreaRow;
+        }
+
+        if ((float) $balanceAreaRow['percentage'] < (float) $balanceWeakestArea['percentage']) {
+            $balanceWeakestArea = $balanceAreaRow;
+        }
+    }
+}
+
+$balanceRecommendationRows = $balanceAreaRows;
+usort($balanceRecommendationRows, static function (array $left, array $right): int {
+    return [$left['percentage'], $left['task_count'], $left['name']]
+        <=> [$right['percentage'], $right['task_count'], $right['name']];
+});
+
+$balanceStatusLabel = $balanceScore >= 80
+    ? 'Bien equilibrado'
+    : ($balanceScore >= 60 ? 'En progreso' : 'Necesita atención');
+
+$balanceStatusText = $balanceScore >= 80
+    ? 'Sigue manteniendo este equilibrio.'
+    : 'Refuerza las áreas con menos actividad para recuperar balance.';
+
+$balanceDonutDistribution = [];
+$balanceDonutLabels = [];
+$balanceDonutCurrentPercent = 0.0;
+
+foreach ($balanceAreaRows as $balanceAreaRow) {
+    $balanceAreaPercentage = (float) $balanceAreaRow['percentage'];
+
+    if ($balanceAreaPercentage <= 0) {
+        continue;
+    }
+
+    $balanceDonutDistribution[] = [
+        'area_color' => $balanceAreaRow['color'],
+        'percentage' => $balanceAreaPercentage,
+    ];
+
+    $balanceDonutMidPercent = $balanceDonutCurrentPercent + ($balanceAreaPercentage / 2);
+    $balanceDonutAngle = deg2rad(($balanceDonutMidPercent / 100) * 360 - 90);
+    $balanceDonutLabelRadius = 45;
+
+    $balanceDonutLabels[] = [
+        'name' => $balanceAreaRow['name'],
+        'color' => $balanceAreaRow['color'],
+        'percentage' => $balanceAreaPercentage,
+        'x' => round(50 + cos($balanceDonutAngle) * $balanceDonutLabelRadius, 2),
+        'y' => round(50 + sin($balanceDonutAngle) * $balanceDonutLabelRadius, 2),
+    ];
+
+    $balanceDonutCurrentPercent += $balanceAreaPercentage;
+}
+
+$balanceRadarRows = array_slice($balanceAreaRows, 0, 6);
+$balanceRadarCount = count($balanceRadarRows);
+$balanceRadarCenter = 120;
+$balanceRadarRadius = 78;
+$balanceRadarPoints = [];
+$balanceRadarIdealPoints = [];
+$balanceRadarAxes = [];
+$balanceRadarRings = [];
+$balanceRadarIdealPercent = $balanceRadarCount > 0 ? 100 / $balanceRadarCount : 0;
+$balanceRadarMaxPercent = $balanceRadarIdealPercent;
+
+foreach ($balanceRadarRows as $balanceRadarRow) {
+    $balanceRadarMaxPercent = max($balanceRadarMaxPercent, (float) ($balanceRadarRow['percentage'] ?? 0));
+}
+
+$balanceRadarScaleMax = $balanceRadarMaxPercent > 0
+    ? min(100, max(25, ceil($balanceRadarMaxPercent * 1.15)))
+    : 100;
+
+if ($balanceRadarCount >= 3) {
+    for ($ring = 1; $ring <= 4; $ring++) {
+        $ringRadius = $balanceRadarRadius * ($ring / 4);
+        $ringPoints = [];
+
+        for ($index = 0; $index < $balanceRadarCount; $index++) {
+            $angle = (-M_PI / 2) + (($index * 2 * M_PI) / $balanceRadarCount);
+            $ringPoints[] = round($balanceRadarCenter + cos($angle) * $ringRadius, 2) . ',' . round($balanceRadarCenter + sin($angle) * $ringRadius, 2);
+        }
+
+        $balanceRadarRings[] = implode(' ', $ringPoints);
+    }
+
+    foreach ($balanceRadarRows as $index => &$balanceRadarRow) {
+        $angle = (-M_PI / 2) + (($index * 2 * M_PI) / $balanceRadarCount);
+        $areaPercentage = (float) ($balanceRadarRow['percentage'] ?? 0);
+        $pointRadius = $balanceRadarRadius * (min($areaPercentage, $balanceRadarScaleMax) / $balanceRadarScaleMax);
+        $idealPointRadius = $balanceRadarRadius * (min($balanceRadarIdealPercent, $balanceRadarScaleMax) / $balanceRadarScaleMax);
+
+        $balanceRadarRow['radar_value'] = round($areaPercentage, 1);
+        $balanceRadarRow['label_x'] = round($balanceRadarCenter + cos($angle) * ($balanceRadarRadius + 26), 2);
+        $balanceRadarRow['label_y'] = round($balanceRadarCenter + sin($angle) * ($balanceRadarRadius + 26), 2);
+        $balanceRadarRow['anchor'] = cos($angle) > 0.25 ? 'start' : (cos($angle) < -0.25 ? 'end' : 'middle');
+
+        $balanceRadarAxes[] = [
+            'x' => round($balanceRadarCenter + cos($angle) * $balanceRadarRadius, 2),
+            'y' => round($balanceRadarCenter + sin($angle) * $balanceRadarRadius, 2),
+        ];
+        $balanceRadarPoints[] = round($balanceRadarCenter + cos($angle) * $pointRadius, 2) . ',' . round($balanceRadarCenter + sin($angle) * $pointRadius, 2);
+        $balanceRadarIdealPoints[] = round($balanceRadarCenter + cos($angle) * $idealPointRadius, 2) . ',' . round($balanceRadarCenter + sin($angle) * $idealPointRadius, 2);
+    }
+    unset($balanceRadarRow);
+}
+
+$balanceRadarPolygon = implode(' ', $balanceRadarPoints);
+$balanceRadarIdealPolygon = implode(' ', $balanceRadarIdealPoints);
 
 $stylesCssVersion = (int) (@filemtime(__DIR__ . '/../assets/css/styles.css') ?: time());
 $crudCssVersion = (int) (@filemtime(__DIR__ . '/../assets/css/modules/crud.css') ?: time());
@@ -364,12 +525,152 @@ $areasCssVersion = (int) (@filemtime(__DIR__ . '/../assets/css/modules/areas.css
 
                     <div class="areas-tabs" aria-label="Vistas de áreas">
                         <div class="areas-tabs-group" role="tablist">
-                            <button type="button" class="is-active">Resumen</button>
-                            <button type="button">Balance</button>
+                            <a href="areas.php?tab=summary" class="<?= $activeAreasTab === 'summary' ? 'is-active' : '' ?>">Resumen</a>
+                            <a href="areas.php?tab=balance" class="<?= $activeAreasTab === 'balance' ? 'is-active' : '' ?>">Balance</a>
                         </div>
                         <button type="button" class="btn btn-primary areas-create-btn" data-goal-modal-open>+ Crear</button>
                     </div>
 
+                    <?php if ($activeAreasTab === 'balance'): ?>
+                        <section class="areas-summary-grid areas-balance-summary" aria-label="Resumen de balance">
+                            <article class="areas-summary-card">
+                                <span class="areas-summary-icon area-teal">⚖</span>
+                                <div>
+                                    <small>Equilibrio general</small>
+                                    <strong><?= $balanceScore ?>%</strong>
+                                    <small><?= e($balanceStatusLabel) ?></small>
+                                </div>
+                            </article>
+                            <article class="areas-summary-card">
+                                <?php if ($balanceStrongestArea && $balanceStrongestArea['icon_path']): ?>
+                                    <span class="areas-level-icon areas-level-icon-shell" style="--area-color: <?= e($balanceStrongestArea['color']) ?>; --area-color-soft: <?= e($balanceStrongestArea['color_soft']) ?>; --area-color-border: <?= e($balanceStrongestArea['color_border']) ?>;">
+                                        <span class="areas-level-icon-mask" style="-webkit-mask-image: url('<?= e($balanceStrongestArea['icon_path']) ?>'); mask-image: url('<?= e($balanceStrongestArea['icon_path']) ?>');"></span>
+                                    </span>
+                                <?php else: ?>
+                                    <span class="areas-summary-icon area-green">✓</span>
+                                <?php endif; ?>
+                                <div>
+                                    <small>Área más fuerte</small>
+                                    <strong><?= e($balanceStrongestArea['name'] ?? 'Sin datos') ?></strong>
+                                    <small><?= $balanceStrongestArea ? number_format((float) $balanceStrongestArea['percentage'], 0) . '%' : '0%' ?></small>
+                                </div>
+                            </article>
+                            <article class="areas-summary-card">
+                                <?php if ($balanceWeakestArea && $balanceWeakestArea['icon_path']): ?>
+                                    <span class="areas-level-icon areas-level-icon-shell" style="--area-color: <?= e($balanceWeakestArea['color']) ?>; --area-color-soft: <?= e($balanceWeakestArea['color_soft']) ?>; --area-color-border: <?= e($balanceWeakestArea['color_border']) ?>;">
+                                        <span class="areas-level-icon-mask" style="-webkit-mask-image: url('<?= e($balanceWeakestArea['icon_path']) ?>'); mask-image: url('<?= e($balanceWeakestArea['icon_path']) ?>');"></span>
+                                    </span>
+                                <?php else: ?>
+                                    <span class="areas-summary-icon area-purple">!</span>
+                                <?php endif; ?>
+                                <div>
+                                    <small>Área a reforzar</small>
+                                    <strong><?= e($balanceWeakestArea['name'] ?? 'Sin datos') ?></strong>
+                                    <small><?= $balanceWeakestArea ? number_format((float) $balanceWeakestArea['percentage'], 0) . '%' : '0%' ?></small>
+                                </div>
+                            </article>
+                            <article class="areas-summary-card">
+                                <span class="areas-summary-icon area-purple">✦</span>
+                                <div>
+                                    <strong><?= number_format($totalAreaXp, 0, ',', '.') ?> XP</strong>
+                                    <small>XP de áreas</small>
+                                </div>
+                            </article>
+                        </section>
+
+                        <section class="areas-balance-panel">
+                            <div class="areas-balance-panel-main">
+                                <header class="areas-balance-panel-header">
+                                    <h2>Balance de áreas</h2>
+                                    <p><?= e($balanceStatusText) ?></p>
+                                </header>
+
+                                <?php if (empty($balanceAreaRows) || $balanceTotalTasks <= 0): ?>
+                                    <article class="lq-empty">
+                                        <h2>No hay balance todavía</h2>
+                                        <p>Asigna áreas a tus misiones para calcular cómo se reparte tu actividad.</p>
+                                    </article>
+                                <?php else: ?>
+                                    <div class="areas-balance-visuals">
+                                        <div class="areas-balance-donut-stage">
+                                            <div class="areas-balance-donut" style="background: radial-gradient(circle, #fff 52%, transparent 53%), <?= buildDonutGradient($balanceDonutDistribution) ?>;">
+                                                <strong><?= $balanceScore ?>%</strong>
+                                                <span>Equilibrio<br>general</span>
+                                            </div>
+                                            <div class="areas-balance-orbit">
+                                                <?php foreach ($balanceDonutLabels as $balanceDonutLabel): ?>
+                                                    <span style="--area-color: <?= e($balanceDonutLabel['color']) ?>; --label-x: <?= e((string) $balanceDonutLabel['x']) ?>%; --label-y: <?= e((string) $balanceDonutLabel['y']) ?>%;">
+                                                        <?= e(shortText($balanceDonutLabel['name'], 12)) ?>
+                                                        <b><?= number_format((float) $balanceDonutLabel['percentage'], 0) ?>%</b>
+                                                    </span>
+                                                <?php endforeach; ?>
+                                            </div>
+                                        </div>
+
+                                        <div class="areas-radar-card" aria-label="Radar de balance por área">
+                                            <?php if ($balanceRadarCount >= 3): ?>
+                                                <svg class="areas-radar-chart" viewBox="0 0 240 240" role="img" aria-label="Gráfico radar de balance por áreas">
+                                                    <?php foreach ($balanceRadarRings as $ringPoints): ?>
+                                                        <polygon class="areas-radar-ring" points="<?= e($ringPoints) ?>"></polygon>
+                                                    <?php endforeach; ?>
+
+                                                    <?php foreach ($balanceRadarAxes as $axis): ?>
+                                                        <line class="areas-radar-axis" x1="<?= $balanceRadarCenter ?>" y1="<?= $balanceRadarCenter ?>" x2="<?= e((string) $axis['x']) ?>" y2="<?= e((string) $axis['y']) ?>"></line>
+                                                    <?php endforeach; ?>
+
+                                                    <polygon class="areas-radar-ideal" points="<?= e($balanceRadarIdealPolygon) ?>"></polygon>
+                                                    <polygon class="areas-radar-current" points="<?= e($balanceRadarPolygon) ?>"></polygon>
+
+                                                    <?php foreach ($balanceRadarRows as $balanceRadarRow): ?>
+                                                        <text class="areas-radar-label" x="<?= e((string) $balanceRadarRow['label_x']) ?>" y="<?= e((string) $balanceRadarRow['label_y']) ?>" text-anchor="<?= e($balanceRadarRow['anchor']) ?>">
+                                                            <tspan><?= e(shortText($balanceRadarRow['name'], 10)) ?></tspan>
+                                                            <tspan x="<?= e((string) $balanceRadarRow['label_x']) ?>" dy="10" class="areas-radar-label-value"><?= number_format((float) $balanceRadarRow['radar_value'], 0) ?>%</tspan>
+                                                        </text>
+                                                    <?php endforeach; ?>
+                                                </svg>
+                                                <div class="areas-radar-legend">
+                                                    <span><i></i>Tu balance actual</span>
+                                                    <span><i></i>Balance ideal</span>
+                                                </div>
+                                            <?php else: ?>
+                                                <article class="lq-empty">
+                                                    <h2>Radar no disponible</h2>
+                                                    <p>Crea al menos tres áreas para ver el gráfico radar.</p>
+                                                </article>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+
+                                    <div class="areas-balance-note">
+                                        <span>✦</span>
+                                        <p><strong>¡Buen trabajo, <?= e(shortText($user['name'] ?? 'Alex', 14)) ?>!</strong> <?= e($balanceStatusText) ?><?= $balanceWeakestArea ? ' Refuerza ' . e($balanceWeakestArea['name']) . ' para acercarte a tu mejor balance.' : '' ?></p>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+
+                            <aside class="areas-recommendations-card">
+                                <div class="areas-side-title">
+                                    <h2>Recomendaciones</h2>
+                                </div>
+                                <?php foreach (array_slice($balanceRecommendationRows, 0, 3) as $recommendationArea): ?>
+                                    <article class="areas-recommendation-item">
+                                        <?php if ($recommendationArea['icon_path']): ?>
+                                            <span class="areas-level-icon areas-level-icon-shell" style="--area-color: <?= e($recommendationArea['color']) ?>; --area-color-soft: <?= e($recommendationArea['color_soft']) ?>; --area-color-border: <?= e($recommendationArea['color_border']) ?>;">
+                                                <span class="areas-level-icon-mask" style="-webkit-mask-image: url('<?= e($recommendationArea['icon_path']) ?>'); mask-image: url('<?= e($recommendationArea['icon_path']) ?>');"></span>
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="areas-level-icon" style="background: <?= e($recommendationArea['color_soft']) ?>; color: <?= e($recommendationArea['color']) ?>; border: 1px solid <?= e($recommendationArea['color_border']) ?>;">•</span>
+                                        <?php endif; ?>
+                                        <div>
+                                            <strong>Refuerza <?= e(shortText($recommendationArea['name'], 18)) ?></strong>
+                                            <p><?= number_format((float) $recommendationArea['percentage'], 0) ?>% de actividad actual.</p>
+                                        </div>
+                                    </article>
+                                <?php endforeach; ?>
+                                <a href="goals.php?section=tasks" class="btn btn-secondary full">Ver misiones</a>
+                            </aside>
+                        </section>
+                    <?php else: ?>
                     <section class="areas-summary-grid" aria-label="Resumen de áreas">
                         <article class="areas-summary-card">
                             <span class="areas-summary-icon area-green">◔</span>
@@ -471,6 +772,7 @@ $areasCssVersion = (int) (@filemtime(__DIR__ . '/../assets/css/modules/areas.css
                         <div class="areas-progress-track"><i style="width: <?= $featuredAreaRow ? (int) $featuredAreaRow['level_percent'] : 0 ?>%;"></i></div>
                         <a href="goals.php" class="btn btn-secondary">Ver plan</a>
                     </section>
+                    <?php endif; ?>
                 </section>
 
                 <aside class="areas-side-column">
@@ -490,50 +792,39 @@ $areasCssVersion = (int) (@filemtime(__DIR__ . '/../assets/css/modules/areas.css
                         </div>
                     </section>
 
-                    <section class="areas-feature-card">
+                    <section class="areas-feature-card areas-current-balance-card">
                         <div class="areas-side-title">
-                            <h2>Área destacada</h2>
+                            <h2>Balance actual</h2>
                             <span>★</span>
                         </div>
-                        <?php if ($featuredAreaRow): ?>
-                            <?php $featuredArea = $featuredAreaRow['area']; ?>
-                            <?php $featuredAreaColor = (string) ($featuredArea['color'] ?: '#16C79A'); ?>
-                            <?php $featuredAreaColorSoft = hexToRgba($featuredAreaColor, 0.14); ?>
-                            <?php $featuredAreaColorBorder = hexToRgba($featuredAreaColor, 0.24); ?>
-                            <div class="areas-feature-main">
-                                <?php if ($featuredAreaRow['icon_path']): ?>
-                                    <span class="areas-level-icon areas-level-icon-shell" style="--area-color: <?= e($featuredAreaColor) ?>; --area-color-soft: <?= e($featuredAreaColorSoft) ?>; --area-color-border: <?= e($featuredAreaColorBorder) ?>;">
-                                        <span class="areas-level-icon-mask" style="-webkit-mask-image: url('<?= e($featuredAreaRow['icon_path']) ?>'); mask-image: url('<?= e($featuredAreaRow['icon_path']) ?>');"></span>
-                                    </span>
-                                <?php else: ?>
-                                    <span class="areas-level-icon" style="background: <?= e($featuredAreaColorSoft) ?>; color: <?= e($featuredAreaColor) ?>; border: 1px solid <?= e($featuredAreaColorBorder) ?>;"><?= e($featuredArea['icon'] ?: '●') ?></span>
-                                <?php endif; ?>
-                                <div>
-                                    <strong><?= e($featuredArea['name']) ?></strong>
-                                    <small>Tu área más fuerte</small>
+                        <div class="areas-feature-main areas-current-balance-main">
+                            <span class="areas-summary-icon area-teal">⚖</span>
+                            <div>
+                                <strong><?= e($balanceStatusLabel) ?></strong>
+                                <div class="areas-current-balance-progress">
+                                    <div class="areas-progress-track"><i style="width: <?= $balanceScore ?>%;"></i></div>
+                                    <b><?= $balanceScore ?>%</b>
                                 </div>
                             </div>
-                            <p>¡Excelente trabajo cuidando de ti! Sigue manteniendo esos hábitos.</p>
-                        <?php else: ?>
-                            <p>Crea un área para verla destacada aquí.</p>
-                        <?php endif; ?>
+                        </div>
+                        <p><?= e($balanceStatusText) ?></p>
                     </section>
 
                     <section class="areas-balance-card">
                         <div class="areas-side-title">
                             <h2>Balance de áreas</h2>
                         </div>
-                        <?php if (empty($taskDistribution)): ?>
+                        <?php if ($balanceTotalTasks <= 0): ?>
                             <div class="mini-empty">
                                 <strong>Sin datos todavía.</strong>
                                 <p>Completa misiones con área asignada para ver el balance.</p>
                             </div>
                         <?php else: ?>
                             <div class="donut-wrap areas-donut-wrap">
-                                <div class="donut" style="background: radial-gradient(circle, #fff 55%, transparent 56%), <?= buildDonutGradient($taskDistribution) ?>;"></div>
+                                <div class="donut" style="background: radial-gradient(circle, #fff 55%, transparent 56%), <?= buildDonutGradient($balanceDonutDistribution) ?>;"></div>
                                 <div class="donut-legend">
-                                    <?php foreach ($taskDistribution as $distributionArea): ?>
-                                        <span><i style="background: <?= e($distributionArea['area_color'] ?? '#8b5cf6') ?>;"></i><?= e($distributionArea['area_name'] ?? 'Área') ?> <b><?= (float) $distributionArea['percentage'] ?>%</b></span>
+                                    <?php foreach ($balanceAreaRows as $distributionArea): ?>
+                                        <span><i style="background: <?= e($distributionArea['color'] ?? '#8b5cf6') ?>;"></i><?= e($distributionArea['name'] ?? 'Área') ?> <b><?= number_format((float) $distributionArea['percentage'], 0) ?>%</b></span>
                                     <?php endforeach; ?>
                                 </div>
                             </div>

@@ -63,7 +63,7 @@
     border: 1px solid #e7edf7;
 }
 
-.areas-tabs-group button {
+.areas-tabs-group a {
     min-height: 34px;
     border: 0;
     border-radius: 999px;
@@ -72,9 +72,12 @@
     font-size: .72rem;
     font-weight: 800;
     cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
-.areas-tabs button.is-active {
+.areas-tabs-group a.is-active {
     background: linear-gradient(135deg, var(--primary), #18d7af);
     color: #fff;
     box-shadow: 0 8px 18px rgba(22, 199, 154, .20);
@@ -153,6 +156,255 @@
     font-size: .68rem;
     font-weight: 700;
     line-height: 1.25;
+}
+
+.areas-balance-summary .areas-summary-card {
+    min-height: 98px;
+}
+
+.areas-balance-panel,
+.areas-recommendations-card {
+    background: rgba(255, 255, 255, .92);
+    border: 1px solid var(--line);
+    box-shadow: var(--soft-shadow);
+    border-radius: 22px;
+}
+
+.areas-balance-panel {
+    min-height: 430px;
+    padding: 18px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 280px;
+    gap: 18px;
+    align-items: stretch;
+}
+
+.areas-balance-panel-main {
+    display: grid;
+    gap: 16px;
+    min-width: 0;
+}
+
+.areas-balance-panel-header h2 {
+    margin: 0;
+    color: #17213c;
+    font-size: 1.05rem;
+    letter-spacing: -.04em;
+}
+
+.areas-balance-panel-header p {
+    margin: 5px 0 0;
+    color: #60708f;
+    font-size: .74rem;
+    line-height: 1.4;
+}
+
+.areas-balance-visuals {
+    display: grid;
+    grid-template-columns: minmax(260px, .9fr) minmax(280px, 1fr);
+    gap: 24px;
+    align-items: center;
+}
+
+.areas-balance-donut-stage {
+    position: relative;
+    min-height: 284px;
+    display: grid;
+    place-items: center;
+}
+
+.areas-balance-donut {
+    width: 210px;
+    height: 210px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    align-content: center;
+    text-align: center;
+    gap: 3px;
+    box-shadow: inset 0 0 0 1px rgba(231, 237, 247, .95), 0 18px 34px rgba(41, 54, 92, .08);
+}
+
+.areas-balance-donut strong {
+    color: #17213c;
+    font-size: 2rem;
+    line-height: 1;
+    letter-spacing: -.055em;
+}
+
+.areas-balance-donut span {
+    color: #60708f;
+    font-size: .7rem;
+    font-weight: 800;
+    line-height: 1.25;
+}
+
+.areas-balance-orbit {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.areas-balance-orbit span {
+    position: absolute;
+    left: var(--label-x, 50%);
+    top: var(--label-y, 50%);
+    transform: translate(-50%, -50%);
+    min-width: 58px;
+    color: #536486;
+    font-size: .68rem;
+    font-weight: 800;
+    line-height: 1.15;
+    text-align: center;
+}
+
+.areas-balance-orbit span b {
+    display: block;
+    margin-top: 3px;
+    color: var(--area-color, var(--primary));
+}
+
+.areas-radar-card {
+    min-width: 0;
+    display: grid;
+    place-items: center;
+    gap: 10px;
+}
+
+.areas-radar-chart {
+    width: min(100%, 310px);
+    aspect-ratio: 1;
+    display: block;
+    overflow: visible;
+}
+
+.areas-radar-ring {
+    fill: none;
+    stroke: #dce5f2;
+    stroke-width: 1;
+    stroke-dasharray: 3 3;
+}
+
+.areas-radar-axis {
+    stroke: #e3ebf6;
+    stroke-width: 1;
+}
+
+.areas-radar-ideal {
+    fill: none;
+    stroke: #b9c7df;
+    stroke-width: 1.4;
+    stroke-dasharray: 5 5;
+}
+
+.areas-radar-current {
+    fill: rgba(22, 199, 154, .18);
+    stroke: var(--primary);
+    stroke-width: 2.4;
+    filter: drop-shadow(0 8px 14px rgba(22, 199, 154, .16));
+}
+
+.areas-radar-label {
+    fill: #536486;
+    font-size: 8px;
+    font-weight: 800;
+}
+
+.areas-radar-label-value {
+    fill: var(--primary);
+    font-weight: 900;
+}
+
+.areas-radar-legend {
+    display: flex;
+    justify-content: center;
+    gap: 18px;
+    flex-wrap: wrap;
+    color: #60708f;
+    font-size: .62rem;
+    font-weight: 800;
+}
+
+.areas-radar-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.areas-radar-legend i {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--primary);
+}
+
+.areas-radar-legend span:nth-child(2) i {
+    background: #b9c7df;
+}
+
+.areas-balance-note {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
+    align-items: start;
+    gap: 12px;
+    border: 1px solid #e8edf7;
+    border-radius: 16px;
+    background: #f8fbff;
+    padding: 14px 16px;
+}
+
+.areas-balance-note span {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: inline-grid;
+    place-items: center;
+    color: #f59f00;
+    background: #fff4d6;
+}
+
+.areas-balance-note p {
+    margin: 0;
+    color: #60708f;
+    font-size: .72rem;
+    line-height: 1.45;
+}
+
+.areas-balance-note strong {
+    color: #17213c;
+}
+
+.areas-recommendations-card {
+    padding: 18px;
+    display: grid;
+    align-content: start;
+    gap: 12px;
+}
+
+.areas-recommendation-item {
+    min-height: 76px;
+    display: grid;
+    grid-template-columns: 46px minmax(0, 1fr);
+    gap: 12px;
+    align-items: center;
+    border: 1px solid #e8edf7;
+    border-radius: 16px;
+    background: #fff;
+    padding: 11px;
+}
+
+.areas-recommendation-item strong {
+    display: block;
+    color: #17213c;
+    font-size: .72rem;
+    line-height: 1.2;
+}
+
+.areas-recommendation-item p {
+    margin: 4px 0 0;
+    color: #60708f;
+    font-size: .64rem;
+    line-height: 1.35;
 }
 
 .areas-level-panel {
@@ -482,6 +734,31 @@
     line-height: 1.45;
 }
 
+.areas-current-balance-main {
+    grid-template-columns: 52px minmax(0, 1fr);
+}
+
+.areas-current-balance-main .areas-summary-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 16px;
+    font-size: 1.45rem;
+}
+
+.areas-current-balance-progress {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 42px;
+    align-items: center;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.areas-current-balance-progress b {
+    color: #17213c;
+    font-size: .78rem;
+    text-align: right;
+}
+
 .donut-wrap {
     display: grid;
     grid-template-columns: 116px minmax(0, 1fr);
@@ -596,6 +873,20 @@
         grid-template-columns: minmax(220px, 1fr) 86px minmax(190px, .8fr) 78px;
         gap: 12px;
     }
+
+    .areas-balance-panel {
+        grid-template-columns: 1fr;
+    }
+
+    .areas-recommendations-card {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        align-items: start;
+    }
+
+    .areas-recommendations-card .areas-side-title,
+    .areas-recommendations-card .btn {
+        grid-column: 1 / -1;
+    }
 }
 
 @media (max-width: 1120px) {
@@ -610,8 +901,13 @@
     .areas-profile-card,
     .areas-balance-card,
     .areas-tip-card,
-    .areas-feature-card {
+    .areas-feature-card,
+    .areas-recommendations-card {
         min-height: 0;
+    }
+
+    .areas-balance-visuals {
+        grid-template-columns: 1fr;
     }
 }
 
@@ -629,6 +925,10 @@
 
     .areas-summary-grid,
     .areas-side-column {
+        grid-template-columns: 1fr;
+    }
+
+    .areas-recommendations-card {
         grid-template-columns: 1fr;
     }
 
@@ -652,18 +952,24 @@
 
 @media (max-width: 560px) {
     .areas-tabs {
-        grid-template-columns: 1fr;
+        align-items: stretch;
+        flex-direction: column;
         border-radius: 18px;
     }
 
-    .areas-tabs button {
+    .areas-tabs-group {
+        width: 100%;
+    }
+
+    .areas-tabs-group a {
         border-radius: 14px;
     }
 
     .areas-summary-card,
     .areas-profile-card,
     .donut-wrap,
-    .areas-tip-card {
+    .areas-tip-card,
+    .areas-balance-panel {
         grid-template-columns: 1fr;
     }
 

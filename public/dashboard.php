@@ -25,7 +25,8 @@ if (!$user) {
 }
 
 $lifeAreaModel = new LifeArea();
-$areas = array_slice($lifeAreaModel->getAllByUser((int) $user['id']), 0, 6);
+$allAreas = $lifeAreaModel->getAllByUser((int) $user['id']);
+$areas = array_slice($allAreas, 0, 6);
 
 $goalModel = new Goal();
 $mainGoals = $goalModel->getMainByUser((int) $user['id'], 4);
@@ -38,7 +39,38 @@ $habitModel = new Habit();
 $dailyObjectiveModel = new DailyObjective();
 $todayTasks = $taskModel->getTodayByUser((int) $user['id'], 4);
 $upcomingTasks = $taskModel->getUpcomingByUser((int) $user['id'], 5);
-$taskDistribution = $taskModel->getDistributionByArea((int) $user['id']);
+$taskDistributionRaw = $taskModel->getDistributionByArea((int) $user['id']);
+$taskDistributionByArea = [];
+$taskDistributionTotal = 0;
+
+foreach ($taskDistributionRaw as $distributionArea) {
+    $areaId = (int) ($distributionArea['area_id'] ?? 0);
+
+    if ($areaId <= 0) {
+        continue;
+    }
+
+    $taskCount = (int) ($distributionArea['task_count'] ?? 0);
+    $taskDistributionByArea[$areaId] = $distributionArea;
+    $taskDistributionTotal += max(0, $taskCount);
+}
+
+$taskDistribution = [];
+
+foreach ($allAreas as $area) {
+    $areaId = (int) ($area['id'] ?? 0);
+    $distributionArea = $taskDistributionByArea[$areaId] ?? [];
+    $taskCount = (int) ($distributionArea['task_count'] ?? 0);
+
+    $taskDistribution[] = [
+        'area_id' => $areaId,
+        'area_name' => (string) ($area['name'] ?? 'Área'),
+        'area_color' => (string) ($area['color'] ?: '#16C79A'),
+        'area_icon' => (string) ($area['icon'] ?? ''),
+        'task_count' => max(0, $taskCount),
+        'percentage' => $taskDistributionTotal > 0 ? round(($taskCount / max(1, $taskDistributionTotal)) * 100, 1) : 0,
+    ];
+}
 $weekActivity = buildWeeklyActivityByUser((int) $user['id']);
 
 $chartTasks = $taskModel->getAllByUser((int) $user['id']);
@@ -1036,11 +1068,11 @@ $heroAvatarSrc = AvatarLibrary::getAvatarSrc($user['avatar'] ?? null);
                         <h2>Distribución de misiones</h2>
                     </div>
                     
-                    <?php if (empty($taskDistribution)): ?>
+                    <?php if ($taskDistributionTotal <= 0): ?>
                         <p class="muted">Crea misiones con áreas de vida asignadas para ver tu distribución.</p>
                     <?php else: ?>
                         <div class="donut-wrap">
-                            <div class="donut" style="background: radial-gradient(circle, #fff 55%, transparent 56%), <?= buildDonutGradient($taskDistribution) ?>;"></div>
+                            <div class="donut" style="background: radial-gradient(circle, #fff 55%, transparent 56%), <?= buildDonutGradient(array_filter($taskDistribution, static fn($area) => (float) ($area['percentage'] ?? 0) > 0)) ?>;"></div>
                             <div class="donut-legend">
                                 <?php foreach ($taskDistribution as $area): ?>
                                     <span>
