@@ -101,7 +101,7 @@ final class XpEvolutionChart
             $dateObj = new DateTimeImmutable($date);
             $xpLinePoints[] = [
                 'label' => $metricPeriod === 'week'
-                    ? ['L', 'M', 'X', 'J', 'V', 'S', 'D'][(int) $dateObj->format('N') - 1]
+                    ? ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'][(int) $dateObj->format('N') - 1]
                     : $dateObj->format('j'),
                 'value' => $cumulativeXp,
                 'gain' => $dailyGain,

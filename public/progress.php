@@ -367,7 +367,6 @@ function shortText(string|null $value, int $limit = 42): string
             </div>
         </section>
 
-        <?php require __DIR__ . '/partials/sidebar_user_mini.php'; ?>
         <?php require __DIR__ . '/partials/sidebar_bottom.php'; ?>
     </aside>
 

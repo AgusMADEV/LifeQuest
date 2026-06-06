@@ -238,6 +238,7 @@
 
 .metas-missions-layout .mission-item-icon--area {
     background-color: var(--area-bg, rgba(91, 153, 200, 0.15)) !important;
+    border: 1px solid var(--area-color-border, rgba(22, 199, 154, .24));
 }
 
 .metas-missions-layout .mission-item-icon-mask {

@@ -422,23 +422,7 @@ function hexToRgba(string $hex, float $alpha = 1.0): string
             <span class="habit-side-promo-icon">🪴</span>
         </section>
 
-        <section class="lq-sidebar-card habit-side-user">
-            <div class="mini-avatar">
-                <?php if ($habitAvatarSrc !== null): ?>
-                    <img src="<?= e($habitAvatarSrc) ?>" alt="" class="mini-avatar-image">
-                <?php else: ?>
-                    <?= mb_strtoupper(mb_substr($user['name'] ?? 'U', 0, 1)) ?>
-                <?php endif; ?>
-            </div>
-            <div>
-                <strong>¡Hola, <?= e(shortText($user['name'] ?? 'Usuario', 12)) ?>!</strong>
-                <small>Nivel <?= $level ?></small>
-            </div>
-            <div class="lq-progress"><span style="width: <?= $xpPercent ?>%"></span></div>
-        </section>
-
         <?php $sidebarUserSubtitle = 'Nivel ' . (int) ($user['level'] ?? 1); ?>
-        <?php require __DIR__ . '/partials/sidebar_user_mini.php'; ?>
         <?php require __DIR__ . '/partials/sidebar_bottom.php'; ?>
     </aside>
 
@@ -561,6 +545,7 @@ function hexToRgba(string $hex, float $alpha = 1.0): string
                                             $habitAreaIcon = areaIconMaskUrl($habitAreaIconValue);
                                             $habitAreaColor = (string) ($habit['area_color'] ?? '');
                                             $habitAreaBg = hexToRgba($habitAreaColor !== '' ? $habitAreaColor : '#16C79A', 0.15);
+                                            $habitAreaBorder = hexToRgba($habitAreaColor !== '' ? $habitAreaColor : '#16C79A', 0.24);
                                         ?>
                                         <article
                                             class="habit-row habit-row--<?= e($habitType) ?> <?= (int) ($habit['active'] ?? 1) === 0 ? 'is-inactive' : '' ?>"
@@ -580,7 +565,7 @@ function hexToRgba(string $hex, float $alpha = 1.0): string
                                         >
                                             <div class="habit-title-wrap">
                                                 <?php if ($habitAreaIcon): ?>
-                                                    <div class="habit-icon habit-icon--area" style="--area-bg: <?= e($habitAreaBg) ?>;">
+                                                    <div class="habit-icon habit-icon--area" style="--area-bg: <?= e($habitAreaBg) ?>; --area-color-border: <?= e($habitAreaBorder) ?>;">
                                                         <span class="habit-icon-mask" style="--area-color: <?= e($habitAreaColor !== '' ? $habitAreaColor : '#16C79A') ?>; -webkit-mask-image: url('<?= e($habitAreaIcon) ?>'); mask-image: url('<?= e($habitAreaIcon) ?>');"></span>
                                                     </div>
                                                 <?php else: ?>

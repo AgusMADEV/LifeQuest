@@ -4,6 +4,7 @@ require_once __DIR__ . '/../app/Controllers/AuthController.php';
 require_once __DIR__ . '/../app/Controllers/LifeAreaController.php';
 require_once __DIR__ . '/../app/Models/AreaProgression.php';
 require_once __DIR__ . '/../app/Models/LifeArea.php';
+require_once __DIR__ . '/../app/Models/Task.php';
 require_once __DIR__ . '/../app/Models/User.php';
 require_once __DIR__ . '/../app/Support/AvatarLibrary.php';
 
@@ -12,6 +13,7 @@ AuthController::requireAuth();
 $controller = new LifeAreaController();
 $areaProgressionModel = new AreaProgression();
 $lifeAreaModel = new LifeArea();
+$taskModel = new Task();
 $userModel = new User();
 
 $userId = (int) $_SESSION['user_id'];
@@ -65,6 +67,7 @@ if (isset($_GET['message'], $_GET['type'])) {
 
 $areas = $controller->index($userId);
 $areaProgressionByArea = $areaProgressionModel->getByUser($userId);
+$taskDistribution = $taskModel->getDistributionByArea($userId);
 
 function e(string|null $value): string
 {
@@ -137,6 +140,48 @@ function areaIconMaskedPath(string|null $iconValue, array $areaIconByValue): ?st
     return $areaIconByValue[$iconValue]['masked'] ?? null;
 }
 
+function buildDonutGradient(array $distribution): string
+{
+    if (empty($distribution)) {
+        return 'conic-gradient(#e2e8f0 0 100%)';
+    }
+
+    $gradientParts = [];
+    $currentPercent = 0;
+
+    foreach ($distribution as $area) {
+        $percentage = (float) ($area['percentage'] ?? 0);
+        $color = e($area['area_color'] ?? '#8b5cf6');
+        $nextPercent = $currentPercent + $percentage;
+
+        $gradientParts[] = "{$color} {$currentPercent}% {$nextPercent}%";
+        $currentPercent = $nextPercent;
+    }
+
+    return 'conic-gradient(' . implode(', ', $gradientParts) . ')';
+}
+
+function hexToRgba(string $hex, float $alpha = 1.0): string
+{
+    $hex = trim($hex);
+
+    if (!preg_match('/^#?[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/', $hex)) {
+        $hex = '#16C79A';
+    }
+
+    $hex = ltrim($hex, '#');
+
+    if (strlen($hex) === 3) {
+        $hex = $hex[0] . $hex[0] . $hex[1] . $hex[1] . $hex[2] . $hex[2];
+    }
+
+    $red = hexdec(substr($hex, 0, 2));
+    $green = hexdec(substr($hex, 2, 2));
+    $blue = hexdec(substr($hex, 4, 2));
+
+    return "rgba({$red}, {$green}, {$blue}, {$alpha})";
+}
+
 $modalIsOpen = $editingArea !== null || !empty($areaFormData);
 $areaCurrent = !empty($areaFormData) ? $areaFormData : ($editingArea ?? []);
 $areaIconOptions = areaIconOptions();
@@ -154,6 +199,65 @@ if ($selectedIconValue === '' && !$editingArea) {
 }
 
 $currentAreaColor = (string) formValue($areaCurrent, 'color', '#16C79A');
+
+$xpCurrent = (int) ($user['xp'] ?? 0);
+$level = max(1, (int) ($user['level'] ?? 1));
+$xpPerLevel = 1000;
+$xpCurrentLevel = $xpCurrent % $xpPerLevel;
+$xpPercent = min(100, (int) round(($xpCurrentLevel / max(1, $xpPerLevel)) * 100));
+$points = (int) ($user['points'] ?? 0);
+$gems = max(0, intdiv($points, 20));
+$heroAvatarSrc = AvatarLibrary::getAvatarSrc($user['avatar'] ?? null);
+
+$areaRows = [];
+$totalAreaXp = 0;
+$levelSum = 0;
+
+foreach ($areas as $area) {
+    $progression = $areaProgressionByArea[(int) $area['id']] ?? [];
+    $areaLevel = max(1, (int) ($progression['level'] ?? 1));
+    $areaXp = max(0, (int) ($progression['xp'] ?? 0));
+    $levelXp = max(0, (int) ($progression['level_xp'] ?? ($areaXp % 1000)));
+    $levelTarget = max(1, (int) ($progression['level_xp_target'] ?? 1000));
+    $levelPercent = min(100, max(0, (int) ($progression['level_percent'] ?? round(($levelXp / $levelTarget) * 100))));
+
+    $areaRows[] = [
+        'area' => $area,
+        'level' => $areaLevel,
+        'xp' => $areaXp,
+        'level_xp' => $levelXp,
+        'level_target' => $levelTarget,
+        'level_percent' => $levelPercent,
+        'icon_path' => areaIconMaskedPath((string) ($area['icon'] ?? ''), $areaIconByValue),
+    ];
+
+    $totalAreaXp += $areaXp;
+    $levelSum += $areaLevel;
+}
+
+usort($areaRows, static function (array $left, array $right): int {
+    return [$right['level'], $right['xp'], (int) $right['area']['id']]
+        <=> [$left['level'], $left['xp'], (int) $left['area']['id']];
+});
+
+$featuredAreaRow = $areaRows[0] ?? null;
+$averageAreaLevel = count($areaRows) > 0 ? round($levelSum / count($areaRows), 1) : 0;
+$balanceScore = 0;
+
+if (!empty($taskDistribution)) {
+    $idealPercent = 100 / count($taskDistribution);
+    $deviation = 0;
+
+    foreach ($taskDistribution as $distributionArea) {
+        $deviation += abs(((float) ($distributionArea['percentage'] ?? 0)) - $idealPercent);
+    }
+
+    $balanceScore = min(100, max(0, (int) round(100 - $deviation)));
+}
+
+$stylesCssVersion = (int) (@filemtime(__DIR__ . '/../assets/css/styles.css') ?: time());
+$crudCssVersion = (int) (@filemtime(__DIR__ . '/../assets/css/modules/crud.css') ?: time());
+$areasCssVersion = (int) (@filemtime(__DIR__ . '/../assets/css/modules/areas.css') ?: time());
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -161,8 +265,9 @@ $currentAreaColor = (string) formValue($areaCurrent, 'color', '#16C79A');
     <meta charset="UTF-8">
     <title>Áreas | <?= APP_NAME ?></title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="../assets/css/styles.css">
-    <link rel="stylesheet" href="../assets/css/modules/crud.css">
+    <link rel="stylesheet" href="../assets/css/styles.css?v=<?= $stylesCssVersion ?>">
+    <link rel="stylesheet" href="../assets/css/modules/crud.css?v=<?= $crudCssVersion ?>">
+    <link rel="stylesheet" href="../assets/css/modules/areas.css?v=<?= $areasCssVersion ?>">
 </head>
 <body class="lifequest-app">
     <aside class="lq-sidebar">
@@ -182,7 +287,6 @@ $currentAreaColor = (string) formValue($areaCurrent, 'color', '#16C79A');
             </div>
         </section>
 
-        <?php require __DIR__ . '/partials/sidebar_user_mini.php'; ?>
         <?php require __DIR__ . '/partials/sidebar_bottom.php'; ?>
     </aside>
 
@@ -191,18 +295,6 @@ $currentAreaColor = (string) formValue($areaCurrent, 'color', '#16C79A');
         <?php require __DIR__ . '/partials/topbar.php'; ?>
 
         <section class="lq-page-shell">
-            <header class="lq-page-hero">
-                <div>
-                    <p class="eyebrow">Mapa personal</p>
-                    <h1>Áreas de vida</h1>
-                    <p>Organiza tu progreso por categorías importantes: salud, estudios, trabajo, finanzas, relaciones o desarrollo personal.</p>
-                </div>
-            </header>
-
-            <?php if ($message): ?>
-                <div class="lq-alert <?= e($messageType) ?>"><?= e($message) ?></div>
-            <?php endif; ?>
-
             <div class="metas-modal-backdrop <?= $modalIsOpen ? 'is-open' : '' ?>" data-goal-modal-close></div>
 
             <article class="lq-form-panel metas-form-modal <?= $modalIsOpen ? 'is-open' : '' ?>" data-goal-form-modal>
@@ -256,65 +348,208 @@ $currentAreaColor = (string) formValue($areaCurrent, 'color', '#16C79A');
                 </form>
             </article>
 
-            <section class="lq-list-panel">
-                <div class="lq-panel-header">
-                    <div>
-                        <h2>Tus áreas</h2>
-                        <p><?= count($areas) ?> áreas creadas</p>
-                    </div>
-                    <button type="button" class="btn btn-primary metas-add-btn" data-goal-modal-open>+ área</button>
-                </div>
+            <div class="areas-hub-layout">
+                <section class="areas-main-column">
+                    <header class="lq-page-hero">
+                        <div>
+                            <p class="eyebrow">Mapa personal</p>
+                            <h1>Áreas de vida</h1>
+                            <p>Organiza tu progreso por categorías importantes: salud, estudios, trabajo, finanzas, relaciones o desarrollo personal.</p>
+                        </div>
+                    </header>
 
-                <div class="lq-list-grid">
-                    <?php if (empty($areas)): ?>
-                        <article class="lq-empty">
-                            <h2>No hay áreas todavía</h2>
-                            <p>Empieza creando áreas como Salud, Estudios, Trabajo o Finanzas.</p>
-                        </article>
+                    <?php if ($message): ?>
+                        <div class="lq-alert <?= e($messageType) ?>"><?= e($message) ?></div>
                     <?php endif; ?>
 
-                    <?php foreach ($areas as $area): ?>
-                        <?php $areaLevel = (int) ($areaProgressionByArea[(int) $area['id']]['level'] ?? 1); ?>
-                        <?php $areaIconPath = areaIconMaskedPath((string) ($area['icon'] ?? ''), $areaIconByValue); ?>
-                        <article class="lq-object-card">
-                            <div class="lq-object-top">
-                                <?php if ($areaIconPath): ?>
-                                    <div class="lq-object-icon lq-object-icon-mask" style="--area-color: <?= e($area['color'] ?: '#16C79A') ?>; -webkit-mask-image: url('<?= e($areaIconPath) ?>'); mask-image: url('<?= e($areaIconPath) ?>');"></div>
-                                <?php else: ?>
-                                    <div class="lq-object-icon" style="background: <?= e($area['color'] ?: '#16C79A') ?>;">
-                                        <?= e($area['icon'] ?: '●') ?>
-                                    </div>
-                                <?php endif; ?>
+                    <div class="areas-tabs" aria-label="Vistas de áreas">
+                        <div class="areas-tabs-group" role="tablist">
+                            <button type="button" class="is-active">Resumen</button>
+                            <button type="button">Balance</button>
+                        </div>
+                        <button type="button" class="btn btn-primary areas-create-btn" data-goal-modal-open>+ Crear</button>
+                    </div>
 
-                                <div class="lq-object-title">
-                                    <h2><?= e($area['name']) ?></h2>
-                                    <p><?= e($area['description'] ?: 'Sin descripción.') ?></p>
-                                </div>
-
-                                <div class="lq-object-badges">
-                                    <span class="lq-badge green">Activa</span>
-                                </div>
-                            </div>
-
-                            <div class="lq-object-footer">
-                                <div class="lq-object-meta">
-                                    <span class="lq-badge">Nivel actual: <?= $areaLevel ?></span>
-                                    <span class="lq-badge">Creada el <?= date('d/m/Y', strtotime($area['created_at'])) ?></span>
-                                </div>
-
-                                <div class="mission-item-actions">
-                                    <a href="areas.php?edit=<?= (int) $area['id'] ?>" class="btn btn-secondary lq-icon-btn lq-icon-edit" aria-label="Editar área"></a>
-                                    <form method="POST" onsubmit="return confirm('¿Seguro que quieres eliminar esta área?');">
-                                        <input type="hidden" name="action" value="delete">
-                                        <input type="hidden" name="id" value="<?= (int) $area['id'] ?>">
-                                        <button type="submit" class="btn lq-btn-danger lq-icon-btn lq-icon-delete" aria-label="Eliminar área"></button>
-                                    </form>
-                                </div>
+                    <section class="areas-summary-grid" aria-label="Resumen de áreas">
+                        <article class="areas-summary-card">
+                            <span class="areas-summary-icon area-green">◔</span>
+                            <div>
+                                <strong><?= count($areaRows) ?></strong>
+                                <small>áreas activas</small>
                             </div>
                         </article>
-                    <?php endforeach; ?>
-                </div>
-            </section>
+                        <article class="areas-summary-card">
+                            <span class="areas-summary-icon area-orange">▥</span>
+                            <div>
+                                <strong><?= number_format((float) $averageAreaLevel, 1, ',', '.') ?></strong>
+                                <small>nivel medio</small>
+                            </div>
+                        </article>
+                        <article class="areas-summary-card">
+                            <span class="areas-summary-icon area-purple">✦</span>
+                            <div>
+                                <strong><?= number_format($totalAreaXp, 0, ',', '.') ?> XP</strong>
+                                <small>XP de áreas</small>
+                            </div>
+                        </article>
+                        <article class="areas-summary-card">
+                            <span class="areas-summary-icon area-teal">⚖</span>
+                            <div>
+                                <strong><?= $balanceScore ?>%</strong>
+                                <small>equilibrio general</small>
+                            </div>
+                        </article>
+                    </section>
+
+                    <section class="areas-level-panel">
+                        <div class="areas-level-heading">
+                            <h2>Nivel por áreas</h2>
+                            <span>Nivel actual</span>
+                            <span>Progreso</span>
+                        </div>
+
+                        <div class="areas-level-list">
+                            <?php if (empty($areaRows)): ?>
+                                <article class="lq-empty">
+                                    <h2>No hay áreas todavía</h2>
+                                    <p>Empieza creando áreas como Salud, Estudios, Trabajo o Finanzas.</p>
+                                </article>
+                            <?php endif; ?>
+
+                            <?php foreach ($areaRows as $areaRow): ?>
+                                <?php $area = $areaRow['area']; ?>
+                                <?php $areaColor = (string) ($area['color'] ?: '#16C79A'); ?>
+                                <?php $areaColorSoft = hexToRgba($areaColor, 0.14); ?>
+                                <?php $areaColorBorder = hexToRgba($areaColor, 0.24); ?>
+                                <article class="areas-level-row">
+                                    <div class="areas-level-area">
+                                        <?php if ($areaRow['icon_path']): ?>
+                                            <span class="areas-level-icon areas-level-icon-shell" style="--area-color: <?= e($areaColor) ?>; --area-color-soft: <?= e($areaColorSoft) ?>; --area-color-border: <?= e($areaColorBorder) ?>;">
+                                                <span class="areas-level-icon-mask" style="-webkit-mask-image: url('<?= e($areaRow['icon_path']) ?>'); mask-image: url('<?= e($areaRow['icon_path']) ?>');"></span>
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="areas-level-icon" style="background: <?= e($areaColorSoft) ?>; color: <?= e($areaColor) ?>; border: 1px solid <?= e($areaColorBorder) ?>;">
+                                                <?= e($area['icon'] ?: '●') ?>
+                                            </span>
+                                        <?php endif; ?>
+                                        <div>
+                                            <strong><?= e($area['name']) ?></strong>
+                                            <small><?= e($area['description'] ? shortText($area['description'], 64) : 'Sin descripción.') ?></small>
+                                        </div>
+                                    </div>
+
+                                    <strong class="areas-level-value">Lvl <?= (int) $areaRow['level'] ?></strong>
+
+                                    <div class="areas-level-progress">
+                                        <div class="areas-progress-track"><i style="width: <?= (int) $areaRow['level_percent'] ?>%; background: <?= e($areaColor) ?>;"></i></div>
+                                        <span><?= number_format((int) $areaRow['level_xp'], 0, ',', '.') ?> / <?= number_format((int) $areaRow['level_target'], 0, ',', '.') ?> XP</span>
+                                    </div>
+
+                                    <div class="mission-item-actions areas-row-actions">
+                                        <a href="areas.php?edit=<?= (int) $area['id'] ?>" class="btn btn-secondary lq-icon-btn lq-icon-edit" aria-label="Editar área"></a>
+                                        <form method="POST" onsubmit="return confirm('¿Seguro que quieres eliminar esta área?');">
+                                            <input type="hidden" name="action" value="delete">
+                                            <input type="hidden" name="id" value="<?= (int) $area['id'] ?>">
+                                            <button type="submit" class="btn lq-btn-danger lq-icon-btn lq-icon-delete" aria-label="Eliminar área"></button>
+                                        </form>
+                                    </div>
+                                </article>
+                            <?php endforeach; ?>
+                        </div>
+                    </section>
+
+                    <section class="areas-next-objective">
+                        <span class="areas-target-icon">◎</span>
+                        <div>
+                            <strong>Próximo objetivo</strong>
+                            <?php if ($featuredAreaRow): ?>
+                                <p>Alcanza Lvl <?= (int) $featuredAreaRow['level'] + 1 ?> en <?= e($featuredAreaRow['area']['name']) ?>.</p>
+                            <?php else: ?>
+                                <p>Crea tu primera área para empezar a medir tu avance.</p>
+                            <?php endif; ?>
+                        </div>
+                        <div class="areas-progress-track"><i style="width: <?= $featuredAreaRow ? (int) $featuredAreaRow['level_percent'] : 0 ?>%;"></i></div>
+                        <a href="goals.php" class="btn btn-secondary">Ver plan</a>
+                    </section>
+                </section>
+
+                <aside class="areas-side-column">
+                    <section class="areas-profile-card">
+                        <div class="areas-avatar-wrap">
+                            <?php if ($heroAvatarSrc !== null): ?>
+                                <img src="<?= e($heroAvatarSrc) ?>" alt="Avatar de <?= e($user['name']) ?>">
+                            <?php else: ?>
+                                <span><?= e(mb_strtoupper(mb_substr($user['name'] ?? 'U', 0, 1))) ?></span>
+                            <?php endif; ?>
+                        </div>
+                        <div class="areas-profile-copy">
+                            <strong>Nivel <?= $level ?></strong>
+                            <span>Explorador</span>
+                            <div class="areas-progress-track"><i style="width: <?= $xpPercent ?>%;"></i></div>
+                            <small><?= number_format($xpCurrentLevel, 0, ',', '.') ?> / <?= number_format($xpPerLevel, 0, ',', '.') ?> XP</small>
+                        </div>
+                    </section>
+
+                    <section class="areas-feature-card">
+                        <div class="areas-side-title">
+                            <h2>Área destacada</h2>
+                            <span>★</span>
+                        </div>
+                        <?php if ($featuredAreaRow): ?>
+                            <?php $featuredArea = $featuredAreaRow['area']; ?>
+                            <?php $featuredAreaColor = (string) ($featuredArea['color'] ?: '#16C79A'); ?>
+                            <?php $featuredAreaColorSoft = hexToRgba($featuredAreaColor, 0.14); ?>
+                            <?php $featuredAreaColorBorder = hexToRgba($featuredAreaColor, 0.24); ?>
+                            <div class="areas-feature-main">
+                                <?php if ($featuredAreaRow['icon_path']): ?>
+                                    <span class="areas-level-icon areas-level-icon-shell" style="--area-color: <?= e($featuredAreaColor) ?>; --area-color-soft: <?= e($featuredAreaColorSoft) ?>; --area-color-border: <?= e($featuredAreaColorBorder) ?>;">
+                                        <span class="areas-level-icon-mask" style="-webkit-mask-image: url('<?= e($featuredAreaRow['icon_path']) ?>'); mask-image: url('<?= e($featuredAreaRow['icon_path']) ?>');"></span>
+                                    </span>
+                                <?php else: ?>
+                                    <span class="areas-level-icon" style="background: <?= e($featuredAreaColorSoft) ?>; color: <?= e($featuredAreaColor) ?>; border: 1px solid <?= e($featuredAreaColorBorder) ?>;"><?= e($featuredArea['icon'] ?: '●') ?></span>
+                                <?php endif; ?>
+                                <div>
+                                    <strong><?= e($featuredArea['name']) ?></strong>
+                                    <small>Tu área más fuerte</small>
+                                </div>
+                            </div>
+                            <p>¡Excelente trabajo cuidando de ti! Sigue manteniendo esos hábitos.</p>
+                        <?php else: ?>
+                            <p>Crea un área para verla destacada aquí.</p>
+                        <?php endif; ?>
+                    </section>
+
+                    <section class="areas-balance-card">
+                        <div class="areas-side-title">
+                            <h2>Balance de áreas</h2>
+                        </div>
+                        <?php if (empty($taskDistribution)): ?>
+                            <div class="mini-empty">
+                                <strong>Sin datos todavía.</strong>
+                                <p>Completa misiones con área asignada para ver el balance.</p>
+                            </div>
+                        <?php else: ?>
+                            <div class="donut-wrap areas-donut-wrap">
+                                <div class="donut" style="background: radial-gradient(circle, #fff 55%, transparent 56%), <?= buildDonutGradient($taskDistribution) ?>;"></div>
+                                <div class="donut-legend">
+                                    <?php foreach ($taskDistribution as $distributionArea): ?>
+                                        <span><i style="background: <?= e($distributionArea['area_color'] ?? '#8b5cf6') ?>;"></i><?= e($distributionArea['area_name'] ?? 'Área') ?> <b><?= (float) $distributionArea['percentage'] ?>%</b></span>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+                    </section>
+
+                    <section class="areas-tip-card">
+                        <span>💡</span>
+                        <div>
+                            <strong>Consejo del día</strong>
+                            <p>El equilibrio no es hacerlo todo perfecto, sino avanzar en lo que importa cada día.</p>
+                            <small>— LifeQuest</small>
+                        </div>
+                    </section>
+                </aside>
+            </div>
         </section>
     </main>
     <script src="../assets/js/app.js"></script>

@@ -87,6 +87,7 @@ final class AreaProgression
                     ap.xp,
                     ap.level,
                     la.name,
+                    la.color,
                     la.icon
              FROM area_progression ap
              INNER JOIN life_areas la ON la.id = ap.area_id
@@ -107,6 +108,7 @@ final class AreaProgression
             $rows[] = [
                 'area_id' => (int) $row['area_id'],
                 'name' => (string) ($row['name'] ?? 'Área'),
+                'color' => (string) ($row['color'] ?? '#16C79A'),
                 'icon' => (string) ($row['icon'] ?? '⭐'),
                 'xp' => $xp,
                 'level' => max(1, (int) ($row['level'] ?? $this->levelFromXp($xp))),

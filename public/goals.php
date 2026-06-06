@@ -479,7 +479,6 @@ function fieldError(array $errors, string $key): string
             <span class="bag">🧠</span>
         </section>
 
-        <?php require __DIR__ . '/partials/sidebar_user_mini.php'; ?>
         <?php require __DIR__ . '/partials/sidebar_bottom.php'; ?>
     </aside>
 
@@ -630,15 +629,16 @@ function fieldError(array $errors, string $key): string
                                             $goalAreaIcon = areaIconMaskUrl($goal['area_icon'] ?? null);
                                             $goalAreaColor = (string) ($goal['area_color'] ?? '');
                                             $goalAreaBg = hexToRgba($goalAreaColor !== '' ? $goalAreaColor : '#16C79A', 0.15);
+                                            $goalAreaBorder = hexToRgba($goalAreaColor !== '' ? $goalAreaColor : '#16C79A', 0.24);
                                         ?>
                                         <article class="mission-item-row">
                                             <div class="mission-item-left">
                                                 <?php if ($goalAreaIcon): ?>
-                                                    <div class="mission-item-icon mission-item-icon--area" style="--area-bg: <?= e($goalAreaBg) ?>;">
+                                                    <div class="mission-item-icon mission-item-icon--area" style="--area-bg: <?= e($goalAreaBg) ?>; --area-color-border: <?= e($goalAreaBorder) ?>;">
                                                         <span class="mission-item-icon-mask" style="--area-color: <?= e($goalAreaColor !== '' ? $goalAreaColor : '#16C79A') ?>; -webkit-mask-image: url('<?= e($goalAreaIcon) ?>'); mask-image: url('<?= e($goalAreaIcon) ?>');"></span>
                                                     </div>
                                                 <?php else: ?>
-                                                    <div class="mission-item-icon" style="background: <?= e($goal['area_color'] ?: '#16C79A') ?>;"><?= e($goal['area_icon'] ?: '🎯') ?></div>
+                                                    <div class="mission-item-icon mission-item-icon--area" style="--area-bg: <?= e($goalAreaBg) ?>; --area-color-border: <?= e($goalAreaBorder) ?>; color: <?= e($goalAreaColor !== '' ? $goalAreaColor : '#16C79A') ?>;"><?= e($goal['area_icon'] ?: '🎯') ?></div>
                                                 <?php endif; ?>
                                                 <div class="mission-item-copy">
                                                     <h3><?= e($goal['title']) ?></h3>
@@ -771,15 +771,16 @@ function fieldError(array $errors, string $key): string
                                             $projectAreaIcon = areaIconMaskUrl($project['area_icon'] ?? null);
                                             $projectAreaColor = (string) ($project['area_color'] ?? '');
                                             $projectAreaBg = hexToRgba($projectAreaColor !== '' ? $projectAreaColor : '#16C79A', 0.15);
+                                            $projectAreaBorder = hexToRgba($projectAreaColor !== '' ? $projectAreaColor : '#16C79A', 0.24);
                                         ?>
                                         <article class="mission-item-row">
                                             <div class="mission-item-left">
                                                 <?php if ($projectAreaIcon): ?>
-                                                    <div class="mission-item-icon mission-item-icon--area" style="--area-bg: <?= e($projectAreaBg) ?>;">
+                                                    <div class="mission-item-icon mission-item-icon--area" style="--area-bg: <?= e($projectAreaBg) ?>; --area-color-border: <?= e($projectAreaBorder) ?>;">
                                                         <span class="mission-item-icon-mask" style="--area-color: <?= e($projectAreaColor !== '' ? $projectAreaColor : '#16C79A') ?>; -webkit-mask-image: url('<?= e($projectAreaIcon) ?>'); mask-image: url('<?= e($projectAreaIcon) ?>');"></span>
                                                     </div>
                                                 <?php else: ?>
-                                                    <div class="mission-item-icon" style="background: <?= e($project['area_color'] ?: '#16C79A') ?>;"><?= e($project['area_icon'] ?: '🚀') ?></div>
+                                                    <div class="mission-item-icon mission-item-icon--area" style="--area-bg: <?= e($projectAreaBg) ?>; --area-color-border: <?= e($projectAreaBorder) ?>; color: <?= e($projectAreaColor !== '' ? $projectAreaColor : '#16C79A') ?>;"><?= e($project['area_icon'] ?: '🚀') ?></div>
                                                 <?php endif; ?>
                                                 <div class="mission-item-copy">
                                                     <h3><?= e($project['title']) ?></h3>
@@ -844,15 +845,16 @@ function fieldError(array $errors, string $key): string
                                             $taskAreaIcon = areaIconMaskUrl($task['area_icon'] ?? null);
                                             $taskAreaColor = (string) ($task['area_color'] ?? '');
                                             $taskAreaBg = hexToRgba($taskAreaColor !== '' ? $taskAreaColor : '#1f335e', 0.15);
+                                            $taskAreaBorder = hexToRgba($taskAreaColor !== '' ? $taskAreaColor : '#1f335e', 0.24);
                                         ?>
                                         <article class="mission-item-row task-status-<?= e($taskStatus) ?>">
                                             <div class="mission-item-left">
                                                 <?php if ($taskAreaIcon): ?>
-                                                    <div class="mission-item-icon mission-item-icon--area" style="--area-bg: <?= e($taskAreaBg) ?>;">
+                                                    <div class="mission-item-icon mission-item-icon--area" style="--area-bg: <?= e($taskAreaBg) ?>; --area-color-border: <?= e($taskAreaBorder) ?>;">
                                                         <span class="mission-item-icon-mask" style="--area-color: <?= e($taskAreaColor !== '' ? $taskAreaColor : '#1f335e') ?>; -webkit-mask-image: url('<?= e($taskAreaIcon) ?>'); mask-image: url('<?= e($taskAreaIcon) ?>'); -webkit-mask-position: center; mask-position: center; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-size: 66%; mask-size: 66%;"></span>
                                                     </div>
                                                 <?php else: ?>
-                                                    <div class="mission-item-icon" style="background: <?= e($task['area_color'] ?: '#1f335e') ?>;">
+                                                    <div class="mission-item-icon mission-item-icon--area" style="--area-bg: <?= e($taskAreaBg) ?>; --area-color-border: <?= e($taskAreaBorder) ?>; color: <?= e($taskAreaColor !== '' ? $taskAreaColor : '#1f335e') ?>;">
                                                         <?= e($task['area_icon'] ?: '✅') ?>
                                                     </div>
                                                 <?php endif; ?>
