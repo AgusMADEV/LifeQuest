@@ -75,7 +75,6 @@ a {
 .mini-btn {
     background: linear-gradient(135deg, var(--primary), #18d7af);
     color: #fff;
-    box-shadow: 0 12px 25px rgba(22,199,154,.22);
 }
 
 .btn-primary:hover,
@@ -568,7 +567,7 @@ a {
     justify-content: center;
     filter: drop-shadow(0px 7px 5px rgba(25, 21, 49, 0.507));
     left: 63%;
-    top: 58%;
+    top: 74%;
 }
 
 .unlock .bag-image {
@@ -625,6 +624,7 @@ a {
 .lq-sidebar-bottom {
     display: flex;
     justify-content: space-between;
+    margin-top: auto;
 }
 
 .lq-sidebar-bottom a {

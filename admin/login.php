@@ -65,12 +65,19 @@ function e(string|null $value): string
 
 function adminLoginIcon(string $name): string
 {
+    $adminAssetIcons = [
+        'users' => 'users.png',
+        'gift' => 'gift.png',
+        'database' => 'database.png',
+        'shield' => 'shield.png',
+    ];
+
+    if (isset($adminAssetIcons[$name])) {
+        return '<img src="../icons/admin/' . e($adminAssetIcons[$name]) . '" alt="" aria-hidden="true">';
+    }
+
     return match ($name) {
         'brand' => '<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M10 34V18" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/><path d="M22 34V12" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/><path d="M34 34V22" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/><path d="M9 36h30" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/><path d="M12 26.5L22 16.5L30 20.5L38 12.5" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="12.5" r="3" fill="currentColor"/></svg>',
-        'users' => '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M16.5 19.5v-1.2c0-1.84-1.49-3.33-3.33-3.33H10.8c-1.84 0-3.33 1.49-3.33 3.33v1.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 11.8a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M18.5 19.5v-1.04c0-1.45-.8-2.73-2-3.41" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M15.7 6.33a3.2 3.2 0 0 1 0 6.34" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
-        'gift' => '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M4.5 9.5h15v10a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1v-10Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M3.9 8.2h16.2v3H3.9v-3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 8.2v12.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M12 8.2c-1.8 0-3.2-1-3.2-2.3S10 3.8 11.4 4.7C12.2 5.2 12.6 6.4 12 8.2Zm0 0c1.8 0 3.2-1 3.2-2.3S14 3.8 12.6 4.7C11.8 5.2 11.4 6.4 12 8.2Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>',
-        'database' => '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><ellipse cx="12" cy="6.5" rx="7" ry="3" stroke="currentColor" stroke-width="1.8"/><path d="M5 6.5v11c0 1.66 3.13 3 7 3s7-1.34 7-3v-11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 11c0 1.66 3.13 3 7 3s7-1.34 7-3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-        'shield' => '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M12 3.5 19 6v5.1c0 4.6-3 8.4-7 9.9-4-1.5-7-5.3-7-9.9V6l7-2.5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 10.1v3.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="15.6" r="1" fill="currentColor"/></svg>',
         'lock' => '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M7.5 10V8.2a4.5 4.5 0 0 1 9 0V10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M6.8 10h10.4c.7 0 1.3.6 1.3 1.3v6.4c0 .7-.6 1.3-1.3 1.3H6.8c-.7 0-1.3-.6-1.3-1.3v-6.4c0-.7.6-1.3 1.3-1.3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 13v2.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
         'lock-mini' => '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M8 10V8.8a4 4 0 1 1 8 0V10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><rect x="5.5" y="10" width="13" height="9" rx="2.2" stroke="currentColor" stroke-width="1.6"/><path d="M12 13v2.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
         'user' => '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M15.5 18.5v-1.2A3.3 3.3 0 0 0 12.2 14H10.8a3.3 3.3 0 0 0-3.3 3.3v1.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 11.6a3.1 3.1 0 1 0 0-6.2 3.1 3.1 0 0 0 0 6.2Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
@@ -119,6 +126,7 @@ $adminFeatures = [
                 <span class="admin-auth-brand-icon">
                     <img src="../icons/admin/chart.png" alt="" aria-hidden="true">
                 </span>
+                
                 <div class="admin-auth-brand-text">
                     <p class="admin-auth-eyebrow">LifeQuest Admin</p>
                     <h1>Data Control Panel</h1>
@@ -130,7 +138,7 @@ $adminFeatures = [
                         <span class="admin-auth-feature-icon"><?= adminLoginIcon($feature['icon']) ?></span>
                         <div>
                             <strong><?= e($feature['title']) ?></strong>
-                            <span><?= e($feature['description']) ?></span>
+                            <small><?= e($feature['description']) ?></small>
                         </div>
                     </article>
                 <?php endforeach; ?>
@@ -142,6 +150,22 @@ $adminFeatures = [
                 <span class="admin-auth-rail-shield">
                     <img src="../icons/admin/secure.png" alt="" aria-hidden="true">
                 </span>
+                <!-- Moléculas -->
+                <span class="admin-dust" style="--r:105px; --a:18deg;  --s:5px; --dur:7s;  --del:0s;    --dx:12px; --dy:-8px;"></span>
+                <span class="admin-dust" style="--r:118px; --a:72deg;  --s:3px; --dur:9s;  --del:-2s;   --dx:-9px; --dy:6px;"></span>
+                <span class="admin-dust" style="--r:95px;  --a:130deg; --s:4px; --dur:11s; --del:-4s;   --dx:7px;  --dy:10px;"></span>
+                <span class="admin-dust" style="--r:125px; --a:195deg; --s:3px; --dur:8s;  --del:-1s;   --dx:-11px;--dy:-5px;"></span>
+                <span class="admin-dust" style="--r:88px;  --a:245deg; --s:6px; --dur:13s; --del:-6s;   --dx:9px;  --dy:-12px;"></span>
+                <span class="admin-dust" style="--r:115px; --a:300deg; --s:3px; --dur:10s; --del:-3s;   --dx:-6px; --dy:8px;"></span>
+                <span class="admin-dust" style="--r:100px; --a:340deg; --s:4px; --dur:12s; --del:-5s;   --dx:13px; --dy:4px;"></span>
+                <span class="admin-dust" style="--r:78px;  --a:55deg;  --s:3px; --dur:15s; --del:-7s;   --dx:-8px; --dy:-9px;"></span>
+                <span class="admin-dust" style="--r:135px; --a:160deg; --s:5px; --dur:9s;  --del:-2.5s; --dx:6px;  --dy:11px;"></span>
+                <span class="admin-dust" style="--r:92px;  --a:215deg; --s:3px; --dur:14s; --del:-8s;   --dx:-14px;--dy:3px;"></span>
+                <span class="admin-dust" style="--r:122px; --a:275deg; --s:4px; --dur:11s; --del:-1.5s; --dx:10px; --dy:-7px;"></span>
+                <span class="admin-dust" style="--r:82px;  --a:320deg; --s:3px; --dur:16s; --del:-9s;   --dx:-5px; --dy:13px;"></span>
+                <span class="admin-dust" style="--r:110px; --a:95deg;  --s:4px; --dur:8s;  --del:-4.5s; --dx:8px;  --dy:-6px;"></span>
+                <span class="admin-dust" style="--r:70px;  --a:150deg; --s:3px; --dur:18s; --del:-10s;  --dx:-7px; --dy:-10px;"></span>
+                <span class="admin-dust" style="--r:128px; --a:230deg; --s:5px; --dur:10s; --del:-3.5s; --dx:11px; --dy:5px;"></span>
             </div>
         </aside>
 
