@@ -6,8 +6,10 @@ require_once __DIR__ . '/../app/Models/Task.php';
 require_once __DIR__ . '/../app/Models/Habit.php';
 require_once __DIR__ . '/../app/Models/Goal.php';
 require_once __DIR__ . '/../app/Models/Project.php';
+require_once __DIR__ . '/../app/Models/DailyObjective.php';
 require_once __DIR__ . '/../app/Support/StreakWeek.php';
 require_once __DIR__ . '/../app/Support/XpEvolutionChart.php';
+require_once __DIR__ . '/../app/Support/AvatarLibrary.php';
 
 AuthController::requireAuth();
 
@@ -25,6 +27,7 @@ $taskModel = new Task();
 $habitModel = new Habit();
 $goalModel = new Goal();
 $projectModel = new Project();
+$dailyObjectiveModel = new DailyObjective();
 
 $allowedMetricPeriods = ['week', 'month'];
 $metricPeriodInput = (string) ($_GET['metric_period'] ?? 'month');
@@ -92,6 +95,7 @@ foreach ($tasks as $task) {
 }
 
 $habitLogs = $habitModel->getLogsByRange($userId, $periodStartDate->format('Y-m-d'), $periodEndDate->format('Y-m-d'));
+$dailyObjectives = $dailyObjectiveModel->getByRange($userId, $periodStartDate->format('Y-m-d'), $periodEndDate->format('Y-m-d'));
 $habitMap = [];
 foreach ($habits as $habit) {
     $habitMap[(int) $habit['id']] = $habit;
@@ -117,7 +121,12 @@ foreach ($habitLogs as $habitId => $dateMap) {
     $weeklyHabitCoins += $checks * (int) ($habit['points_reward'] ?? 0);
 }
 
-$weeklyXpGain = $weeklyTaskXp + $weeklyHabitXp;
+$weeklyObjectiveXp = array_sum(array_map(
+    static fn(array $objective): int => (int) ($objective['xp_bonus_awarded'] ?? 0),
+    $dailyObjectives
+));
+
+$weeklyXpGain = $weeklyTaskXp + $weeklyHabitXp + $weeklyObjectiveXp;
 $weeklyCoinGain = $weeklyTaskCoins + $weeklyHabitCoins;
 
 $areaCounter = [];
@@ -221,6 +230,7 @@ $xpChart = XpEvolutionChart::build(
     $tasks,
     $habits,
     $habitLogs,
+    $dailyObjectives,
     $periodStartDate,
     $periodEndDate,
     $metricPeriod,
@@ -337,10 +347,16 @@ function shortText(string|null $value, int $limit = 42): string
         <?php require __DIR__ . '/partials/sidebar_nav.php'; ?>
 
         <section class="lq-sidebar-card streak">
-            <div class="streak-icon">🔥</div>
-            <p>Racha actual</p>
-            <strong><?= $currentStreak ?> dias</strong>
-            <small>Tu evolucion continua.</small>
+            <div class="streak-summary">
+                <div class="streak-icon" aria-hidden="true">
+                    <img src="../icons/flame.png" alt="" class="streak-flame-image">
+                </div>
+                <div class="streak-copy">
+                    <p>Racha actual</p>
+                    <strong><?= $currentStreak ?> dias</strong>
+                    <small>Tu evolucion continua.</small>
+                </div>
+            </div>
             <div class="week-dots week-stack">
                 <?php foreach ($weekActivity as $day): ?>
                     <div class="week-day" title="<?= e($day['date']) ?>">
@@ -351,7 +367,6 @@ function shortText(string|null $value, int $limit = 42): string
             </div>
         </section>
 
-        <?php require __DIR__ . '/partials/sidebar_user_mini.php'; ?>
         <?php require __DIR__ . '/partials/sidebar_bottom.php'; ?>
     </aside>
 
@@ -382,7 +397,14 @@ function shortText(string|null $value, int $limit = 42): string
                         <p><?= number_format($xpCurrentLevel, 0, ',', '.') ?> / <?= number_format($xpPerLevel, 0, ',', '.') ?> XP</p>
                         <div class="mini-progress"><i style="width: <?= $xpPercent ?>%"></i></div>
                     </div>
-                    <div class="level-avatar">LQ</div>
+                    <?php $progressAvatarSrc = AvatarLibrary::getAvatarSrc($user['avatar'] ?? null); ?>
+                    <div class="level-avatar">
+                        <?php if ($progressAvatarSrc !== null): ?>
+                            <img src="<?= e($progressAvatarSrc) ?>" alt="" class="level-avatar-image">
+                        <?php else: ?>
+                            LQ
+                        <?php endif; ?>
+                    </div>
                 </article>
 
                 <article class="progress-card metric-card">
@@ -554,5 +576,6 @@ function shortText(string|null $value, int $limit = 42): string
             </section>
         </section>
     </main>
+    <script src="../assets/js/app.js"></script>
 </body>
 </html>
