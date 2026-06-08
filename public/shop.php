@@ -74,7 +74,7 @@ if (isset($_GET['message'], $_GET['type'])) {
 }
 
 if ($shopEnabled) {
-    $rewardModel->ensureDefaultIndulgences($userId);
+    $rewardModel->ensureDefaultCatalog();
 }
 
 $indulgences = $shopEnabled ? $rewardModel->getShopItems($userId, 'indulgence') : [];
@@ -375,6 +375,12 @@ $cosmeticTabs = [
                                     $visualClass = shopVisualClass($item, 'cosmetic');
                                     $isOwned = !empty($item['owned']);
                                     $isEquipped = !empty($item['equipped']);
+                                    $initialAvatarFile = AvatarLibrary::normalizeAvatar($user['initial_avatar'] ?? null);
+                                    $itemAvatarFile = AvatarLibrary::normalizeAvatar(basename(str_replace('\\', '/', (string) ($item['image_path'] ?? ''))));
+                                    $isInitialAvatar = strtolower((string) ($item['category'] ?? '')) === 'avatar'
+                                        && $initialAvatarFile !== null
+                                        && $itemAvatarFile !== null
+                                        && $initialAvatarFile === $itemAvatarFile;
                                     $imageSrc = shopImageSrc($item['image_path'] ?? null);
                                     ?>
                                     <article class="shop-card cosmetic-card<?= $isOwned ? ' owned' : '' ?><?= $isEquipped ? ' equipped' : '' ?>">
@@ -391,7 +397,9 @@ $cosmeticTabs = [
                                                     <span class="shop-type cosmetic"><?= e(shopCategoryLabel($item['category'] ?? '', 'cosmetic')) ?></span>
                                                     <h2><?= e(shortText($item['name'], 34)) ?></h2>
                                                 </div>
-                                                <?php if ($isEquipped): ?>
+                                                <?php if ($isInitialAvatar): ?>
+                                                    <span class="shop-state equipped">Avatar inicial</span>
+                                                <?php elseif ($isEquipped): ?>
                                                     <span class="shop-state equipped">Equipado</span>
                                                 <?php elseif ($isOwned): ?>
                                                     <span class="shop-state owned">Inventario</span>
@@ -400,16 +408,20 @@ $cosmeticTabs = [
                                             <p><?= e(shortText($item['description'], 96)) ?></p>
                                             <div class="shop-meta-line">
                                                 <strong><?= e(formatCoins((int) $item['cost_points'])) ?></strong>
-                                                <span><?= $isOwned ? 'Desbloqueado' : 'Visual' ?></span>
+                                                <span><?= $isInitialAvatar ? 'Incluido al inicio' : ($isOwned ? 'Desbloqueado' : 'Visual') ?></span>
                                             </div>
-                                            <form method="POST">
-                                                <input type="hidden" name="csrf_token" value="<?= e((string) $_SESSION['csrf_token']) ?>">
-                                                <input type="hidden" name="action" value="<?= $isOwned ? 'equip_cosmetic' : 'redeem_cosmetic' ?>">
-                                                <input type="hidden" name="reward_id" value="<?= (int) $item['id'] ?>">
-                                                <button type="submit" <?= ($isEquipped || (!$isOwned && !$canAfford)) ? 'disabled' : '' ?>>
-                                                    <?= $isEquipped ? 'Equipado' : ($isOwned ? 'Equipar' : (!$canAfford ? 'LifeCoins insuficientes' : 'Desbloquear')) ?>
-                                                </button>
-                                            </form>
+                                            <?php if (!$isInitialAvatar): ?>
+                                                <form method="POST">
+                                                    <input type="hidden" name="csrf_token" value="<?= e((string) $_SESSION['csrf_token']) ?>">
+                                                    <input type="hidden" name="action" value="<?= $isOwned ? 'equip_cosmetic' : 'redeem_cosmetic' ?>">
+                                                    <input type="hidden" name="reward_id" value="<?= (int) $item['id'] ?>">
+                                                    <button type="submit" <?= ($isEquipped || (!$isOwned && !$canAfford)) ? 'disabled' : '' ?>>
+                                                        <?= $isEquipped ? 'Equipado' : ($isOwned ? 'Equipar' : (!$canAfford ? 'LifeCoins insuficientes' : 'Desbloquear')) ?>
+                                                    </button>
+                                                </form>
+                                            <?php else: ?>
+                                                <div class="shop-current-avatar-note">Este es tu avatar inicial y no se puede comprar.</div>
+                                            <?php endif; ?>
                                         </div>
                                     </article>
                                 <?php endforeach; ?>

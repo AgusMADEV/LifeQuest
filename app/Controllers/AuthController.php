@@ -69,6 +69,9 @@ final class AuthController
 
         $_SESSION['user_id'] = (int) $user['id'];
         $_SESSION['user_name'] = $user['name'];
+        $_SESSION['avatar_setup_completed'] = isset($user['avatar_setup_completed'])
+            ? (int) $user['avatar_setup_completed'] === 1
+            : true;
 
         return ['success' => true, 'message' => 'Sesión iniciada correctamente.'];
     }
@@ -84,6 +87,30 @@ final class AuthController
             header('Location: login.php');
             exit;
         }
+
+        if (self::needsAvatarOnboarding()) {
+            $currentPage = basename((string) ($_SERVER['SCRIPT_NAME'] ?? ''));
+
+            if ($currentPage !== 'avatar_setup.php') {
+                header('Location: avatar_setup.php');
+                exit;
+            }
+        }
+    }
+
+    public static function needsAvatarOnboarding(): bool
+    {
+        if (!isset($_SESSION['user_id'])) {
+            return false;
+        }
+
+        if (array_key_exists('avatar_setup_completed', $_SESSION)) {
+            return !((bool) $_SESSION['avatar_setup_completed']);
+        }
+
+        $userModel = new User();
+
+        return !$userModel->isAvatarSetupCompleted((int) $_SESSION['user_id']);
     }
 
     public static function logout(): void

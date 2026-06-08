@@ -7,6 +7,13 @@ final class AvatarLibrary
     private const AVATAR_DIRECTORY = __DIR__ . '/../../referencias/avatares';
     private const AVATAR_PUBLIC_PATH = '../referencias/avatares';
     private const PREFERRED_DEFAULT = 'jacob.png';
+    private const STARTER_AVATARS = [
+        'jacob.png',
+        'ariana.png',
+        'luna.png',
+        'mateo.png',
+        'melisa.png',
+    ];
 
     public static function getOptions(): array
     {
@@ -19,6 +26,32 @@ final class AvatarLibrary
                 'src' => self::buildPublicSrc($file),
             ];
         }, $files);
+    }
+
+    public static function getStarterOptions(): array
+    {
+        $files = self::getStarterFiles();
+
+        return array_map(static function (string $file): array {
+            return [
+                'file' => $file,
+                'label' => self::labelFromFilename($file),
+                'src' => self::buildPublicSrc($file),
+            ];
+        }, $files);
+    }
+
+    public static function getShopAvatarOptions(): array
+    {
+        $starterFiles = array_flip(self::getStarterFiles());
+
+        return array_map(static function (string $file): array {
+            return [
+                'file' => $file,
+                'label' => self::labelFromFilename($file),
+                'src' => self::buildPublicSrc($file),
+            ];
+        }, array_values(array_filter(self::getAvailableFiles(), static fn(string $file): bool => !isset($starterFiles[$file]))));
     }
 
     public static function getAvatarSrc(?string $avatarFile, ?string $fallbackFile = null): ?string
@@ -43,7 +76,7 @@ final class AvatarLibrary
 
     public static function getDefaultAvatarFile(): ?string
     {
-        $availableFiles = self::getAvailableFiles();
+        $availableFiles = self::getStarterFiles();
 
         if (in_array(self::PREFERRED_DEFAULT, $availableFiles, true)) {
             return self::PREFERRED_DEFAULT;
@@ -76,6 +109,15 @@ final class AvatarLibrary
         sort($files, SORT_NATURAL | SORT_FLAG_CASE);
 
         return $files;
+    }
+
+    public static function getStarterFiles(): array
+    {
+        $availableFiles = self::getAvailableFiles();
+
+        $starterFiles = array_values(array_filter(self::STARTER_AVATARS, static fn(string $file): bool => in_array($file, $availableFiles, true)));
+
+        return $starterFiles !== [] ? $starterFiles : ($availableFiles !== [] ? [$availableFiles[0]] : []);
     }
 
     private static function cleanAvatarFilename(?string $avatarFile): ?string

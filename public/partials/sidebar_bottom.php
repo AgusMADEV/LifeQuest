@@ -44,9 +44,9 @@ foreach (array_merge($sessionBadgeToasts, $queryBadgeToasts) as $badge) {
 ?>
 
 <div class="lq-sidebar-bottom">
-    <a href="#">⚙️</a>
-    <a href="#">?</a>
-    <a href="logout.php">↪</a>
+    <a href="profile.php" aria-label="Abrir configuracion del perfil" title="Configuracion">⚙️</a>
+    <a href="mailto:soporte@lifequest.app?subject=Ayuda%20LifeQuest" aria-label="Contactar con soporte" title="Ayuda">?</a>
+    <a href="logout.php" aria-label="Cerrar sesion" title="Cerrar sesion">↪</a>
 </div>
 
 <?php if (!empty($badgeToasts)): ?>

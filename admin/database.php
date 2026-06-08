@@ -300,6 +300,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    if ($action === 'delete_shop_reward') {
+        $section = 'shop';
+        $rewardId = (int) ($_POST['reward_id'] ?? 0);
+
+        try {
+            $ok = $manager->deleteShopReward($rewardId);
+            header('Location: database.php?section=shop&shop_filter=' . urlencode($shopFilter) . '&message=' . urlencode($ok ? 'Recompensa eliminada del catalogo global.' : 'No se pudo eliminar la recompensa.') . '&type=' . ($ok ? 'success' : 'error'));
+            exit;
+        } catch (Throwable $exception) {
+            $message = 'Error eliminando recompensa: ' . $exception->getMessage();
+            $messageType = 'error';
+        }
+    }
+
     if ($action === 'grant_inventory_item') {
         $section = 'shop';
         try {
@@ -949,14 +963,7 @@ function adminSectionSubtitle(string $section): string
                                         <input type="hidden" name="action" value="create_shop_reward">
                                         <input type="hidden" name="section" value="shop">
 
-                                        <label>Usuario destino
-                                            <select name="target_user_id">
-                                                <option value="0">Todos los usuarios</option>
-                                                <?php foreach ($adminUsers as $adminUser): ?>
-                                                    <option value="<?= (int) $adminUser['id'] ?>">#<?= (int) $adminUser['id'] ?> · <?= e((string) $adminUser['name']) ?> · <?= e((string) $adminUser['email']) ?></option>
-                                                <?php endforeach; ?>
-                                            </select>
-                                        </label>
+                                        <div class="admin-note">El catalogo es global: cualquier cambio se aplica a todos los usuarios.</div>
 
                                     <div class="admin-row-2">
                                         <label>Tipo
@@ -1057,7 +1064,7 @@ function adminSectionSubtitle(string $section): string
                                                             <span class="admin-muted">Sin imagen</span>
                                                         <?php endif; ?>
                                                     </td>
-                                                    <td>#<?= (int) $reward['user_id'] ?><br><small><?= e((string) $reward['user_email']) ?></small></td>
+                                                    <td><?= !empty($reward['user_id']) ? ('#' . (int) $reward['user_id'] . '<br><small>' . e((string) $reward['user_email']) . '</small>') : 'Global' ?></td>
                                                     <td><?= e((string) $reward['shop_type']) ?></td>
                                                     <td><?= e((string) $reward['category']) ?></td>
                                                     <td><?= number_format((int) $reward['cost_points'], 0, ',', '.') ?></td>
@@ -1072,6 +1079,13 @@ function adminSectionSubtitle(string $section): string
                                                             <input type="hidden" name="reward_id" value="<?= (int) $reward['id'] ?>">
                                                             <input type="hidden" name="active" value="<?= !empty($reward['active']) ? '0' : '1' ?>">
                                                             <button type="submit" class="admin-inline-btn <?= !empty($reward['active']) ? '' : 'primary' ?>"><?= !empty($reward['active']) ? 'Desactivar' : 'Activar' ?></button>
+                                                        </form>
+                                                        <form method="POST" class="admin-row-actions" onsubmit="return confirm('¿Eliminar definitivamente esta recompensa global? Se borrará también de inventarios y canjes asociados.');">
+                                                            <input type="hidden" name="action" value="delete_shop_reward">
+                                                            <input type="hidden" name="section" value="shop">
+                                                            <input type="hidden" name="shop_filter" value="<?= e($shopFilter) ?>">
+                                                            <input type="hidden" name="reward_id" value="<?= (int) $reward['id'] ?>">
+                                                            <button type="submit" class="admin-inline-btn danger">Eliminar</button>
                                                         </form>
                                                     </td>
                                                 </tr>
@@ -1100,8 +1114,8 @@ function adminSectionSubtitle(string $section): string
                                         <input type="hidden" name="reward_id" value="<?= (int) $shopEditReward['id'] ?>">
 
                                         <div class="admin-row-2">
-                                            <label>Usuario dueño
-                                                <input type="text" value="#<?= (int) $shopEditReward['user_id'] ?> · <?= e((string) $shopEditReward['user_name']) ?>" disabled>
+                                            <label>Origen
+                                                <input type="text" value="<?= !empty($shopEditReward['user_id']) ? ('#' . (int) $shopEditReward['user_id'] . ' · ' . (string) $shopEditReward['user_name']) : 'Catalogo global' ?>" disabled>
                                             </label>
                                             <label>Estado
                                                 <select name="active">
@@ -1186,15 +1200,15 @@ function adminSectionSubtitle(string $section): string
                                             <?php endforeach; ?>
                                         </select>
                                     </label>
-                                    <label>Cosmetico del mismo usuario
+                                    <label>Cosmetico global
                                         <select name="reward_id" required>
                                             <?php foreach ($shopCosmeticRewards as $reward): ?>
-                                                <option value="<?= (int) $reward['id'] ?>">#<?= (int) $reward['id'] ?> · U<?= (int) $reward['user_id'] ?> · <?= e((string) $reward['name']) ?></option>
+                                                <option value="<?= (int) $reward['id'] ?>">#<?= (int) $reward['id'] ?> · <?= e((string) $reward['name']) ?></option>
                                             <?php endforeach; ?>
                                         </select>
                                     </label>
                                     <button type="submit" class="btn btn-secondary full">Conceder al inventario</button>
-                                    <p class="admin-muted">El cosmetico debe pertenecer al usuario seleccionado para evitar mezclar catalogos personales.</p>
+                                    <p class="admin-muted">El cosmetico se toma del catalogo global y solo el inventario queda asociado al usuario.</p>
                                 </form>
                             </div>
                         </article>

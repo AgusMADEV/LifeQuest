@@ -97,7 +97,7 @@ final class AdminDatabaseManager
                        r.cost_points, r.category, r.shop_type,
                        r.effect_hp, r.weekly_limit, r.active, r.created_at
                 FROM rewards r
-                INNER JOIN users u ON u.id = r.user_id
+            LEFT JOIN users u ON u.id = r.user_id
                 ' . $where . '
                 ORDER BY r.created_at DESC, r.id DESC
                 LIMIT ' . $limit;
@@ -124,8 +124,8 @@ final class AdminDatabaseManager
                        ' . ($this->hasColumn('rewards', 'image_path') ? 'r.image_path' : 'NULL') . ' AS image_path,
                        r.cost_points, r.category, r.shop_type,
                        r.effect_hp, r.weekly_limit, r.active, r.created_at
-                FROM rewards r
-                INNER JOIN users u ON u.id = r.user_id
+            FROM rewards r
+            LEFT JOIN users u ON u.id = r.user_id
                 WHERE r.id = :reward_id
                 LIMIT 1';
 
@@ -138,7 +138,6 @@ final class AdminDatabaseManager
 
     public function createShopReward(array $payload): int
     {
-        $targetUserId = max(0, (int) ($payload['target_user_id'] ?? 0));
         $name = trim((string) ($payload['name'] ?? ''));
         $description = trim((string) ($payload['description'] ?? ''));
         $imagePath = $this->normalizeImagePath((string) ($payload['image_path'] ?? ''));
@@ -155,53 +154,35 @@ final class AdminDatabaseManager
             return 0;
         }
 
-        $users = [];
-        if ($targetUserId > 0) {
-            $users[] = $targetUserId;
-        } else {
-            $stmt = $this->db->query('SELECT id FROM users ORDER BY id ASC');
-            $users = array_map(static fn(array $row): int => (int) $row['id'], $stmt->fetchAll());
-        }
-
-        if (empty($users)) {
-            return 0;
-        }
-
         $inserted = 0;
         $supportsImagePath = $this->hasColumn('rewards', 'image_path');
         $insert = $this->db->prepare(
             'INSERT INTO rewards (user_id, name, description' . ($supportsImagePath ? ', image_path' : '') . ', cost_points, category, shop_type, effect_hp, weekly_limit, active)
-             SELECT :user_id, :name, :description' . ($supportsImagePath ? ', :image_path' : '') . ', :cost_points, :category, :shop_type, :effect_hp, :weekly_limit, :active
+             SELECT NULL, :name, :description' . ($supportsImagePath ? ', :image_path' : '') . ', :cost_points, :category, :shop_type, :effect_hp, :weekly_limit, :active
              WHERE NOT EXISTS (
-                SELECT 1 FROM rewards WHERE user_id = :exists_user_id AND name = :exists_name LIMIT 1
+                SELECT 1 FROM rewards WHERE user_id IS NULL AND name = :exists_name AND shop_type = :exists_shop_type LIMIT 1
              )'
         );
 
-        foreach ($users as $userId) {
-            $params = [
-                'user_id' => $userId,
-                'name' => $name,
-                'description' => $description,
-            ];
+        $params = [
+            'name' => $name,
+            'description' => $description,
+            'cost_points' => $costPoints,
+            'category' => $category,
+            'shop_type' => $shopType,
+            'effect_hp' => $effectHp,
+            'weekly_limit' => $weeklyLimit,
+            'active' => $active,
+            'exists_name' => $name,
+            'exists_shop_type' => $shopType,
+        ];
 
-            if ($supportsImagePath) {
-                $params['image_path'] = $imagePath;
-            }
-
-            $params += [
-                'cost_points' => $costPoints,
-                'category' => $category,
-                'shop_type' => $shopType,
-                'effect_hp' => $effectHp,
-                'weekly_limit' => $weeklyLimit,
-                'active' => $active,
-                'exists_user_id' => $userId,
-                'exists_name' => $name,
-            ];
-
-            $insert->execute($params);
-            $inserted += $insert->rowCount();
+        if ($supportsImagePath) {
+            $params['image_path'] = $imagePath;
         }
+
+        $insert->execute($params);
+        $inserted += $insert->rowCount();
 
         return $inserted;
     }
@@ -233,25 +214,23 @@ final class AdminDatabaseManager
             return false;
         }
 
-        $ownerId = (int) ($current['user_id'] ?? 0);
-        if ($ownerId > 0) {
-            $duplicateStmt = $this->db->prepare(
-                'SELECT 1
-                 FROM rewards
-                 WHERE user_id = :user_id
-                   AND name = :name
-                   AND id <> :reward_id
-                 LIMIT 1'
-            );
-            $duplicateStmt->execute([
-                'user_id' => $ownerId,
-                'name' => $name,
-                'reward_id' => $rewardId,
-            ]);
+        $duplicateStmt = $this->db->prepare(
+            'SELECT 1
+             FROM rewards
+             WHERE user_id IS NULL
+               AND name = :name
+               AND shop_type = :shop_type
+               AND id <> :reward_id
+             LIMIT 1'
+        );
+        $duplicateStmt->execute([
+            'name' => $name,
+            'shop_type' => $shopType,
+            'reward_id' => $rewardId,
+        ]);
 
-            if ($duplicateStmt->fetchColumn()) {
-                return false;
-            }
+        if ($duplicateStmt->fetchColumn()) {
+            return false;
         }
 
         $supportsImagePath = $this->hasColumn('rewards', 'image_path');
@@ -300,6 +279,23 @@ final class AdminDatabaseManager
         return $stmt->rowCount() >= 0;
     }
 
+    public function deleteShopReward(int $rewardId): bool
+    {
+        if ($rewardId < 1) {
+            return false;
+        }
+
+        $stmt = $this->db->prepare(
+            'DELETE FROM rewards
+             WHERE id = :id
+               AND user_id IS NULL
+             LIMIT 1'
+        );
+        $stmt->execute(['id' => $rewardId]);
+
+        return $stmt->rowCount() > 0;
+    }
+
     public function getShopInventory(int $limit = 80): array
     {
         if (!$this->tableExists('user_reward_inventory')) {
@@ -307,16 +303,16 @@ final class AdminDatabaseManager
         }
 
         $limit = max(1, min($limit, 200));
-        $stmt = $this->db->query(
-            'SELECT uri.id, uri.user_id, u.name AS user_name, u.email AS user_email,
+           $stmt = $this->db->query(
+              'SELECT uri.id, uri.user_id, u.name AS user_name, u.email AS user_email,
                     uri.reward_id, r.name AS reward_name, r.category, uri.equipped,
                     uri.acquired_at, uri.equipped_at
-             FROM user_reward_inventory uri
-             INNER JOIN users u ON u.id = uri.user_id
-             INNER JOIN rewards r ON r.id = uri.reward_id
-             ORDER BY uri.equipped DESC, uri.acquired_at DESC
-             LIMIT ' . $limit
-        );
+               FROM user_reward_inventory uri
+               INNER JOIN users u ON u.id = uri.user_id
+               INNER JOIN rewards r ON r.id = uri.reward_id
+               ORDER BY uri.equipped DESC, uri.acquired_at DESC
+               LIMIT ' . $limit
+           );
 
         return $stmt->fetchAll();
     }
@@ -328,18 +324,16 @@ final class AdminDatabaseManager
         }
 
         $stmt = $this->db->prepare(
-            'INSERT INTO user_reward_inventory (user_id, reward_id, equipped)
-             SELECT :user_id, r.id, 0
+                        'INSERT INTO user_reward_inventory (user_id, reward_id, equipped)
+                         SELECT :user_id, r.id, 0
              FROM rewards r
              WHERE r.id = :reward_id
-               AND r.user_id = :reward_user_id
                AND r.shop_type = \'cosmetic\'
              ON DUPLICATE KEY UPDATE reward_id = reward_id'
         );
         $stmt->execute([
             'user_id' => $userId,
             'reward_id' => $rewardId,
-            'reward_user_id' => $userId,
         ]);
 
         return $stmt->rowCount() >= 0;

@@ -8,6 +8,7 @@ require_once __DIR__ . '/../app/Models/Goal.php';
 require_once __DIR__ . '/../app/Models/Project.php';
 require_once __DIR__ . '/../app/Models/Task.php';
 require_once __DIR__ . '/../app/Models/LifeArea.php';
+require_once __DIR__ . '/../app/Support/StreakWeek.php';
 require_once __DIR__ . '/../app/Models/User.php';
 require_once __DIR__ . '/../app/Support/AvatarLibrary.php';
 AuthController::requireAuth();
@@ -21,6 +22,10 @@ if (!$user) {
     header('Location: login.php');
     exit;
 }
+
+$weekStart = new DateTimeImmutable('monday this week');
+$weekActivity = buildWeeklyActivityByUser($userId, $weekStart);
+$currentStreak = (int) ($user['current_streak'] ?? 0);
 
 $goalController = new GoalController();
 $projectController = new ProjectController();
@@ -470,13 +475,35 @@ function fieldError(array $errors, string $key): string
         <?php $activeNav = 'goals'; ?>
         <?php require __DIR__ . '/partials/sidebar_nav.php'; ?>
 
+        <section class="lq-sidebar-card streak">
+            <div class="streak-summary">
+                <div class="streak-icon" aria-hidden="true">
+                    <img src="../icons/flame.png" alt="" class="streak-flame-image">
+                </div>
+                <div class="streak-copy">
+                    <p>Racha actual</p>
+                    <strong><?= $currentStreak ?> días</strong>
+                    <small>¡Sigue así!</small>
+                </div>
+            </div>
+            <div class="week-dots week-stack">
+                <?php foreach ($weekActivity as $day): ?>
+                    <div class="week-day" title="<?= e($day['date']) ?>">
+                        <span class="week-dot <?= $day['done'] ? 'done' : '' ?>"><?= $day['done'] ? '✓' : '' ?></span>
+                        <small class="week-label"><?= $day['label'] ?></small>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </section>
         <section class="lq-sidebar-card unlock">
             <div>
                 <strong>Tu centro de avance</strong>
                 <p>Todo tu sistema en un solo módulo: metas, retos y misiones.</p>
                 <a href="goals.php?section=tasks&period=<?= e($period) ?>" class="mini-btn">Ir a misiones</a>
             </div>
-            <span class="bag">🧠</span>
+            <span class="bag">
+                <img src="../icons/bag.png" alt="" class="bag-image">
+            </span>
         </section>
 
         <?php require __DIR__ . '/partials/sidebar_bottom.php'; ?>

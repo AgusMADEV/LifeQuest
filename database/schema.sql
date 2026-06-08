@@ -7,9 +7,16 @@ USE lifequest;
 CREATE TABLE users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
+    apellidos VARCHAR(100) DEFAULT NULL,
     email VARCHAR(150) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
     avatar VARCHAR(255) DEFAULT NULL,
+    initial_avatar VARCHAR(255) DEFAULT NULL,
+    avatar_setup_completed TINYINT(1) NOT NULL DEFAULT 1,
+    motivational_line VARCHAR(160) DEFAULT NULL,
+    profile_bio VARCHAR(255) DEFAULT NULL,
+    profile_theme VARCHAR(20) NOT NULL DEFAULT 'light',
+    profile_notifications_enabled TINYINT(1) NOT NULL DEFAULT 1,
     level INT DEFAULT 1,
     xp INT DEFAULT 0,
     points INT DEFAULT 0,
@@ -139,7 +146,7 @@ CREATE TABLE battle_sessions (
 
 CREATE TABLE rewards (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
+    user_id INT DEFAULT NULL,
     name VARCHAR(150) NOT NULL,
     description TEXT,
     image_path VARCHAR(255) NULL,

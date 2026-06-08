@@ -4,7 +4,7 @@ require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../app/Controllers/AuthController.php';
 
 if (isset($_SESSION['user_id'])) {
-    header('Location: dashboard.php');
+    header('Location: ' . (AuthController::needsAvatarOnboarding() ? 'avatar_setup.php' : 'dashboard.php'));
     exit;
 }
 
@@ -16,7 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $result = $auth->login($_POST);
 
     if ($result['success']) {
-        header('Location: dashboard.php');
+        header('Location: ' . (AuthController::needsAvatarOnboarding() ? 'avatar_setup.php' : 'dashboard.php'));
         exit;
     }
 

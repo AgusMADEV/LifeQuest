@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../Database/connection.php';
 require_once __DIR__ . '/AppSettings.php';
+require_once __DIR__ . '/../Support/AvatarLibrary.php';
 
 final class Reward
 {
@@ -16,7 +17,7 @@ final class Reward
         $this->db = Connection::getConnection();
     }
 
-    public function ensureDefaultCatalog(int $userId): void
+    public function ensureDefaultCatalog(): void
     {
         $catalog = [
             [
@@ -105,18 +106,38 @@ final class Reward
         $supportsShopType = $this->hasColumn('rewards', 'shop_type');
         $supportsEffectHp = $this->hasColumn('rewards', 'effect_hp');
         $supportsWeeklyLimit = $this->hasColumn('rewards', 'weekly_limit');
+        $supportsImagePath = $this->hasColumn('rewards', 'image_path');
+
+        foreach (AvatarLibrary::getShopAvatarOptions() as $avatarOption) {
+            $avatarFile = (string) ($avatarOption['file'] ?? '');
+
+            if ($avatarFile === '') {
+                continue;
+            }
+
+            $catalog[] = [
+                'name' => 'Avatar ' . (string) ($avatarOption['label'] ?? pathinfo($avatarFile, PATHINFO_FILENAME)),
+                'description' => 'Avatar desbloqueable para tu perfil.',
+                'cost_points' => 350,
+                'category' => 'avatar',
+                'shop_type' => 'cosmetic',
+                'effect_hp' => 0,
+                'weekly_limit' => 99,
+                'image_path' => AvatarLibrary::getAvatarSrc($avatarFile),
+            ];
+        }
 
         foreach ($catalog as $item) {
             $exists = $this->db->prepare(
                 'SELECT id
                  FROM rewards
-                 WHERE user_id = :user_id
-                   AND name = :name
+                 WHERE name = :name
+                   AND shop_type = :shop_type
                  LIMIT 1'
             );
             $exists->execute([
-                'user_id' => $userId,
                 'name' => $item['name'],
+                'shop_type' => $item['shop_type'],
             ]);
 
             if ($exists->fetch()) {
@@ -124,12 +145,13 @@ final class Reward
             }
 
             if ($supportsShopType && $supportsEffectHp && $supportsWeeklyLimit) {
-                $insert = $this->db->prepare(
-                    'INSERT INTO rewards (user_id, name, description, cost_points, category, shop_type, effect_hp, weekly_limit, active)
-                     VALUES (:user_id, :name, :description, :cost_points, :category, :shop_type, :effect_hp, :weekly_limit, 1)'
-                );
-                $insert->execute([
-                    'user_id' => $userId,
+                $sql = 'INSERT INTO rewards (user_id, name, description, cost_points, category, shop_type, effect_hp, weekly_limit, active'
+                    . ($supportsImagePath ? ', image_path' : '')
+                    . ') VALUES (NULL, :name, :description, :cost_points, :category, :shop_type, :effect_hp, :weekly_limit, 1'
+                    . ($supportsImagePath ? ', :image_path' : '')
+                    . ')';
+                $insert = $this->db->prepare($sql);
+                $params = [
                     'name' => $item['name'],
                     'description' => $item['description'],
                     'cost_points' => $item['cost_points'],
@@ -137,25 +159,38 @@ final class Reward
                     'shop_type' => $item['shop_type'],
                     'effect_hp' => $item['effect_hp'],
                     'weekly_limit' => $item['weekly_limit'],
-                ]);
+                ];
+
+                if ($supportsImagePath) {
+                    $params['image_path'] = (string) ($item['image_path'] ?? '');
+                }
+
+                $insert->execute($params);
                 continue;
             }
 
-            $insert = $this->db->prepare(
-                'INSERT INTO rewards (user_id, name, description, cost_points, category, active)
-                 VALUES (:user_id, :name, :description, :cost_points, :category, 1)'
-            );
-            $insert->execute([
-                'user_id' => $userId,
+            $sql = 'INSERT INTO rewards (user_id, name, description, cost_points, category, active'
+                . ($supportsImagePath ? ', image_path' : '')
+                . ') VALUES (NULL, :name, :description, :cost_points, :category, 1'
+                . ($supportsImagePath ? ', :image_path' : '')
+                . ')';
+            $insert = $this->db->prepare($sql);
+            $params = [
                 'name' => $item['name'],
                 'description' => $item['description'],
                 'cost_points' => $item['cost_points'],
                 'category' => $item['category'],
-            ]);
+            ];
+
+            if ($supportsImagePath) {
+                $params['image_path'] = (string) ($item['image_path'] ?? '');
+            }
+
+            $insert->execute($params);
         }
     }
 
-    public function ensureDefaultIndulgences(int $userId): void
+    public function ensureDefaultIndulgences(): void
     {
         $catalog = [
             [
@@ -195,13 +230,13 @@ final class Reward
             $exists = $this->db->prepare(
                 'SELECT id
                  FROM rewards
-                 WHERE user_id = :user_id
-                   AND name = :name
+                 WHERE name = :name
+                   AND shop_type = :shop_type
                  LIMIT 1'
             );
             $exists->execute([
-                'user_id' => $userId,
                 'name' => $item['name'],
+                'shop_type' => $item['shop_type'],
             ]);
 
             if ($exists->fetch()) {
@@ -211,10 +246,9 @@ final class Reward
             if ($supportsShopType && $supportsEffectHp && $supportsWeeklyLimit) {
                 $insert = $this->db->prepare(
                     'INSERT INTO rewards (user_id, name, description, cost_points, category, shop_type, effect_hp, weekly_limit, active)
-                     VALUES (:user_id, :name, :description, :cost_points, :category, :shop_type, :effect_hp, :weekly_limit, 1)'
+                     VALUES (NULL, :name, :description, :cost_points, :category, :shop_type, :effect_hp, :weekly_limit, 1)'
                 );
                 $insert->execute([
-                    'user_id' => $userId,
                     'name' => $item['name'],
                     'description' => $item['description'],
                     'cost_points' => $item['cost_points'],
@@ -228,10 +262,9 @@ final class Reward
 
             $insert = $this->db->prepare(
                 'INSERT INTO rewards (user_id, name, description, cost_points, category, active)
-                 VALUES (:user_id, :name, :description, :cost_points, :category, 1)'
+                 VALUES (NULL, :name, :description, :cost_points, :category, 1)'
             );
             $insert->execute([
-                'user_id' => $userId,
                 'name' => $item['name'],
                 'description' => $item['description'],
                 'cost_points' => $item['cost_points'],
@@ -264,6 +297,7 @@ final class Reward
                        ' . ($supportsImagePath ? 'r.image_path' : 'NULL') . ' AS image_path,
                        r.cost_points,
                        r.category,
+                       (SELECT avatar FROM users WHERE id = :current_avatar_user_id LIMIT 1) AS current_avatar,
                        ' . ($supportsEffectHp ? 'r.effect_hp' : '0') . ' AS effect_hp,
                        ' . ($supportsWeeklyLimit ? 'r.weekly_limit' : '2') . ' AS weekly_limit,
                        ' . ($supportsInventory ? 'MAX(CASE WHEN uri.id IS NULL THEN 0 ELSE 1 END)' : '0') . ' AS owned,
@@ -272,19 +306,18 @@ final class Reward
                 FROM rewards r
                 LEFT JOIN reward_redemptions rr
                        ON rr.reward_id = r.id
-                      AND rr.user_id = :rr_user_id
+                      AND rr.user_id = :redemption_user_id
                       AND YEARWEEK(rr.redeemed_at, 1) = YEARWEEK(CURDATE(), 1)
                 ' . $inventoryJoin . '
-                WHERE r.user_id = :r_user_id
-                  AND r.active = 1
+                                WHERE r.active = 1
                   AND ' . $shopTypeSql . '
-                GROUP BY r.id, r.name, r.description, image_path, r.cost_points, r.category, effect_hp, weekly_limit
+                GROUP BY r.id, r.name, r.description, image_path, r.cost_points, r.category, current_avatar, effect_hp, weekly_limit
                 ORDER BY r.cost_points ASC, r.created_at DESC';
 
         $stmt = $this->db->prepare($sql);
         $params = [
-            'rr_user_id' => $userId,
-            'r_user_id' => $userId,
+            'current_avatar_user_id' => $userId,
+            'redemption_user_id' => $userId,
         ];
 
         if ($supportsInventory) {
@@ -307,6 +340,14 @@ final class Reward
                 ? (int) ceil($baseCost * pow(max(1.0, $multiplier), $weeklyUsed))
             : (int) ceil($baseCost * max(0.1, $cosmeticMultiplier));
 
+            $category = strtolower((string) ($row['category'] ?? ''));
+            $avatarFile = AvatarLibrary::normalizeAvatar(basename(str_replace('\\', '/', (string) ($row['image_path'] ?? ''))));
+            $currentAvatarFile = AvatarLibrary::normalizeAvatar((string) ($row['current_avatar'] ?? null));
+            $isAvatarEquipped = $category === 'avatar'
+                && $avatarFile !== null
+                && $currentAvatarFile !== null
+                && $currentAvatarFile === $avatarFile;
+
             return [
                 'id' => (int) $row['id'],
                 'name' => (string) $row['name'],
@@ -319,7 +360,7 @@ final class Reward
                 'weekly_limit' => max(1, (int) ($row['weekly_limit'] ?? 1)),
                 'weekly_used' => $weeklyUsed,
                 'owned' => !empty($row['owned']),
-                'equipped' => !empty($row['equipped']),
+                'equipped' => $category === 'avatar' ? $isAvatarEquipped : !empty($row['equipped']),
             ];
         }, $stmt->fetchAll());
     }
@@ -353,7 +394,6 @@ final class Reward
                          ' . ($supportsWeeklyLimit ? 'weekly_limit' : '2') . ' AS weekly_limit
                   FROM rewards
                   WHERE id = :reward_id
-                    AND user_id = :user_id
                     AND active = 1';
 
         if ($supportsShopType) {
@@ -363,7 +403,6 @@ final class Reward
         $rewardStmt = $this->db->prepare($query);
         $rewardStmt->execute([
             'reward_id' => $rewardId,
-            'user_id' => $userId,
         ]);
 
         $reward = $rewardStmt->fetch();
@@ -477,13 +516,12 @@ final class Reward
     public function redeemCosmetic(int $userId, int $rewardId): array
     {
         $supportsShopType = $this->hasColumn('rewards', 'shop_type');
-                $supportsInventory = $this->hasTable('user_reward_inventory');
+        $supportsInventory = $this->hasTable('user_reward_inventory');
 
-                $query = 'SELECT id, name, cost_points, category
-                  FROM rewards
-                  WHERE id = :reward_id
-                    AND user_id = :user_id
-                    AND active = 1';
+        $query = 'SELECT id, name, cost_points, category
+              FROM rewards
+              WHERE id = :reward_id
+                AND active = 1';
 
         if ($supportsShopType) {
             $query .= "\n                    AND shop_type = 'cosmetic'";
@@ -492,7 +530,6 @@ final class Reward
         $rewardStmt = $this->db->prepare($query);
         $rewardStmt->execute([
             'reward_id' => $rewardId,
-            'user_id' => $userId,
         ]);
 
         $reward = $rewardStmt->fetch();
@@ -572,18 +609,73 @@ final class Reward
 
     public function equipCosmetic(int $userId, int $rewardId): array
     {
+        if ($rewardId <= 0) {
+            $initialAvatarStmt = $this->db->prepare(
+                'SELECT initial_avatar
+                 FROM users
+                 WHERE id = :user_id
+                 LIMIT 1'
+            );
+            $initialAvatarStmt->execute(['user_id' => $userId]);
+
+            $initialAvatarFile = AvatarLibrary::normalizeAvatar((string) $initialAvatarStmt->fetchColumn());
+
+            if ($initialAvatarFile === null) {
+                return ['success' => false, 'message' => 'No se pudo resolver el avatar inicial.'];
+            }
+
+            try {
+                $this->db->beginTransaction();
+
+                if ($this->hasTable('user_reward_inventory')) {
+                    $unequip = $this->db->prepare(
+                        'UPDATE user_reward_inventory uri
+                         INNER JOIN rewards r ON r.id = uri.reward_id
+                         SET uri.equipped = 0,
+                             uri.equipped_at = NULL
+                         WHERE uri.user_id = :inventory_user_id
+                           AND r.active = 1
+                           AND LOWER(r.category) = :category'
+                    );
+                    $unequip->execute([
+                        'inventory_user_id' => $userId,
+                        'category' => 'avatar',
+                    ]);
+                }
+
+                $updateAvatar = $this->db->prepare(
+                    'UPDATE users
+                     SET avatar = :avatar
+                     WHERE id = :user_id'
+                );
+                $updateAvatar->execute([
+                    'avatar' => $initialAvatarFile,
+                    'user_id' => $userId,
+                ]);
+
+                $this->db->commit();
+
+                return ['success' => true, 'message' => 'Avatar equipado: ' . $initialAvatarFile . '.'];
+            } catch (Throwable) {
+                if ($this->db->inTransaction()) {
+                    $this->db->rollBack();
+                }
+
+                return ['success' => false, 'message' => 'No se pudo equipar el avatar inicial.'];
+            }
+        }
+
         if (!$this->hasTable('user_reward_inventory')) {
             return ['success' => false, 'message' => 'El inventario todavía no está migrado.'];
         }
 
         $supportsShopType = $this->hasColumn('rewards', 'shop_type');
 
-        $query = 'SELECT r.id, r.name, r.category
+        $query = 'SELECT r.id, r.name, r.category, r.image_path
                   FROM user_reward_inventory uri
                   INNER JOIN rewards r ON r.id = uri.reward_id
                                     WHERE uri.user_id = :inventory_user_id
                     AND r.id = :reward_id
-                                        AND r.user_id = :reward_user_id
                     AND r.active = 1';
 
         if ($supportsShopType) {
@@ -593,7 +685,6 @@ final class Reward
         $stmt = $this->db->prepare($query);
         $stmt->execute([
             'inventory_user_id' => $userId,
-            'reward_user_id' => $userId,
             'reward_id' => $rewardId,
         ]);
 
@@ -604,6 +695,15 @@ final class Reward
         }
 
         $category = $this->normalizeCosmeticCategory((string) ($reward['category'] ?? 'cosmetico'));
+        $avatarFile = null;
+
+        if ($category === 'avatar') {
+            $avatarFile = AvatarLibrary::normalizeAvatar(basename(str_replace('\\', '/', (string) ($reward['image_path'] ?? ''))));
+
+            if ($avatarFile === null) {
+                return ['success' => false, 'message' => 'No se pudo resolver el avatar equipado.'];
+            }
+        }
 
         try {
             $this->db->beginTransaction();
@@ -614,13 +714,11 @@ final class Reward
                  SET uri.equipped = 0,
                      uri.equipped_at = NULL
                  WHERE uri.user_id = :inventory_user_id
-                   AND r.user_id = :reward_user_id
                    AND r.active = 1
                    AND LOWER(r.category) = :category'
             );
             $unequip->execute([
                 'inventory_user_id' => $userId,
-                'reward_user_id' => $userId,
                 'category' => $category,
             ]);
 
@@ -635,6 +733,18 @@ final class Reward
                 'user_id' => $userId,
                 'reward_id' => $rewardId,
             ]);
+
+            if ($avatarFile !== null) {
+                $updateAvatar = $this->db->prepare(
+                    'UPDATE users
+                     SET avatar = :avatar
+                     WHERE id = :user_id'
+                );
+                $updateAvatar->execute([
+                    'avatar' => $avatarFile,
+                    'user_id' => $userId,
+                ]);
+            }
 
             $this->db->commit();
 
@@ -656,37 +766,52 @@ final class Reward
         $supportsImagePath = $this->hasColumn('rewards', 'image_path');
 
         $query = 'SELECT r.id,
-                         r.name,
-                         r.description,
-                 ' . ($supportsImagePath ? 'r.image_path' : 'NULL') . ' AS image_path,
-                         r.cost_points,
-                         r.category,
-                         uri.equipped,
-                         uri.acquired_at,
-                         uri.equipped_at
+                 r.name,
+                 r.description,
+             ' . ($supportsImagePath ? 'r.image_path' : 'NULL') . ' AS image_path,
+                 r.cost_points,
+                 r.category,
+                 (SELECT avatar FROM users WHERE id = :inventory_avatar_user_id LIMIT 1) AS current_avatar,
+                 uri.equipped,
+                 uri.acquired_at,
+                 uri.equipped_at
                   FROM user_reward_inventory uri
                   INNER JOIN rewards r ON r.id = uri.reward_id
                                     WHERE uri.user_id = :inventory_user_id
-                                        AND r.user_id = :reward_user_id
                     AND r.active = 1';
 
         if ($supportsShopType) {
             $query .= "\n                    AND r.shop_type = 'cosmetic'";
         }
 
-        if ($equippedOnly) {
-            $query .= "\n                    AND uri.equipped = 1";
-        }
-
         $query .= "\n                  ORDER BY uri.equipped DESC, COALESCE(uri.equipped_at, uri.acquired_at) DESC, r.name ASC";
 
         $stmt = $this->db->prepare($query);
         $stmt->execute([
+            'inventory_avatar_user_id' => $userId,
             'inventory_user_id' => $userId,
-            'reward_user_id' => $userId,
         ]);
 
-        return array_map(static function (array $row): array {
+        $userAvatarStmt = $this->db->prepare(
+            'SELECT initial_avatar, avatar
+             FROM users
+             WHERE id = :user_id
+             LIMIT 1'
+        );
+        $userAvatarStmt->execute(['user_id' => $userId]);
+        $userAvatarRow = $userAvatarStmt->fetch() ?: [];
+        $initialAvatarFile = AvatarLibrary::normalizeAvatar((string) ($userAvatarRow['initial_avatar'] ?? null));
+        $currentAvatarFile = AvatarLibrary::normalizeAvatar((string) ($userAvatarRow['avatar'] ?? null));
+
+        $items = array_map(static function (array $row): array {
+            $category = strtolower((string) ($row['category'] ?? ''));
+            $avatarFile = AvatarLibrary::normalizeAvatar(basename(str_replace('\\', '/', (string) ($row['image_path'] ?? ''))));
+            $currentAvatarFile = AvatarLibrary::normalizeAvatar((string) ($row['current_avatar'] ?? null));
+            $isAvatarEquipped = $category === 'avatar'
+                && $avatarFile !== null
+                && $currentAvatarFile !== null
+                && $currentAvatarFile === $avatarFile;
+
             return [
                 'id' => (int) $row['id'],
                 'name' => (string) $row['name'],
@@ -694,11 +819,42 @@ final class Reward
                 'image_path' => (string) ($row['image_path'] ?? ''),
                 'category' => (string) ($row['category'] ?? ''),
                 'cost_points' => max(0, (int) ($row['cost_points'] ?? 0)),
-                'equipped' => !empty($row['equipped']),
+                'equipped' => $category === 'avatar' ? $isAvatarEquipped : !empty($row['equipped']),
                 'acquired_at' => (string) ($row['acquired_at'] ?? ''),
                 'equipped_at' => (string) ($row['equipped_at'] ?? ''),
             ];
         }, $stmt->fetchAll());
+        if ($initialAvatarFile !== null) {
+            $alreadyListed = false;
+            foreach ($items as $item) {
+                $itemAvatarFile = AvatarLibrary::normalizeAvatar(basename(str_replace('\\', '/', (string) ($item['image_path'] ?? ''))));
+
+                if (($item['category'] ?? '') === 'avatar' && $itemAvatarFile === $initialAvatarFile) {
+                    $alreadyListed = true;
+                    break;
+                }
+            }
+
+            if (!$alreadyListed) {
+                array_unshift($items, [
+                    'id' => 0,
+                    'name' => 'Avatar inicial',
+                    'description' => 'El avatar que elegiste al empezar.',
+                    'image_path' => AvatarLibrary::getAvatarSrc($initialAvatarFile) ?? $initialAvatarFile,
+                    'category' => 'avatar',
+                    'cost_points' => 0,
+                    'equipped' => $currentAvatarFile !== null && $currentAvatarFile === $initialAvatarFile,
+                    'acquired_at' => '',
+                    'equipped_at' => '',
+                ]);
+            }
+        }
+
+        if ($equippedOnly) {
+            return array_values(array_filter($items, static fn(array $item): bool => !empty($item['equipped'])));
+        }
+
+        return $items;
     }
 
     private function ownsCosmetic(int $userId, int $rewardId): bool

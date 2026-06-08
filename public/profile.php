@@ -5,6 +5,7 @@ require_once __DIR__ . '/../app/Models/User.php';
 require_once __DIR__ . '/../app/Models/Task.php';
 require_once __DIR__ . '/../app/Models/Habit.php';
 require_once __DIR__ . '/../app/Models/Badge.php';
+require_once __DIR__ . '/../app/Models/Reward.php';
 require_once __DIR__ . '/../app/Support/StreakWeek.php';
 require_once __DIR__ . '/../app/Support/AvatarLibrary.php';
 
@@ -24,36 +25,151 @@ if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
-$avatarOptions = AvatarLibrary::getOptions();
-$selectedAvatarFile = AvatarLibrary::normalizeAvatar($user['avatar'] ?? null) ?? AvatarLibrary::getDefaultAvatarFile();
+$profileTheme = 'light';
+$profileThemeLabel = 'Claro';
+
+$apellidos = trim((string) ($user['apellidos'] ?? ''));
+$profileBio = trim((string) ($user['profile_bio'] ?? ''));
+$profileBioFallback = 'Apasionado por aprender, mejorar y convertirme en mi mejor version cada dia.';
+$displayBio = $profileBio !== '' ? $profileBio : $profileBioFallback;
+$storedMotivationalLine = trim((string) ($user['motivational_line'] ?? ''));
+$motivationalLine = $storedMotivationalLine;
+
+$profileNotificationsEnabled = !isset($user['profile_notifications_enabled'])
+    || (int) $user['profile_notifications_enabled'] === 1;
+
+$rewardModel = new Reward();
+$inventoryCosmetics = $rewardModel->getInventoryCosmetics($userId);
+
+$defaultAvatarFile = AvatarLibrary::normalizeAvatar($user['initial_avatar'] ?? null)
+    ?? AvatarLibrary::normalizeAvatar($user['avatar'] ?? null)
+    ?? AvatarLibrary::getDefaultAvatarFile();
+$ownedAvatarOptions = [];
+foreach ($inventoryCosmetics as $item) {
+    if (strtolower((string) ($item['category'] ?? '')) !== 'avatar') {
+        continue;
+    }
+
+    $avatarFile = basename(str_replace('\\', '/', (string) ($item['image_path'] ?? '')));
+    $normalizedAvatarFile = AvatarLibrary::normalizeAvatar($avatarFile);
+
+    if ($normalizedAvatarFile === null) {
+        continue;
+    }
+
+    $ownedAvatarOptions[$normalizedAvatarFile] = [
+        'file' => $normalizedAvatarFile,
+        'label' => trim((string) ($item['name'] ?? $normalizedAvatarFile)),
+        'src' => AvatarLibrary::getAvatarSrc($normalizedAvatarFile),
+        'owned' => true,
+    ];
+}
+
+$selectedAvatarFile = AvatarLibrary::normalizeAvatar($user['avatar'] ?? null) ?? $defaultAvatarFile;
 $selectedAvatarSrc = AvatarLibrary::getAvatarSrc($selectedAvatarFile);
+
+$avatarOptions = [];
+if ($defaultAvatarFile !== null) {
+    $avatarOptions[$defaultAvatarFile] = [
+        'file' => $defaultAvatarFile,
+        'label' => 'Predeterminado',
+        'src' => AvatarLibrary::getAvatarSrc($defaultAvatarFile),
+        'owned' => true,
+    ];
+}
+
+foreach ($ownedAvatarOptions as $avatarFile => $avatarOption) {
+    $avatarOptions[$avatarFile] = $avatarOption;
+}
+
+if ($selectedAvatarFile !== null && !isset($avatarOptions[$selectedAvatarFile])) {
+    $avatarOptions[$selectedAvatarFile] = [
+        'file' => $selectedAvatarFile,
+        'label' => 'Actual',
+        'src' => AvatarLibrary::getAvatarSrc($selectedAvatarFile),
+        'owned' => true,
+    ];
+}
+
+$allowedAvatarFiles = array_keys($avatarOptions);
+
+$feedbackKey = '';
+$feedbackMessage = null;
+$feedbackType = 'success';
+
+if (isset($_GET['profile'])) {
+    $feedbackKey = 'profile';
+    $feedbackType = (string) ($_GET['profile'] === 'updated' ? 'success' : 'error');
+    $feedbackMessage = match ((string) $_GET['profile']) {
+        'updated' => 'La configuracion del perfil se ha guardado.',
+        'invalid' => 'Revisa los campos de configuracion e intenta de nuevo.',
+        'csrf' => 'La sesion de configuracion ha expirado. Vuelve a intentarlo.',
+        default => null,
+    };
+} elseif (isset($_GET['avatar'])) {
+    $feedbackKey = 'avatar';
+    $feedbackType = (string) ($_GET['avatar'] === 'updated' ? 'success' : 'error');
+    $feedbackMessage = match ((string) $_GET['avatar']) {
+        'updated' => 'El avatar se ha actualizado.',
+        'invalid' => 'No se pudo actualizar el avatar seleccionado.',
+        'csrf' => 'La sesion de avatar ha expirado. Vuelve a intentarlo.',
+        default => null,
+    };
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = (string) ($_POST['action'] ?? '');
     $csrfToken = (string) ($_POST['csrf_token'] ?? '');
 
     if (!hash_equals((string) ($_SESSION['csrf_token'] ?? ''), $csrfToken)) {
-        header('Location: profile.php?avatar=csrf');
+        $targetQuery = $action === 'update_profile' ? 'profile=csrf' : 'avatar=csrf';
+        header('Location: profile.php?' . $targetQuery);
         exit;
     }
 
     if ($action === 'update_avatar') {
         $avatarFile = AvatarLibrary::normalizeAvatar((string) ($_POST['avatar'] ?? ''));
 
-        if ($avatarFile !== null) {
-            $connection = Connection::getConnection();
-            $statement = $connection->prepare('UPDATE users SET avatar = :avatar WHERE id = :id');
-
-            if ($statement->execute([
-                'avatar' => $avatarFile,
-                'id' => $userId,
-            ])) {
+        if ($avatarFile !== null && in_array($avatarFile, $allowedAvatarFiles, true)) {
+            if ($userModel->updateAvatar($userId, $avatarFile)) {
                 header('Location: profile.php?avatar=updated');
                 exit;
             }
         }
 
         header('Location: profile.php?avatar=invalid');
+        exit;
+    }
+
+    if ($action === 'update_profile') {
+        $displayName = trim((string) ($_POST['display_name'] ?? ''));
+        $apellidosInput = trim((string) ($_POST['apellidos'] ?? ''));
+        $profileBioInput = trim((string) ($_POST['profile_bio'] ?? ''));
+        $motivationalLine = trim((string) ($_POST['motivational_line'] ?? ''));
+        $notificationsEnabled = isset($_POST['profile_notifications_enabled']);
+
+        $isNameValid = $displayName !== '' && mb_strlen($displayName) <= 100;
+        $isApellidosValid = $apellidosInput === '' || mb_strlen($apellidosInput) <= 100;
+        $isProfileBioValid = $profileBioInput === '' || mb_strlen($profileBioInput) <= 255;
+        $isMotivationalLineValid = $motivationalLine === '' || mb_strlen($motivationalLine) <= 160;
+
+        if ($isNameValid && $isApellidosValid && $isProfileBioValid && $isMotivationalLineValid) {
+            $saved = $userModel->updateProfilePreferences(
+                $userId,
+                $displayName,
+                $apellidosInput,
+                $profileBioInput,
+                $motivationalLine,
+                $notificationsEnabled
+            );
+
+            if ($saved) {
+                header('Location: profile.php?profile=updated');
+                exit;
+            }
+        }
+
+        header('Location: profile.php?profile=invalid');
         exit;
     }
 }
@@ -112,11 +228,13 @@ $focusLabel = $focusHours > 0
     ? $focusHours . 'h ' . str_pad((string) $focusRemainderMinutes, 2, '0', STR_PAD_LEFT) . 'm'
     : $focusRemainderMinutes . 'm';
 
+if ($motivationalLine === '') {
+    $motivationalLine = $completedTasks > 0 || $completedHabitChecks > 0
+        ? 'Un 1% mejor cada dia.'
+        : 'Hoy es un gran dia para empezar.';
+}
+
 $displayName = e(shortText($user['name'] ?? 'Usuario', 18));
-$usernameSlug = strtolower(preg_replace('/[^a-zA-Z0-9]+/', '', (string) ($user['name'] ?? 'usuario')) ?: 'usuario');
-$motivationalLine = $completedTasks > 0 || $completedHabitChecks > 0
-    ? 'Un 1% mejor cada dia.'
-    : 'Hoy es un gran dia para empezar.';
 
 $badges = $badgeModel->syncAndGetByUser($userId, [
     'completed_tasks' => $completedTasks,
@@ -207,6 +325,12 @@ function badgeProgressLabel(array $badge): string
         <?php $topbarShowHp = $hpSystemEnabled; ?>
         <?php require __DIR__ . '/partials/topbar.php'; ?>
 
+        <?php if ($feedbackMessage !== null): ?>
+            <div class="lq-alert <?= e($feedbackType) ?> profile-feedback" role="status" aria-live="polite">
+                <?= e($feedbackMessage) ?>
+            </div>
+        <?php endif; ?>
+
         <section class="profile-shell">
             <section class="profile-grid-top">
                 <article class="profile-card identity-card">
@@ -221,7 +345,7 @@ function badgeProgressLabel(array $badge): string
                         <div>
                             <div class="identity-header">
                                 <h1><?= e(shortText(trim(($user['name'] ?? '') . ' ' . ($user['apellidos'] ?? ''), ' '), 32)) ?></h1>
-                                <button class="edit-avatar" type="button" aria-label="Editar avatar" data-avatar-jump>✎</button>
+                                <button class="edit-avatar" type="button" aria-label="Editar perfil" data-open-profile-modal>✎</button>
                             </div>
                             <div class="level-line">
                                 <strong>Nivel <?= $level ?></strong>
@@ -231,7 +355,7 @@ function badgeProgressLabel(array $badge): string
                                 </div>
                                 <small><?= number_format($xpCurrentLevel, 0, ',', '.') ?> / <?= number_format($xpPerLevel, 0, ',', '.') ?> XP</small>
                             </div>
-                            <p class="identity-bio">Apasionado por aprender, mejorar y convertirme en mi mejor version cada dia.</p>
+                            <p class="identity-bio"><?= e(shortText($displayBio, 120)) ?></p>
                         </div>
                     </div>
                     <div class="identity-stats">
@@ -268,38 +392,6 @@ function badgeProgressLabel(array $badge): string
                     </div>
                 </article>
 
-                <article class="profile-card avatars-card" id="avatar-selector">
-                    <div class="card-head-row">
-                        <h2>Avatares</h2>
-                        <span><?= count($avatarOptions) ?> disponibles</span>
-                    </div>
-                    <form class="avatar-selector-form" method="POST">
-                        <input type="hidden" name="csrf_token" value="<?= e((string) $_SESSION['csrf_token']) ?>">
-                        <input type="hidden" name="action" value="update_avatar">
-                        <div class="avatar-options" role="list">
-                            <?php foreach ($avatarOptions as $avatar): ?>
-                                <button
-                                    class="avatar-option<?= $avatar['file'] === $selectedAvatarFile ? ' active' : '' ?>"
-                                    type="submit"
-                                    name="avatar"
-                                    value="<?= e($avatar['file']) ?>"
-                                    role="listitem"
-                                    aria-label="Seleccionar avatar <?= e($avatar['label']) ?>"
-                                >
-                                    <span class="avatar-face" aria-hidden="true">
-                                        <img src="<?= e($avatar['src']) ?>" alt="" class="avatar-option-image">
-                                    </span>
-                                    <span class="avatar-name"><?= e($avatar['label']) ?></span>
-                                    <?php if ($avatar['file'] === $selectedAvatarFile): ?>
-                                        <span class="avatar-tag">Actual</span>
-                                    <?php else: ?>
-                                        <span class="avatar-tag avatar-tag--ghost">Elegir</span>
-                                    <?php endif; ?>
-                                </button>
-                            <?php endforeach; ?>
-                        </div>
-                    </form>
-                </article>
             </section>
 
             <section class="profile-grid-bottom">
@@ -326,13 +418,30 @@ function badgeProgressLabel(array $badge): string
 
                 <article class="profile-card personalization-card">
                     <div class="card-head-row">
-                        <h2>Personalizacion</h2>
+                        <h2>Perfil</h2>
+                        <span class="card-head-note">Guardado en tu perfil</span>
                     </div>
-                    <div class="settings-list">
-                        <article><span>👤 Nombre de usuario</span><strong><?= e($usernameSlug) ?></strong></article>
-                        <article><span>❝ Frase motivacional</span><strong><?= e(shortText($motivationalLine, 24)) ?></strong></article>
-                        <article><span>🎨 Tema de la app</span><strong>Claro</strong></article>
-                        <article><span>🔔 Notificaciones</span><strong class="ok">Activadas</strong></article>
+                    <div class="settings-preview">
+                        <article>
+                            <span>👤 Nombre de usuario</span>
+                            <strong><?= e((string) ($user['name'] ?? '')) ?></strong>
+                        </article>
+                        <article>
+                            <span>🧾 Apellidos</span>
+                            <strong><?= e($apellidos !== '' ? $apellidos : 'Sin definir') ?></strong>
+                        </article>
+                        <article>
+                            <span>📝 Bio del perfil</span>
+                            <strong><?= e(shortText($displayBio, 26)) ?></strong>
+                        </article>
+                        <article>
+                            <span>❝ Frase motivacional</span>
+                            <strong><?= e(shortText($motivationalLine, 26)) ?></strong>
+                        </article>
+                        <article>
+                            <span>🔔 Notificaciones</span>
+                            <strong class="<?= $profileNotificationsEnabled ? 'ok' : 'off' ?>"><?= $profileNotificationsEnabled ? 'Activadas' : 'Desactivadas' ?></strong>
+                        </article>
                     </div>
                 </article>
 
@@ -387,54 +496,193 @@ function badgeProgressLabel(array $badge): string
         </div>
     </div>
 
+    <div class="profile-modal-overlay" id="profile-modal" hidden>
+        <div class="profile-modal-card profile-settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title">
+            <div class="profile-modal-head">
+                <h2 id="settings-modal-title">Editar perfil</h2>
+                <button type="button" class="profile-modal-close" data-close-profile-modal aria-label="Cerrar perfil">×</button>
+            </div>
+
+            <p class="profile-modal-sub">Actualiza tu avatar, nombre, apellidos, bio y frase personal desde un solo lugar.</p>
+
+            <div class="profile-modal-grid">
+                <div class="profile-modal-panel profile-modal-avatar-panel">
+                    <div class="card-head-row">
+                        <h2>Avatar</h2>
+                        <span><?= count($avatarOptions) ?> disponibles</span>
+                    </div>
+                    <form class="avatar-selector-form" method="POST">
+                        <input type="hidden" name="csrf_token" value="<?= e((string) $_SESSION['csrf_token']) ?>">
+                        <input type="hidden" name="action" value="update_avatar">
+                        <div class="avatar-options" role="list">
+                            <?php foreach ($avatarOptions as $avatar): ?>
+                                    <?php
+                                    $isCurrentAvatar = $avatar['file'] === $selectedAvatarFile;
+                                    $isOwnedAvatar = !empty($avatar['owned']);
+                                    ?>
+                                <button
+                                    class="avatar-option<?= $isCurrentAvatar ? ' active' : '' ?>"
+                                    type="submit"
+                                    name="avatar"
+                                    value="<?= e($avatar['file']) ?>"
+                                    role="listitem"
+                                    aria-label="Seleccionar avatar <?= e($avatar['label']) ?>"
+                                >
+                                    <span class="avatar-face" aria-hidden="true">
+                                        <img src="<?= e($avatar['src']) ?>" alt="" class="avatar-option-image">
+                                    </span>
+                                    <span class="avatar-name"><?= e($avatar['label']) ?></span>
+                                    <?php if ($isCurrentAvatar): ?>
+                                        <span class="avatar-tag">Actual</span>
+                                    <?php elseif ($isOwnedAvatar): ?>
+                                        <span class="avatar-tag">Comprado</span>
+                                    <?php else: ?>
+                                        <span class="avatar-tag avatar-tag--ghost">Elegir</span>
+                                    <?php endif; ?>
+                                </button>
+                            <?php endforeach; ?>
+                        </div>
+                    </form>
+                </div>
+
+                <section class="profile-modal-panel profile-modal-fields-panel">
+                    <form class="profile-settings-form" method="POST">
+                        <input type="hidden" name="csrf_token" value="<?= e((string) $_SESSION['csrf_token']) ?>">
+                        <input type="hidden" name="action" value="update_profile">
+
+                        <label class="settings-field">
+                            <span>👤 Nombre de usuario</span>
+                            <input type="text" name="display_name" maxlength="100" value="<?= e((string) ($user['name'] ?? '')) ?>" required>
+                            <small>Se mostrara en tu perfil y paneles principales.</small>
+                        </label>
+
+                        <label class="settings-field">
+                            <span>🧾 Apellidos</span>
+                            <input type="text" name="apellidos" maxlength="100" value="<?= e($apellidos) ?>" placeholder="Tus apellidos">
+                            <small>Opcional. Se mostrara junto al nombre en el perfil.</small>
+                        </label>
+
+                        <label class="settings-field">
+                            <span>📝 Bio del perfil</span>
+                            <textarea name="profile_bio" maxlength="255" rows="3" placeholder="Escribe una breve descripcion sobre ti."><?= e($profileBio) ?></textarea>
+                            <small>Aparece como la descripcion principal de tu perfil.</small>
+                        </label>
+
+                        <label class="settings-field">
+                            <span>❝ Frase motivacional</span>
+                            <textarea name="motivational_line" maxlength="160" rows="3" placeholder="Escribe tu frase o deja este campo vacio para usar la dinamica del progreso."><?= e($storedMotivationalLine) ?></textarea>
+                            <small>Si la dejas vacia, el perfil usara una frase dinamica segun tu progreso.</small>
+                        </label>
+
+                        <div class="settings-row">
+                            <article class="settings-fixed-theme">
+                                <span>🎨 Tema de la app</span>
+                                <strong><?= e($profileThemeLabel) ?></strong>
+                                <small>De momento se mantiene fijo en modo claro.</small>
+                            </article>
+
+                            <label class="settings-toggle">
+                                <input type="checkbox" name="profile_notifications_enabled" value="1"<?= $profileNotificationsEnabled ? ' checked' : '' ?>>
+                                <span>
+                                    <strong>🔔 Notificaciones activadas</strong>
+                                    <small>Controla si quieres recibir avisos del perfil.</small>
+                                </span>
+                            </label>
+                        </div>
+
+                        <div class="settings-actions">
+                            <div class="settings-summary">
+                                <strong>Vista actual</strong>
+                                <p><?= e($profileThemeLabel) ?> · <?= $profileNotificationsEnabled ? 'Notificaciones activadas' : 'Notificaciones desactivadas' ?></p>
+                            </div>
+                            <button type="submit" class="settings-save">Guardar cambios</button>
+                        </div>
+                    </form>
+                </section>
+            </div>
+        </div>
+    </div>
+
     <script>
         (function () {
-            var overlay = document.getElementById('badges-modal');
-            var openButton = document.querySelector('[data-open-badges-modal]');
-            var closeButton = document.querySelector('[data-close-badges-modal]');
-            var avatarJump = document.querySelector('[data-avatar-jump]');
-            var avatarSelector = document.getElementById('avatar-selector');
+            var overlays = {
+                badges: document.getElementById('badges-modal'),
+                profile: document.getElementById('profile-modal')
+            };
+            var openButtons = {
+                badges: document.querySelector('[data-open-badges-modal]'),
+                profile: document.querySelector('[data-open-profile-modal]')
+            };
+            var closeButtons = {
+                badges: document.querySelector('[data-close-badges-modal]'),
+                profile: document.querySelector('[data-close-profile-modal]')
+            };
+            var activeOverlay = null;
 
-            if (!overlay || !openButton || !closeButton) {
-                if (avatarJump && avatarSelector) {
-                    avatarJump.addEventListener('click', function () {
-                        avatarSelector.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    });
+            var openModal = function (overlay) {
+                if (!overlay) {
+                    return;
                 }
 
-                return;
-            }
-
-            var closeModal = function () {
-                overlay.hidden = true;
-                overlay.classList.remove('is-open');
-                document.body.classList.remove('modal-open');
-            };
-
-            openButton.addEventListener('click', function () {
                 overlay.hidden = false;
                 overlay.classList.add('is-open');
                 document.body.classList.add('modal-open');
-            });
+                activeOverlay = overlay;
+            };
 
-            closeButton.addEventListener('click', closeModal);
-
-            overlay.addEventListener('click', function (event) {
-                if (event.target === overlay) {
-                    closeModal();
+            var closeModal = function () {
+                if (!activeOverlay) {
+                    return;
                 }
+
+                activeOverlay.hidden = true;
+                activeOverlay.classList.remove('is-open');
+                activeOverlay = null;
+                document.body.classList.remove('modal-open');
+            };
+
+            if (openButtons.badges && overlays.badges) {
+                openButtons.badges.addEventListener('click', function () {
+                    openModal(overlays.badges);
+                });
+            }
+
+            if (openButtons.profile && overlays.profile) {
+                openButtons.profile.addEventListener('click', function () {
+                    openModal(overlays.profile);
+                });
+            }
+
+            if (closeButtons.badges) {
+                closeButtons.badges.addEventListener('click', closeModal);
+            }
+
+            if (closeButtons.profile) {
+                closeButtons.profile.addEventListener('click', closeModal);
+            }
+
+            Object.keys(overlays).forEach(function (key) {
+                var overlay = overlays[key];
+
+                if (!overlay) {
+                    return;
+                }
+
+                overlay.addEventListener('click', function (event) {
+                    if (event.target === overlay) {
+                        closeModal();
+                    }
+                });
             });
 
             document.addEventListener('keydown', function (event) {
-                if (event.key === 'Escape' && !overlay.hidden) {
+                if (event.key === 'Escape' && activeOverlay && !activeOverlay.hidden) {
                     closeModal();
                 }
             });
 
-            if (avatarJump && avatarSelector) {
-                avatarJump.addEventListener('click', function () {
-                    avatarSelector.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                });
+            if ((<?= json_encode(($feedbackKey === 'profile' || $feedbackKey === 'avatar') && $feedbackType === 'error') ?>) && overlays.profile) {
+                openModal(overlays.profile);
             }
         })();
 
