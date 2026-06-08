@@ -1,41 +1,61 @@
 # LifeQuest
 
-Aplicación web de productividad gamificada en PHP + MySQL para gestionar áreas de vida, metas, retos, misiones, hábitos y progreso personal.
+LifeQuest es una aplicación web de productividad gamificada en PHP + MySQL orientada a la gestión de áreas de vida, metas, retos, misiones, hábitos y progreso personal.
 
-## Estado del proyecto
+## Estado actual
 
-Implementado y funcional:
+Funcionalidad presente en el código:
 
-- Autenticación: registro, login, logout y sesiones protegidas.
-- Áreas de vida: CRUD completo.
-- Metas: CRUD completo con relación opcional a áreas.
-- Retos: CRUD completo con relación opcional a metas y áreas.
-- Misiones: CRUD completo, marcado como completada, recompensas XP/LifeCoins y actualización de progreso en metas/retos.
-- Hábitos: creación, check diario y estadísticas por período.
-- Dashboard: resumen general, racha semanal y actividad principal.
-- Progreso y perfil: métricas, historial y estado del jugador.
-- Tienda: canje de recompensas e indulgencias.
-- Portal admin: acceso separado en `admin/` con explorador de DB, CRUD visual, consola SQL controlada y sección de balance.
+- Autenticación de usuario con registro, login, logout y sesiones protegidas.
+- Gestión de áreas de vida con CRUD propio.
+- Gestión de metas, retos y misiones con `public/goals.php` como punto de entrada unificado.
+- Hábitos con control diario, estadísticas y soporte para hábitos de riesgo.
+- Dashboard con resumen general, objetivo diario, progreso y bloques de actividad.
+- Perfil y progreso con métricas, historial y evolución del jugador.
+- Tienda pública con recompensas e indulgencias, más inventario de cosméticos.
+- Portal de administración separado en `admin/` con acceso propio, explorador de base de datos y utilidades administrativas.
+- Sistema de progresión adicional con HP global, progresión por área y bonus ligados al objetivo diario.
 
-En evolución:
+## Documentación canónica
 
-- Modo Batalla y mejoras de estadísticas avanzadas.
-- Desglose visual del bonus de XP del objetivo diario en Dashboard/Progreso (etiqueta o serie diferenciada).
+- [Estado real del proyecto](docs/estado-real-del-proyecto.md)
+- [Evolución del proyecto](docs/evolucion-del-proyecto.md)
+- [Instalación](INSTALL.md)
 
 ## Arquitectura
 
-- `public/`: páginas/rutas principales de la aplicación.
-- `app/Controllers/`: validación de entrada y coordinación de lógica.
-- `app/Models/`: acceso a base de datos y reglas de persistencia.
+- `public/`: rutas y pantallas principales de la aplicación.
+- `admin/`: acceso al panel administrativo.
+- `app/Controllers/`: validación de entrada y coordinación de la lógica de negocio.
+- `app/Models/`: acceso a datos y reglas de persistencia.
+- `app/Support/`: utilidades reutilizables para cálculos y presentación.
 - `app/Database/connection.php`: conexión PDO centralizada.
-- `database/schema.sql`: esquema completo de la base de datos.
-- `assets/css/styles.css`: estilos visuales de la interfaz.
+- `config/`: configuración del entorno.
+- `database/`: esquema y migraciones.
+- `assets/`: CSS, JavaScript y ficheros subidos.
+- `icons/` y `referencias/`: recursos visuales del proyecto.
 
-## Compatibilidad de rutas
+## Rutas principales
 
-- `public/goals.php` concentra metas, retos y misiones por sección (`section=goals|projects|tasks`).
-- Acceso recomendado a retos y misiones mediante `public/goals.php?section=projects` y `public/goals.php?section=tasks`.
-- `admin/index.php` y `admin/login.php` redirigen al panel principal en `admin/database.php?section=db`.
+- `public/index.php`: entrada pública.
+- `public/login.php`, `public/register.php`, `public/logout.php`: autenticación.
+- `public/dashboard.php`: panel principal.
+- `public/areas.php`: áreas de vida.
+- `public/goals.php`: metas, retos y misiones.
+- `public/habits.php`: hábitos.
+- `public/progress.php`: progreso.
+- `public/profile.php`: perfil.
+- `public/shop.php`: tienda.
+- `admin/login.php`, `admin/index.php`, `admin/database.php`: panel administrativo.
+
+## Compatibilidad de dominio
+
+Para mantener coherencia entre base de datos, backend y vistas:
+
+- Área = `life_areas`
+- Meta = `goals`
+- Reto = `projects`
+- Misión = `tasks`
 
 ## Configuración rápida
 
@@ -44,15 +64,4 @@ En evolución:
 3. Configura `config/config.php` con tus credenciales reales.
 4. Abre `http://localhost/LifeQuest/public`.
 
-Referencia completa en `INSTALL.md`.
-
-## Nomenclatura de dominio
-
-Para mantener coherencia interna y visual:
-
-- Área = `life_areas`
-- Meta = `goals`
-- Reto = `projects`
-- Misión = `tasks`
-
-Esta nomenclatura se usa en base de datos, backend y vistas.
+La instalación detallada está en [INSTALL.md](INSTALL.md).

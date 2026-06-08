@@ -39,3 +39,4 @@ sessions/
 # Carpetas de cache
 cache/
 /storage/
+/old-docs
