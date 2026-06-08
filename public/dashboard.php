@@ -8,8 +8,10 @@ require_once __DIR__ . '/../app/Models/Project.php';
 require_once __DIR__ . '/../app/Models/Task.php';
 require_once __DIR__ . '/../app/Models/Habit.php';
 require_once __DIR__ . '/../app/Models/AreaProgression.php';
+require_once __DIR__ . '/../app/Models/DailyObjective.php';
 require_once __DIR__ . '/../app/Support/StreakWeek.php';
 require_once __DIR__ . '/../app/Support/XpEvolutionChart.php';
+require_once __DIR__ . '/../app/Support/AvatarLibrary.php';
 
 AuthController::requireAuth();
 
@@ -23,7 +25,8 @@ if (!$user) {
 }
 
 $lifeAreaModel = new LifeArea();
-$areas = array_slice($lifeAreaModel->getAllByUser((int) $user['id']), 0, 6);
+$allAreas = $lifeAreaModel->getAllByUser((int) $user['id']);
+$areas = array_slice($allAreas, 0, 6);
 
 $goalModel = new Goal();
 $mainGoals = $goalModel->getMainByUser((int) $user['id'], 4);
@@ -33,7 +36,41 @@ $activeProjects = $projectModel->getActiveByUser((int) $user['id'], 4);
 
 $taskModel = new Task();
 $habitModel = new Habit();
+$dailyObjectiveModel = new DailyObjective();
 $todayTasks = $taskModel->getTodayByUser((int) $user['id'], 4);
+$upcomingTasks = $taskModel->getUpcomingByUser((int) $user['id'], 5);
+$taskDistributionRaw = $taskModel->getDistributionByArea((int) $user['id']);
+$taskDistributionByArea = [];
+$taskDistributionTotal = 0;
+
+foreach ($taskDistributionRaw as $distributionArea) {
+    $areaId = (int) ($distributionArea['area_id'] ?? 0);
+
+    if ($areaId <= 0) {
+        continue;
+    }
+
+    $taskCount = (int) ($distributionArea['task_count'] ?? 0);
+    $taskDistributionByArea[$areaId] = $distributionArea;
+    $taskDistributionTotal += max(0, $taskCount);
+}
+
+$taskDistribution = [];
+
+foreach ($allAreas as $area) {
+    $areaId = (int) ($area['id'] ?? 0);
+    $distributionArea = $taskDistributionByArea[$areaId] ?? [];
+    $taskCount = (int) ($distributionArea['task_count'] ?? 0);
+
+    $taskDistribution[] = [
+        'area_id' => $areaId,
+        'area_name' => (string) ($area['name'] ?? 'Área'),
+        'area_color' => (string) ($area['color'] ?: '#16C79A'),
+        'area_icon' => (string) ($area['icon'] ?? ''),
+        'task_count' => max(0, $taskCount),
+        'percentage' => $taskDistributionTotal > 0 ? round(($taskCount / max(1, $taskDistributionTotal)) * 100, 1) : 0,
+    ];
+}
 $weekActivity = buildWeeklyActivityByUser((int) $user['id']);
 
 $chartTasks = $taskModel->getAllByUser((int) $user['id']);
@@ -48,6 +85,11 @@ $habitLogs = $habitModel->getLogsByRange(
     $weekStartDate->format('Y-m-d'),
     $weekEndDate->format('Y-m-d')
 );
+$weeklyObjectives = $dailyObjectiveModel->getByRange(
+    (int) $user['id'],
+    $weekStartDate->format('Y-m-d'),
+    $weekEndDate->format('Y-m-d')
+);
 
 $lineChartWidth = 420;
 $lineChartHeight = 190;
@@ -57,6 +99,7 @@ $xpChart = XpEvolutionChart::build(
     $chartTasks,
     $chartHabits,
     $habitLogs,
+    $weeklyObjectives,
     $weekStartDate,
     $weekEndDate,
     'week',
@@ -90,6 +133,24 @@ $xpNext = $level * $xpPerLevel;
 $points = (int) $user['points'];
 $gems = max(0, intdiv($points, 20));
 $currentStreak = (int) $user['current_streak'];
+$completedTasks = 0;
+$focusedMinutes = 0;
+
+foreach ($chartTasks as $task) {
+    if ((string) ($task['status'] ?? '') !== 'completed') {
+        continue;
+    }
+
+    $completedTasks++;
+    $focusedMinutes += max(0, (int) ($task['estimated_minutes'] ?? 0));
+}
+
+$focusHours = intdiv($focusedMinutes, 60);
+$focusRemainderMinutes = $focusedMinutes % 60;
+$focusLabel = $focusHours > 0
+    ? $focusHours . 'h ' . str_pad((string) $focusRemainderMinutes, 2, '0', STR_PAD_LEFT) . 'm'
+    : $focusRemainderMinutes . 'm';
+
 $hpSystemEnabled = defined('FEATURE_HP_SYSTEM') ? (bool) FEATURE_HP_SYSTEM : false;
 $baseHp = defined('PLAYER_BASE_HP') ? (int) PLAYER_BASE_HP : 1000;
 $maxHp = max(1, (int) ($user['max_hp'] ?? $baseHp));
@@ -100,16 +161,56 @@ $areaLevels = [];
 
 if ($areaProgressionEnabled) {
     $areaProgressionModel = new AreaProgression();
-    $areaLevels = $areaProgressionModel->getTopByUser((int) $user['id'], 4);
+    $areaLevels = $areaProgressionModel->getTopByUser((int) $user['id'], 3);
 }
 
 $dailyCompleted = count(array_filter($todayTasks, static fn($task) => ($task['status'] ?? '') === 'completed'));
 $dailyTotal = max(4, count($todayTasks));
 $objectivePercent = (int) (($dailyCompleted / max(1, $dailyTotal)) * 100);
 
+// Calcular recompensa XP del objetivo diario
+$dailyTotalXp = array_sum(array_map(static fn($task) => (int) ($task['xp_reward'] ?? 0), $todayTasks));
+$dailyBonusXp = max(100, (int) round($dailyTotalXp * 0.25)); // Bonus del 25% del XP total (mínimo 100 XP)
+$dailyBonusXp = min($dailyBonusXp, 500); // Máximo 500 XP de bonus
+
+// Verificar si el objetivo ya se completó hoy
+$objectiveCompletedToday = $dailyObjectiveModel->isCompletedToday((int) $user['id']);
+$todayObjective = $dailyObjectiveModel->getTodayObjective((int) $user['id']);
+
+// Si ya se completó, usar los valores reales
+if ($objectiveCompletedToday && $todayObjective) {
+    $dailyCompleted = (int) $todayObjective['tasks_completed'];
+    $dailyTotal = (int) $todayObjective['tasks_required'];
+    $dailyBonusXp = (int) $todayObjective['xp_bonus_awarded'];
+    $objectivePercent = 100;
+}
+
 function e(string|null $value): string
 {
     return htmlspecialchars($value ?? '', ENT_QUOTES, 'UTF-8');
+}
+
+function areaIconMaskUrl(string|null $iconValue): ?string
+{
+    $iconValue = trim((string) $iconValue);
+
+    if ($iconValue === '') {
+        return null;
+    }
+
+    $baseName = pathinfo($iconValue, PATHINFO_FILENAME);
+    $svgFile = $baseName . '.svg';
+    $svgPath = __DIR__ . '/../icons/areas_svg/' . $svgFile;
+    if (is_file($svgPath)) {
+        return '../icons/areas_svg/' . rawurlencode($svgFile);
+    }
+
+    $pngPath = __DIR__ . '/../icons/areas/' . $iconValue;
+    if (is_file($pngPath)) {
+        return '../icons/areas/' . rawurlencode($iconValue);
+    }
+
+    return null;
 }
 
 function statusLabelDashboard(string $status): string
@@ -133,6 +234,46 @@ function shortText(string|null $value, int $limit = 42): string
     return mb_substr($value, 0, $limit - 1) . '…';
 }
 
+function buildDonutGradient(array $distribution): string
+{
+    if (empty($distribution)) {
+        return 'conic-gradient(#e2e8f0 0 100%)';
+    }
+
+    $gradientParts = [];
+    $currentPercent = 0;
+
+    foreach ($distribution as $area) {
+        $percentage = (float) ($area['percentage'] ?? 0);
+        $color = e($area['area_color'] ?? '#8b5cf6');
+        $nextPercent = $currentPercent + $percentage;
+        
+        $gradientParts[] = "{$color} {$currentPercent}% {$nextPercent}%";
+        $currentPercent = $nextPercent;
+    }
+
+    return 'conic-gradient(' . implode(', ', $gradientParts) . ')';
+}
+
+function hexToRgba(string $hex, float $alpha = 1.0): string
+{
+    $hex = ltrim($hex, '#');
+    
+    if (strlen($hex) === 3) {
+        $hex = $hex[0] . $hex[0] . $hex[1] . $hex[1] . $hex[2] . $hex[2];
+    }
+    
+    $r = hexdec(substr($hex, 0, 2));
+    $g = hexdec(substr($hex, 2, 2));
+    $b = hexdec(substr($hex, 4, 2));
+    
+    return "rgba({$r}, {$g}, {$b}, {$alpha})";
+}
+
+$stylesCssVersion = (int) (@filemtime(__DIR__ . '/../assets/css/styles.css') ?: time());
+$dashboardCssVersion = (int) (@filemtime(__DIR__ . '/../assets/css/modules/dashboard.css') ?: time());
+$heroAvatarSrc = AvatarLibrary::getAvatarSrc($user['avatar'] ?? null);
+
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -140,8 +281,8 @@ function shortText(string|null $value, int $limit = 42): string
     <meta charset="UTF-8">
     <title>Inicio | <?= APP_NAME ?></title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="../assets/css/styles.css">
-    <link rel="stylesheet" href="../assets/css/modules/dashboard.css">
+    <link rel="stylesheet" href="../assets/css/styles.css?v=<?= $stylesCssVersion ?>">
+    <link rel="stylesheet" href="../assets/css/modules/dashboard.css?v=<?= $dashboardCssVersion ?>">
 </head>
 <body class="lifequest-app">
     <aside class="lq-sidebar">
@@ -149,10 +290,16 @@ function shortText(string|null $value, int $limit = 42): string
         <?php require __DIR__ . '/partials/sidebar_nav.php'; ?>
 
         <section class="lq-sidebar-card streak">
-            <div class="streak-icon">🔥</div>
-            <p>Racha actual</p>
-            <strong><?= $currentStreak ?> días</strong>
-            <small>¡Sigue así!</small>
+            <div class="streak-summary">
+                <div class="streak-icon" aria-hidden="true">
+                    <img src="../icons/flame.png" alt="" class="streak-flame-image">
+                </div>
+                <div class="streak-copy">
+                    <p>Racha actual</p>
+                    <strong><?= $currentStreak ?> días</strong>
+                    <small>¡Sigue así!</small>
+                </div>
+            </div>
             <div class="week-dots week-stack">
                 <?php foreach ($weekActivity as $day): ?>
                     <div class="week-day" title="<?= e($day['date']) ?>">
@@ -169,10 +316,11 @@ function shortText(string|null $value, int $limit = 42): string
                 <p>Completa misiones y consigue recompensas exclusivas.</p>
                 <a href="shop.php" class="mini-btn">Ver tienda</a>
             </div>
-            <span class="bag">🎒</span>
+            <span class="bag" aria-hidden="true">
+                <img src="../icons/bag.png" alt="" class="bag-image">
+            </span>
         </section>
 
-        <?php require __DIR__ . '/partials/sidebar_user_mini.php'; ?>
         <?php require __DIR__ . '/partials/sidebar_bottom.php'; ?>
     </aside>
 
@@ -183,13 +331,15 @@ function shortText(string|null $value, int $limit = 42): string
 
         <div class="lq-dashboard-grid">
             <section class="lq-center">
-                <section class="hero-panel">
+                <section class="hero-panel<?= $hpSystemEnabled ? ' hero-panel--with-hp' : '' ?>">
                     <div class="hero-avatar-wrap">
                         <div class="hero-glow"></div>
                         <div class="hero-avatar">
-                            <div class="avatar-hair"></div>
-                            <div class="avatar-face">😊</div>
-                            <div class="avatar-body">LQ</div>
+                            <?php if ($heroAvatarSrc !== null): ?>
+                                <img src="<?= e($heroAvatarSrc) ?>" alt="Avatar de <?= e($user['name']) ?>" class="hero-avatar-image">
+                            <?php else: ?>
+                                <span class="hero-avatar-fallback"><?= e(mb_strtoupper(mb_substr($user['name'] ?? 'U', 0, 1))) ?></span>
+                            <?php endif; ?>
                         </div>
                     </div>
 
@@ -199,7 +349,39 @@ function shortText(string|null $value, int $limit = 42): string
 
                         <div class="hero-stats">
                             <article>
-                                <small>Nivel</small>
+                                <small>
+                                    <span class="hero-stat-icon" aria-hidden="true">
+                                        <svg width="24" height="24" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <defs>
+                                                <linearGradient id="heroLevelXpOuter" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+                                                    <stop stop-color="#3cffb0"/>
+                                                    <stop offset="1" stop-color="#0bb86c"/>
+                                                </linearGradient>
+                                                <linearGradient id="heroLevelXpInner" x1="8" y1="8" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+                                                    <stop stop-color="#2be98a"/>
+                                                    <stop offset="1" stop-color="#0e9e4a"/>
+                                                </linearGradient>
+                                                <radialGradient id="heroLevelXpGlow" cx="16" cy="16" r="16" gradientUnits="userSpaceOnUse">
+                                                    <stop stop-color="#baffc9" stop-opacity=".7"/>
+                                                    <stop offset="1" stop-color="#00ffb0" stop-opacity="0"/>
+                                                </radialGradient>
+                                            </defs>
+                                            <polygon points="16,3 29,11 29,25 16,31 3,25 3,11" fill="url(#heroLevelXpOuter)" stroke="#0bb86c" stroke-width="1.5"/>
+                                            <polygon points="16,6.5 26,13 26,23 16,28 6,23 6,13" fill="url(#heroLevelXpInner)"/>
+                                            <circle cx="16" cy="16" r="10" fill="url(#heroLevelXpGlow)"/>
+                                            <g>
+                                                <path d="M16 10V21" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
+                                                <path d="M16 10L12.5 14M16 10L19.5 14" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
+                                            </g>
+                                            <g opacity=".7">
+                                                <circle cx="11" cy="13" r="1.1" fill="#fff"/>
+                                                <circle cx="21" cy="12" r="0.7" fill="#fff"/>
+                                                <circle cx="19" cy="19" r="0.5" fill="#fff"/>
+                                            </g>
+                                        </svg>
+                                    </span>
+                                    <span class="hero-stat-label-text">Nivel</span>
+                                </small>
                                 <strong><?= $level ?></strong>
                                 <span>Camino a nivel <?= $level + 1 ?></span>
                                 <div class="mini-progress"><i style="width: <?= $xpPercent ?>%"></i></div>
@@ -207,37 +389,146 @@ function shortText(string|null $value, int $limit = 42): string
                             </article>
 
                             <article>
-                                <small>XP actual</small>
+                                <small>
+                                    <span class="hero-stat-icon" aria-hidden="true">
+                                        <svg width="24" height="24" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <defs>
+                                                <linearGradient id="heroCurrentXpOuter" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+                                                    <stop stop-color="#3cffb0"/>
+                                                    <stop offset="1" stop-color="#0bb86c"/>
+                                                </linearGradient>
+                                                <linearGradient id="heroCurrentXpInner" x1="8" y1="8" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+                                                    <stop stop-color="#2be98a"/>
+                                                    <stop offset="1" stop-color="#0e9e4a"/>
+                                                </linearGradient>
+                                                <radialGradient id="heroCurrentXpGlow" cx="16" cy="16" r="16" gradientUnits="userSpaceOnUse">
+                                                    <stop stop-color="#baffc9" stop-opacity=".7"/>
+                                                    <stop offset="1" stop-color="#00ffb0" stop-opacity="0"/>
+                                                </radialGradient>
+                                            </defs>
+                                            <polygon points="16,3 29,11 29,25 16,31 3,25 3,11" fill="url(#heroCurrentXpOuter)" stroke="#0bb86c" stroke-width="1.5"/>
+                                            <polygon points="16,6.5 26,13 26,23 16,28 6,23 6,13" fill="url(#heroCurrentXpInner)"/>
+                                            <circle cx="16" cy="16" r="10" fill="url(#heroCurrentXpGlow)"/>
+                                            <g>
+                                                <path d="M16 10V21" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
+                                                <path d="M16 10L12.5 14M16 10L19.5 14" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
+                                            </g>
+                                            <g opacity=".7">
+                                                <circle cx="11" cy="13" r="1.1" fill="#fff"/>
+                                                <circle cx="21" cy="12" r="0.7" fill="#fff"/>
+                                                <circle cx="19" cy="19" r="0.5" fill="#fff"/>
+                                            </g>
+                                        </svg>
+                                    </span>
+                                    <span class="hero-stat-label-text">XP actual</span>
+                                </small>
                                 <strong><?= number_format($xpCurrent, 0, ',', '.') ?></strong>
                                 <span><?= number_format(max(0, $xpNext - $xpCurrent), 0, ',', '.') ?> XP para subir</span>
                                 <div class="mini-progress"><i style="width: <?= $xpPercent ?>%"></i></div>
                             </article>
 
                             <article>
-                                <small>LifeCoins</small>
+                                <small>
+                                    <span class="hero-stat-icon" aria-hidden="true">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <defs>
+                                                <linearGradient id="heroCoinOuter" x1="4" y1="3" x2="20" y2="21" gradientUnits="userSpaceOnUse">
+                                                    <stop stop-color="#FFE27A"/>
+                                                    <stop offset="0.45" stop-color="#FFC93A"/>
+                                                    <stop offset="1" stop-color="#F59F00"/>
+                                                </linearGradient>
+                                                <linearGradient id="heroCoinInner" x1="7" y1="6" x2="17" y2="18" gradientUnits="userSpaceOnUse">
+                                                    <stop stop-color="#FFD85C"/>
+                                                    <stop offset="1" stop-color="#F08C00"/>
+                                                </linearGradient>
+                                                <filter id="heroCoinShadow" x="0" y="0" width="24" height="24" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+                                                    <feDropShadow dx="0" dy="1" stdDeviation="0.8" flood-color="#C76B00" flood-opacity="0.35"/>
+                                                </filter>
+                                            </defs>
+                                            <g filter="url(#heroCoinShadow)">
+                                                <circle cx="12" cy="12" r="10" fill="url(#heroCoinOuter)"/>
+                                                <circle cx="12" cy="12" r="8.1" fill="url(#heroCoinInner)" stroke="#FFB11A" stroke-width="0.9"/>
+                                                <path d="M5.8 7.5C7.1 5.4 9.34 4 11.9 4" stroke="#FFF4BF" stroke-width="1.4" stroke-linecap="round" opacity="0.9"/>
+                                                <path d="M12.1 7.1C10.8 7.1 9.9 7.75 9.9 8.72C9.9 9.73 10.87 10.2 12.22 10.58C13.64 10.98 14.4 11.47 14.4 12.58C14.4 13.73 13.42 14.55 12 14.69V15.6C12 15.93 11.73 16.2 11.4 16.2C11.07 16.2 10.8 15.93 10.8 15.6V14.63C9.89 14.48 9.04 13.99 8.49 13.25C8.29 12.98 8.34 12.61 8.61 12.42C8.87 12.22 9.25 12.27 9.44 12.54C9.91 13.18 10.69 13.56 11.47 13.56H12C13 13.56 13.2 12.98 13.2 12.62C13.2 12.05 12.87 11.72 11.9 11.44C10.43 11.02 8.7 10.4 8.7 8.77C8.7 7.43 9.69 6.47 10.8 6.22V5.4C10.8 5.07 11.07 4.8 11.4 4.8C11.73 4.8 12 5.07 12 5.4V6.15C12.78 6.21 13.47 6.48 14.07 6.95C14.33 7.15 14.37 7.53 14.17 7.79C13.97 8.05 13.59 8.09 13.33 7.89C12.96 7.6 12.52 7.43 12.1 7.1Z" fill="#FFF9EA"/>
+                                            </g>
+                                        </svg>
+                                    </span>
+                                    <span class="hero-stat-label-text">LifeCoins</span>
+                                </small>
                                 <strong><?= number_format($points, 0, ',', '.') ?></strong>
                                 <span>Úsalos en la tienda</span>
                             </article>
 
                             <article>
-                                <small>Gemas</small>
+                                <small>
+                                    <span class="hero-stat-icon" aria-hidden="true">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <defs>
+                                                <linearGradient id="heroGemTopLeft" x1="4.5" y1="5" x2="11" y2="13" gradientUnits="userSpaceOnUse">
+                                                    <stop stop-color="#D8B8FF"/>
+                                                    <stop offset="1" stop-color="#A45CFF"/>
+                                                </linearGradient>
+                                                <linearGradient id="heroGemTopCenter" x1="12" y1="4" x2="12" y2="13" gradientUnits="userSpaceOnUse">
+                                                    <stop stop-color="#C99CFF"/>
+                                                    <stop offset="1" stop-color="#A66BFF"/>
+                                                </linearGradient>
+                                                <linearGradient id="heroGemTopRight" x1="18.5" y1="5" x2="13" y2="13" gradientUnits="userSpaceOnUse">
+                                                    <stop stop-color="#9B4DFF"/>
+                                                    <stop offset="1" stop-color="#7B2CF3"/>
+                                                </linearGradient>
+                                                <linearGradient id="heroGemBottomLeft" x1="4.5" y1="12" x2="12" y2="22" gradientUnits="userSpaceOnUse">
+                                                    <stop stop-color="#8B3FFF"/>
+                                                    <stop offset="1" stop-color="#6622D7"/>
+                                                </linearGradient>
+                                                <linearGradient id="heroGemBottomCenter" x1="12" y1="12" x2="12" y2="23" gradientUnits="userSpaceOnUse">
+                                                    <stop stop-color="#BC84FF"/>
+                                                    <stop offset="1" stop-color="#7A35EA"/>
+                                                </linearGradient>
+                                                <linearGradient id="heroGemBottomRight" x1="19.5" y1="12" x2="12" y2="22" gradientUnits="userSpaceOnUse">
+                                                    <stop stop-color="#6C1DE5"/>
+                                                    <stop offset="1" stop-color="#4F0FC0"/>
+                                                </linearGradient>
+                                                <filter id="heroGemShadow" x="1" y="2" width="22" height="21" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+                                                    <feDropShadow dx="0" dy="1" stdDeviation="0.8" flood-color="#4E17A8" flood-opacity="0.28"/>
+                                                </filter>
+                                            </defs>
+                                            <g filter="url(#heroGemShadow)">
+                                                <path d="M6.2 5H17.8L21 9.1L12 20L3 9.1L6.2 5Z" fill="#9D5CFF"/>
+                                                <path d="M6.2 5L3 9.1H8.1L12 5H6.2Z" fill="url(#heroGemTopLeft)"/>
+                                                <path d="M12 5L8.1 9.1H15.9L12 5Z" fill="url(#heroGemTopCenter)"/>
+                                                <path d="M17.8 5L12 5L15.9 9.1H21L17.8 5Z" fill="url(#heroGemTopRight)"/>
+                                                <path d="M3 9.1H8.1L12 20L3 9.1Z" fill="url(#heroGemBottomLeft)"/>
+                                                <path d="M8.1 9.1H15.9L12 20L8.1 9.1Z" fill="url(#heroGemBottomCenter)"/>
+                                                <path d="M15.9 9.1H21L12 20L15.9 9.1Z" fill="url(#heroGemBottomRight)"/>
+                                                <path d="M6.2 5H17.8" stroke="#C794FF" stroke-width="0.7" stroke-linecap="round" opacity="0.9"/>
+                                                <path d="M8.1 9.1H15.9" stroke="#C48AFF" stroke-width="0.7" stroke-linecap="round" opacity="0.9"/>
+                                                <path d="M6.7 5.8L8.1 9.1L12 5.2" stroke="#F6ECFF" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
+                                            </g>
+                                        </svg>
+                                    </span>
+                                    <span class="hero-stat-label-text">Gemas</span>
+                                </small>
                                 <strong><?= $gems ?></strong>
                                 <span>Para objetos únicos</span>
                             </article>
 
                             <?php if ($hpSystemEnabled): ?>
                                 <article>
-                                    <small>Vida</small>
+                                    <small>
+                                        <span class="hero-stat-icon hero-stat-icon--hp" aria-hidden="true">♥</span>
+                                        <span class="hero-stat-label-text">Vida</span>
+                                    </small>
                                     <strong><?= number_format($hp, 0, ',', '.') ?></strong>
                                     <span><?= number_format($maxHp, 0, ',', '.') ?> HP máximos</span>
-                                    <div class="mini-progress"><i style="width: <?= $hpPercent ?>%"></i></div>
                                 </article>
                             <?php endif; ?>
                         </div>
 
                         <div class="hero-bottom">
                             <div class="streak-row">
-                                <span>🔥</span>
+                                <span class="streak-row-icon" aria-hidden="true">
+                                    <img src="../icons/flame.png" alt="" class="streak-flame-image">
+                                </span>
                                 <div>
                                     <small>Racha actual</small>
                                     <strong><?= $currentStreak ?> días</strong>
@@ -274,38 +565,90 @@ function shortText(string|null $value, int $limit = 42): string
                         </div>
                     <?php else: ?>
                         <div class="mission-list">
-                            <?php foreach ($todayTasks as $index => $task): ?>
+                            <?php foreach ($todayTasks as $task): ?>
                                 <?php
-                                $missionIcons = ['📚', '🏋️', '✍️', '📈'];
-                                $categoryColors = ['green', 'purple', 'orange', 'blue'];
                                 $done = $task['status'] === 'completed';
+                                // Usar datos del área de vida o valores por defecto
+                                $areaIconValue = !empty($task['area_icon']) ? (string) $task['area_icon'] : '';
+                                $areaIcon = areaIconMaskUrl($areaIconValue);
+                                $areaColor = !empty($task['area_color']) ? $task['area_color'] : '#8b5cf6';
+                                $areaName = !empty($task['area_name']) ? e(shortText($task['area_name'], 14)) : 'General';
+                                
+                                // Colores con transparencia para backgrounds
+                                $iconBgColor = hexToRgba($areaColor, 0.15);
+                                $iconBorderColor = hexToRgba($areaColor, 0.24);
+                                $tagBgColor = hexToRgba($areaColor, 0.12);
+                                $tagBorderColor = hexToRgba($areaColor, 0.25);
+                                $taskXpIconSuffix = (int) $task['id'];
                                 ?>
                                 <article class="mission-item">
-                                    <label class="check-wrap">
-                                        <input type="checkbox" <?= $done ? 'checked' : '' ?> disabled>
-                                        <span></span>
-                                    </label>
+                                    <div class="mission-item-left">
+                                        <label class="check-wrap">
+                                            <input type="checkbox" <?= $done ? 'checked' : '' ?> disabled>
+                                            <span></span>
+                                        </label>
 
-                                    <div class="mission-icon <?= $categoryColors[$index % count($categoryColors)] ?>">
-                                        <?= $missionIcons[$index % count($missionIcons)] ?>
+                                        <div class="mission-icon" style="background-color: <?= $iconBgColor ?>; --area-color-border: <?= e($iconBorderColor) ?>;">
+                                            <?php if ($areaIcon): ?>
+                                                <span class="mission-icon-mask" style="--area-color: <?= e($areaColor) ?>; -webkit-mask-image: url('<?= e($areaIcon) ?>'); mask-image: url('<?= e($areaIcon) ?>');"></span>
+                                            <?php else: ?>
+                                                <?= e($areaIconValue !== '' ? $areaIconValue : '📋') ?>
+                                            <?php endif; ?>
+                                        </div>
+
+                                        <div class="mission-info">
+                                            <strong><?= e(shortText($task['title'], 36)) ?></strong>
+                                            <small><?= !empty($task['project_title']) ? e(shortText($task['project_title'], 42)) : 'Misión independiente' ?></small>
+                                        </div>
                                     </div>
+                                    <div class="mission-item-center">               
+                                        <span class="mission-tag" style="background-color: <?= $tagBgColor ?>; color: <?= e($areaColor) ?>; border-color: <?= $tagBorderColor ?>;">
+                                            <?= $areaName ?>
+                                        </span>
 
-                                    <div class="mission-info">
-                                        <strong><?= e(shortText($task['title'], 36)) ?></strong>
-                                        <small><?= !empty($task['project_title']) ? e(shortText($task['project_title'], 42)) : 'Misión independiente' ?></small>
+                                        <div class="mission-progress">
+                                            <small><?= (int) $task['estimated_minutes'] ?> min</small>
+                                            <div class="mini-progress"><i style="width: <?= $done ? 100 : 35 ?>%"></i></div>
+                                        </div>
                                     </div>
-
-                                    <span class="mission-tag <?= $categoryColors[$index % count($categoryColors)] ?>">
-                                        <?= !empty($task['area_name']) ? e(shortText($task['area_name'], 14)) : 'General' ?>
-                                    </span>
-
-                                    <div class="mission-progress">
-                                        <small><?= (int) $task['estimated_minutes'] ?> min</small>
-                                        <div class="mini-progress"><i style="width: <?= $done ? 100 : 35 ?>%"></i></div>
+                                    <div class="mission-item-right">
+                                        <strong class="reward">
+                                            <span class="hero-stat-icon" aria-hidden="true">
+                                                <svg width="24" height="24" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                    <defs>
+                                                        <linearGradient id="dashboardRewardXpOuter<?= $taskXpIconSuffix ?>" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+                                                            <stop stop-color="#3cffb0"/>
+                                                            <stop offset="1" stop-color="#0bb86c"/>
+                                                        </linearGradient>
+                                                        <linearGradient id="dashboardRewardXpInner<?= $taskXpIconSuffix ?>" x1="8" y1="8" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+                                                            <stop stop-color="#2be98a"/>
+                                                            <stop offset="1" stop-color="#0e9e4a"/>
+                                                        </linearGradient>
+                                                        <radialGradient id="dashboardRewardXpGlow<?= $taskXpIconSuffix ?>" cx="16" cy="16" r="16" gradientUnits="userSpaceOnUse">
+                                                            <stop stop-color="#baffc9" stop-opacity=".7"/>
+                                                            <stop offset="1" stop-color="#00ffb0" stop-opacity="0"/>
+                                                        </radialGradient>
+                                                    </defs>
+                                                    <polygon points="16,3 29,11 29,25 16,31 3,25 3,11" fill="url(#dashboardRewardXpOuter<?= $taskXpIconSuffix ?>)" stroke="#0bb86c" stroke-width="1.5"/>
+                                                    <polygon points="16,6.5 26,13 26,23 16,28 6,23 6,13" fill="url(#dashboardRewardXpInner<?= $taskXpIconSuffix ?>)"/>
+                                                    <circle cx="16" cy="16" r="10" fill="url(#dashboardRewardXpGlow<?= $taskXpIconSuffix ?>)"/>
+                                                    <g>
+                                                        <path d="M16 10V21" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
+                                                        <path d="M16 10L12.5 14M16 10L19.5 14" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
+                                                    </g>
+                                                    <g opacity=".7">
+                                                        <circle cx="11" cy="13" r="1.1" fill="#fff"/>
+                                                        <circle cx="21" cy="12" r="0.7" fill="#fff"/>
+                                                        <circle cx="19" cy="19" r="0.5" fill="#fff"/>
+                                                    </g>
+                                                </svg>
+                                            </span>
+                                            +<?= (int) $task['xp_reward'] ?> XP
+                                        </strong>
+                                        <span class="flag" aria-hidden="true">
+                                            <img src="../icons/<?= $done ? 'flag-complete.png' : 'flag.png' ?>" alt="" class="flag-image">
+                                        </span>
                                     </div>
-
-                                    <strong class="reward">✦ +<?= (int) $task['xp_reward'] ?> XP</strong>
-                                    <span class="flag"><?= $done ? '✅' : '⚑' ?></span>
                                 </article>
                             <?php endforeach; ?>
                         </div>
@@ -313,9 +656,18 @@ function shortText(string|null $value, int $limit = 42): string
                 </section>
 
                 <section class="bottom-widgets">
-                    <article class="lq-card compact">
-                        <div class="lq-card-header">
-                            <h2>Metas del día</h2>
+                    <article class="lq-card compact daily-goals-card">
+                        <div class="lq-card-header daily-goals-header">
+                            <div class="daily-goals-title">
+                                <span class="daily-goals-header-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" focusable="false">
+                                        <rect x="4" y="5" width="16" height="16" rx="3" stroke="currentColor" stroke-width="2"/>
+                                        <path d="M8 3V7M16 3V7M4 10H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                        <path d="M8 14H10M14 14H16M8 17H10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                    </svg>
+                                </span>
+                                <h2>Metas del día</h2>
+                            </div>
                             <span><?= count($mainGoals) ?>/4</span>
                         </div>
 
@@ -326,8 +678,21 @@ function shortText(string|null $value, int $limit = 42): string
                             </div>
                         <?php else: ?>
                             <?php foreach ($mainGoals as $goal): ?>
+                                <?php
+                                $goalAreaIconValue = trim((string) ($goal['area_icon'] ?? ''));
+                                $goalAreaIcon = areaIconMaskUrl($goalAreaIconValue);
+                                $goalAreaColor = (string) ($goal['area_color'] ?? '#16C79A');
+                                $goalAreaBg = hexToRgba($goalAreaColor, 0.15);
+                                $goalAreaBorder = hexToRgba($goalAreaColor, 0.24);
+                                ?>
                                 <div class="mini-goal">
-                                    <span>🎯</span>
+                                    <span class="mini-goal-icon" aria-hidden="true" style="--area-color: <?= e($goalAreaColor) ?>; --area-bg: <?= e($goalAreaBg) ?>; --area-color-border: <?= e($goalAreaBorder) ?>;">
+                                        <?php if ($goalAreaIcon): ?>
+                                            <span class="mini-goal-icon-mask" style="-webkit-mask-image: url('<?= e($goalAreaIcon) ?>'); mask-image: url('<?= e($goalAreaIcon) ?>');"></span>
+                                        <?php else: ?>
+                                            <?= e($goalAreaIconValue !== '' ? $goalAreaIconValue : '🎯') ?>
+                                        <?php endif; ?>
+                                    </span>
                                     <strong><?= e(shortText($goal['title'], 28)) ?></strong>
                                     <div class="mini-progress"><i style="width: <?= (int) $goal['progress'] ?>%"></i></div>
                                     <small><?= (int) $goal['progress'] ?>%</small>
@@ -337,110 +702,315 @@ function shortText(string|null $value, int $limit = 42): string
                     </article>
 
                     <article class="lq-card compact chart-card">
-                        <div class="lq-card-header">
-                            <h2>Progreso semanal</h2>
+                        <div class="lq-card-header chart-card-header">
+                            <div class="weekly-chart-title">
+                                <span class="weekly-chart-title-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" focusable="false">
+                                        <path d="M5 21V16" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+                                        <path d="M10.5 21V12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+                                        <path d="M16 21V8" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+                                        <path d="M21.5 21V4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+                                    </svg>
+                                </span>
+                                <h2>Progreso semanal</h2>
+                            </div>
                         </div>
-                        <div class="dashboard-weekly-chart">
-                            <svg viewBox="0 0 <?= $lineChartWidth ?> <?= $lineChartHeight ?>" aria-label="Gráfico semanal de XP">
-                                <defs>
-                                    <linearGradient id="dashboardXpLine" x1="0" x2="0" y1="0" y2="1">
-                                        <stop offset="0%" stop-color="#1ed7a5" stop-opacity="1" />
-                                        <stop offset="100%" stop-color="#16c79a" stop-opacity="1" />
-                                    </linearGradient>
-                                    <linearGradient id="dashboardXpArea" x1="0" x2="0" y1="0" y2="1">
-                                        <stop offset="0%" stop-color="#16c79a" stop-opacity="0.22" />
-                                        <stop offset="100%" stop-color="#16c79a" stop-opacity="0.03" />
-                                    </linearGradient>
-                                    <?php if ($futureAreaPath !== '' && $futureAreaEndX > $futureAreaStartX): ?>
-                                        <linearGradient id="dashboardXpAreaFutureFade" gradientUnits="userSpaceOnUse" x1="<?= $futureAreaStartX ?>" x2="<?= $futureAreaEndX ?>" y1="0" y2="0">
-                                            <stop offset="0%" stop-color="#ffffff" stop-opacity="0" />
-                                            <stop offset="100%" stop-color="#ffffff" stop-opacity="0.62" />
+                        <div class="weekly-chart-body">
+                            <div class="dashboard-weekly-chart">
+                                <svg viewBox="0 0 <?= $lineChartWidth ?> <?= $lineChartHeight ?>" aria-label="Gráfico semanal de XP">
+                                    <defs>
+                                        <linearGradient id="dashboardXpLine" x1="0" x2="0" y1="0" y2="1">
+                                            <stop offset="0%" stop-color="#1ed7a5" stop-opacity="1" />
+                                            <stop offset="100%" stop-color="#16c79a" stop-opacity="1" />
                                         </linearGradient>
+                                        <linearGradient id="dashboardXpArea" x1="0" x2="0" y1="0" y2="1">
+                                            <stop offset="0%" stop-color="#16c79a" stop-opacity="0.24" />
+                                            <stop offset="100%" stop-color="#16c79a" stop-opacity="0.02" />
+                                        </linearGradient>
+                                        <?php if ($futureAreaPath !== '' && $futureAreaEndX > $futureAreaStartX): ?>
+                                            <linearGradient id="dashboardXpAreaFutureFade" gradientUnits="userSpaceOnUse" x1="<?= $futureAreaStartX ?>" x2="<?= $futureAreaEndX ?>" y1="0" y2="0">
+                                                <stop offset="0%" stop-color="#ffffff" stop-opacity="0" />
+                                                <stop offset="100%" stop-color="#ffffff" stop-opacity="0.62" />
+                                            </linearGradient>
+                                        <?php endif; ?>
+                                    </defs>
+
+                                    <?php foreach ($axisTicks as $tick): ?>
+                                        <line x1="<?= $linePadX ?>" y1="<?= $tick['y'] ?>" x2="<?= $lineChartWidth - $linePadX ?>" y2="<?= $tick['y'] ?>" class="grid-line"></line>
+                                        <text x="8" y="<?= $tick['y'] + 4 ?>" class="y-axis-label"><?= e($tick['label']) ?></text>
+                                    <?php endforeach; ?>
+
+                                    <path d="<?= e($lineAreaPath) ?>" fill="url(#dashboardXpArea)"></path>
+                                    <?php if ($futureAreaPath !== '' && $futureAreaEndX > $futureAreaStartX): ?>
+                                        <path d="<?= e($futureAreaPath) ?>" fill="url(#dashboardXpAreaFutureFade)"></path>
                                     <?php endif; ?>
-                                </defs>
+                                    <polyline points="<?= e($linePolyline) ?>" fill="none" stroke="url(#dashboardXpLine)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></polyline>
+                                    <?php if ($futureLinePolyline !== ''): ?>
+                                        <polyline class="future-line" points="<?= e($futureLinePolyline) ?>" fill="none" stroke-linecap="round" stroke-linejoin="round"></polyline>
+                                    <?php endif; ?>
 
-                                <?php foreach ($axisTicks as $tick): ?>
-                                    <line x1="<?= $linePadX ?>" y1="<?= $tick['y'] ?>" x2="<?= $lineChartWidth - $linePadX ?>" y2="<?= $tick['y'] ?>" class="grid-line"></line>
-                                    <text x="8" y="<?= $tick['y'] + 4 ?>" class="y-axis-label"><?= e($tick['label']) ?></text>
-                                <?php endforeach; ?>
+                                    <?php foreach ($lineCoords as $point): ?>
+                                        <circle class="dot" cx="<?= $point['x'] ?>" cy="<?= $point['y'] ?>" r="3.6"></circle>
+                                        <title><?= e($point['label'] . ': ' . number_format((int) $point['value'], 0, ',', '.') . ' XP acumulada') ?></title>
+                                    <?php endforeach; ?>
 
-                                <path d="<?= e($lineAreaPath) ?>" fill="url(#dashboardXpArea)"></path>
-                                <?php if ($futureAreaPath !== '' && $futureAreaEndX > $futureAreaStartX): ?>
-                                    <path d="<?= e($futureAreaPath) ?>" fill="url(#dashboardXpAreaFutureFade)"></path>
-                                <?php endif; ?>
-                                <polyline points="<?= e($linePolyline) ?>" fill="none" stroke="url(#dashboardXpLine)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></polyline>
-                                <?php if ($futureLinePolyline !== ''): ?>
-                                    <polyline class="future-line" points="<?= e($futureLinePolyline) ?>" fill="none" stroke-linecap="round" stroke-linejoin="round"></polyline>
-                                <?php endif; ?>
-
-                                <?php foreach ($lineCoords as $point): ?>
-                                    <circle class="dot" cx="<?= $point['x'] ?>" cy="<?= $point['y'] ?>" r="3.2"></circle>
-                                    <title><?= e($point['label'] . ': ' . number_format((int) $point['value'], 0, ',', '.') . ' XP acumulada') ?></title>
-                                <?php endforeach; ?>
-
-                                <?php foreach ($lineCoords as $point): ?>
-                                    <text x="<?= $point['x'] ?>" y="<?= $lineChartHeight - 10 ?>" text-anchor="middle" class="axis-label"><?= e($point['label']) ?></text>
-                                <?php endforeach; ?>
-                            </svg>
+                                    <?php foreach ($lineCoords as $point): ?>
+                                        <text x="<?= $point['x'] ?>" y="<?= $lineChartHeight - 10 ?>" text-anchor="middle" class="axis-label"><?= e($point['label']) ?></text>
+                                    <?php endforeach; ?>
+                                </svg>
+                            </div>
+                            <div class="weekly-chart-summary">
+                                <strong><?= number_format($chartTotalXp, 0, ',', '.') ?> XP</strong>
+                                <small>de <?= number_format(max($xpNext, $chartTotalXp), 0, ',', '.') ?> XP</small>
+                            </div>
                         </div>
-                        <strong><?= number_format($chartTotalXp, 0, ',', '.') ?> XP</strong>
-                        <small>+<?= number_format($weeklyXpGain, 0, ',', '.') ?> esta semana</small>
                     </article>
 
                     <article class="lq-card compact summary-card">
                         <div class="lq-card-header">
-                            <h2>Resumen general</h2>
+                            <div class="summary-card-title">
+                                <span class="summary-card-title-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" focusable="false">
+                                        <rect x="4.5" y="6.5" width="15" height="13" rx="2.2" stroke="currentColor" stroke-width="1.9"/>
+                                        <path d="M9 6.5V5.25C9 4.56 9.56 4 10.25 4h3.5C14.44 4 15 4.56 15 5.25V6.5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+                                        <path d="M8 11h2.4M13.6 11H16" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+                                        <path d="M12 9.8v2.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+                                    </svg>
+                                </span>
+                                <h2>Resumen general</h2>                            
+                            </div>
                         </div>
                         <div class="summary-mini-grid">
-                            <div><span>✅</span><strong><?= count($mainGoals) + count($activeProjects) ?></strong><small>Misiones</small></div>
-                            <div><span>⚡</span><strong><?= $xpCurrent ?></strong><small>XP</small></div>
-                            <div><span>🪙</span><strong><?= $points ?></strong><small>Coins</small></div>
-                            <div><span>⏱️</span><strong>0h</strong><small>Enfoque</small></div>
+                            <div class="summary-mini-item">
+                                <span class="summary-mini-icon summary-mini-icon--missions" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" focusable="false">
+                                        <rect x="5" y="4.5" width="14" height="16" rx="2.4" stroke="currentColor" stroke-width="1.9"/>
+                                        <path d="M9 4.5V3.75M15 4.5V3.75" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+                                        <path d="M9 12.1l2 2 4.2-4.5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                </span>
+                                <span class="summary-mini-copy">
+                                    <small>Misiones completadas</small>
+                                    <strong><?= number_format($completedTasks, 0, ',', '.') ?></strong>
+                                </span>
+                            </div>
+                            <div class="summary-mini-item">
+                                <span class="summary-mini-icon" aria-hidden="true">
+                                    <svg width="24" height="24" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" focusable="false">
+                                        <defs>
+                                            <linearGradient id="summaryXpOuter" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+                                                <stop stop-color="#3cffb0"/>
+                                                <stop offset="1" stop-color="#0bb86c"/>
+                                            </linearGradient>
+                                            <linearGradient id="summaryXpInner" x1="8" y1="8" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+                                                <stop stop-color="#2be98a"/>
+                                                <stop offset="1" stop-color="#0e9e4a"/>
+                                            </linearGradient>
+                                            <radialGradient id="summaryXpGlow" cx="16" cy="16" r="16" gradientUnits="userSpaceOnUse">
+                                                <stop stop-color="#baffc9" stop-opacity=".7"/>
+                                                <stop offset="1" stop-color="#00ffb0" stop-opacity="0"/>
+                                            </radialGradient>
+                                        </defs>
+                                        <polygon points="16,3 29,11 29,25 16,31 3,25 3,11" fill="url(#summaryXpOuter)" stroke="#0bb86c" stroke-width="1.5"/>
+                                        <polygon points="16,6.5 26,13 26,23 16,28 6,23 6,13" fill="url(#summaryXpInner)"/>
+                                        <circle cx="16" cy="16" r="10" fill="url(#summaryXpGlow)"/>
+                                        <g>
+                                            <path d="M16 10V21" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
+                                            <path d="M16 10L12.5 14M16 10L19.5 14" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
+                                        </g>
+                                        <g opacity=".7">
+                                            <circle cx="11" cy="13" r="1.1" fill="#fff"/>
+                                            <circle cx="21" cy="12" r="0.7" fill="#fff"/>
+                                            <circle cx="19" cy="19" r="0.5" fill="#fff"/>
+                                        </g>
+                                    </svg>
+                                </span>
+                                <span class="summary-mini-copy">
+                                    <small>XP ganados</small>
+                                    <strong><?= number_format($xpCurrent, 0, ',', '.') ?></strong>
+                                </span>
+                            </div>
+                            <div class="summary-mini-item">
+                                <span class="summary-mini-icon" aria-hidden="true">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" focusable="false">
+                                        <defs>
+                                            <linearGradient id="summaryCoinOuter" x1="4" y1="3" x2="20" y2="21" gradientUnits="userSpaceOnUse">
+                                                <stop stop-color="#FFE27A"/>
+                                                <stop offset="0.45" stop-color="#FFC93A"/>
+                                                <stop offset="1" stop-color="#F59F00"/>
+                                            </linearGradient>
+                                            <linearGradient id="summaryCoinInner" x1="7" y1="6" x2="17" y2="18" gradientUnits="userSpaceOnUse">
+                                                <stop stop-color="#FFD85C"/>
+                                                <stop offset="1" stop-color="#F08C00"/>
+                                            </linearGradient>
+                                            <filter id="summaryCoinShadow" x="0" y="0" width="24" height="24" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+                                                <feDropShadow dx="0" dy="1" stdDeviation="0.8" flood-color="#C76B00" flood-opacity="0.35"/>
+                                            </filter>
+                                        </defs>
+                                        <g filter="url(#summaryCoinShadow)">
+                                            <circle cx="12" cy="12" r="10" fill="url(#summaryCoinOuter)"/>
+                                            <circle cx="12" cy="12" r="8.1" fill="url(#summaryCoinInner)" stroke="#FFB11A" stroke-width="0.9"/>
+                                            <path d="M5.8 7.5C7.1 5.4 9.34 4 11.9 4" stroke="#FFF4BF" stroke-width="1.4" stroke-linecap="round" opacity="0.9"/>
+                                            <path d="M12.1 7.1C10.8 7.1 9.9 7.75 9.9 8.72C9.9 9.73 10.87 10.2 12.22 10.58C13.64 10.98 14.4 11.47 14.4 12.58C14.4 13.73 13.42 14.55 12 14.69V15.6C12 15.93 11.73 16.2 11.4 16.2C11.07 16.2 10.8 15.93 10.8 15.6V14.63C9.89 14.48 9.04 13.99 8.49 13.25C8.29 12.98 8.34 12.61 8.61 12.42C8.87 12.22 9.25 12.27 9.44 12.54C9.91 13.18 10.69 13.56 11.47 13.56H12C13 13.56 13.2 12.98 13.2 12.62C13.2 12.05 12.87 11.72 11.9 11.44C10.43 11.02 8.7 10.4 8.7 8.77C8.7 7.43 9.69 6.47 10.8 6.22V5.4C10.8 5.07 11.07 4.8 11.4 4.8C11.73 4.8 12 5.07 12 5.4V6.15C12.78 6.21 13.47 6.48 14.07 6.95C14.33 7.15 14.37 7.53 14.17 7.79C13.97 8.05 13.59 8.09 13.33 7.89C12.96 7.6 12.52 7.43 12.1 7.1Z" fill="#FFF9EA"/>
+                                        </g>
+                                    </svg>
+                                </span>
+                                <span class="summary-mini-copy">
+                                    <small>LifeCoins ganados</small>
+                                    <strong><?= number_format($points, 0, ',', '.') ?></strong>
+                                </span>
+                            </div>
+                            <div class="summary-mini-item">
+                                <span class="summary-mini-icon summary-mini-icon--focus" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" focusable="false">
+                                        <circle cx="12" cy="12.5" r="7.8" stroke="currentColor" stroke-width="1.9"/>
+                                        <path d="M12 7.9v4.7l3.1 2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+                                        <path d="M9.7 3.4h4.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+                                    </svg>
+                                </span>
+                                <span class="summary-mini-copy">
+                                    <small>Tiempo enfocado</small>
+                                    <strong><?= e($focusLabel) ?></strong>
+                                </span>
+                            </div>
                         </div>
                     </article>
                 </section>
             </section>
 
             <aside class="lq-right">
-                <section class="lq-card objective-card">
-                    <div class="lq-card-header">
-                        <h2>Meta diario</h2>
+                <section class="lq-card objective-card<?= $objectiveCompletedToday ? ' objective-completed' : '' ?>">
+                    <?php if ($objectiveCompletedToday): ?>
+                        <div class="objective-completed-badge">✅ Completado</div>
+                    <?php endif; ?>
+                    <div class="objective-card-main">
+                        <div class="objective-copy">
+                            <div class="objective-title-row">
+                                <span class="objective-title-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 62 62" fill="none" xmlns="http://www.w3.org/2000/svg" focusable="false">
+                                        <circle cx="29" cy="35" r="24" stroke="currentColor" stroke-width="4.5"/>
+                                        <circle cx="29" cy="35" r="14" stroke="currentColor" stroke-width="4.5"/>
+                                        <circle cx="29" cy="35" r="5.5" fill="currentColor"/>
+                                        <path d="M33 31L45 19" stroke="currentColor" stroke-width="4.5" stroke-linecap="round"/>
+                                        <path d="M44 11V19H52" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                        <path d="M45 19L53 11" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                </span>
+                                <h2>Objetivo diario</h2>
+                            </div>
+                            <p><?= $objectiveCompletedToday ? '¡Objetivo cumplido!' : "Completa {$dailyTotal} misiones al día" ?></p>
+                        </div>
+                        <div class="circle-progress" style="--value: <?= $objectivePercent ?>;">
+                            <strong><?= $dailyCompleted ?><span>/<?= $dailyTotal ?></span></strong>
+                            <span>misiones</span>
+                        </div>
                     </div>
-                    <p>Completa <?= $dailyTotal ?> misiones al día</p>
-                    <div class="circle-progress" style="--value: <?= $objectivePercent ?>;">
-                        <strong><?= $dailyCompleted ?>/<?= $dailyTotal ?></strong>
-                        <span>misiones</span>
-                    </div>
-                    <small>✦ +200 XP</small>
+                    <small>
+                        <span aria-hidden="true">
+                            <svg width="20" height="20" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                <defs>
+                                    <linearGradient id="xpHexOuter" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+                                        <stop stop-color="#3cffb0"/>
+                                        <stop offset="1" stop-color="#0bb86c"/>
+                                    </linearGradient>
+                                    <linearGradient id="xpHexInner" x1="8" y1="8" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+                                        <stop stop-color="#2be98a"/>
+                                        <stop offset="1" stop-color="#0e9e4a"/>
+                                    </linearGradient>
+                                    <radialGradient id="xpGlow" cx="16" cy="16" r="16" gradientUnits="userSpaceOnUse">
+                                        <stop stop-color="#baffc9" stop-opacity=".7"/>
+                                        <stop offset="1" stop-color="#00ffb0" stop-opacity="0"/>
+                                    </radialGradient>
+                                </defs>
+                                <polygon points="16,3 29,11 29,25 16,31 3,25 3,11" fill="url(#xpHexOuter)" stroke="#0bb86c" stroke-width="1.5"/>
+                                <polygon points="16,6.5 26,13 26,23 16,28 6,23 6,13" fill="url(#xpHexInner)"/>
+                                <circle cx="16" cy="16" r="10" fill="url(#xpGlow)"/>
+                                <g>
+                                    <path d="M16 10V21" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
+                                    <path d="M16 10L12.5 14M16 10L19.5 14" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
+                                </g>
+                                <g opacity=".7">
+                                    <circle cx="11" cy="13" r="1.1" fill="#fff"/>
+                                    <circle cx="21" cy="12" r="0.7" fill="#fff"/>
+                                    <circle cx="19" cy="19" r="0.5" fill="#fff"/>
+                                </g>
+                            </svg>
+                    </span> +<?= number_format($dailyBonusXp, 0, ',', '.') ?> XP</small>
                 </section>
 
                 <section class="lq-card upcoming-card">
                     <div class="lq-card-header">
+                        <span class="objective-title-icon" aria-hidden="true">
+                            <svg viewBox="0 0 68 68" fill="none" xmlns="http://www.w3.org/2000/svg" focusable="false">
+                                <circle cx="32" cy="32" r="28" stroke="currentColor" stroke-width="6"/>
+                                <path d="M32 15V32L44 44" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+                                <circle cx="32" cy="32" r="2.8" fill="currentColor"/>
+                            </svg>
+                        </span>
                         <h2>Próximas misiones</h2>
                     </div>
 
-                    <?php if (empty($mainGoals)): ?>
-                        <p class="muted">Crea metas para generar próximas misiones.</p>
+                    <?php if (empty($upcomingTasks)): ?>
+                        <p class="muted">No hay misiones próximas con fecha de vencimiento. <a href="goals.php?section=tasks">Crea una misión</a></p>
                     <?php else: ?>
-                        <?php foreach (array_slice($mainGoals, 0, 3) as $goal): ?>
+                        <?php
+                        function formatDaysUntil(string $dueDate): string {
+                            $due = new DateTimeImmutable($dueDate);
+                            $today = new DateTimeImmutable('today');
+                            $diff = $today->diff($due);
+                            
+                            if ($diff->days === 0) {
+                                return 'Hoy';
+                            } elseif ($diff->days === 1) {
+                                return 'Mañana';
+                            } elseif ($diff->days <= 7) {
+                                return 'En ' . $diff->days . ' días';
+                            } else {
+                                return $due->format('d/m');
+                            }
+                        }
+                        
+                        function priorityIcon(string $priority): string {
+                            return [
+                                'low' => '📌',
+                                'medium' => '⚡',
+                                'high' => '🔥',
+                                'critical' => '⚠️',
+                            ][$priority] ?? '📋';
+                        }
+                        ?>
+                        
+                        <?php foreach (array_slice($upcomingTasks, 0, 5) as $task): ?>
                             <div class="upcoming-item">
-                                <span>🎯</span>
+                                <span><?= priorityIcon($task['priority']) ?></span>
                                 <div>
-                                    <strong><?= e(shortText($goal['title'], 24)) ?></strong>
-                                    <small><?= statusLabelDashboard($goal['status']) ?></small>
+                                    <strong><?= e(shortText($task['title'], 26)) ?></strong>
+                                    <small><?= formatDaysUntil($task['due_date']) ?><?= !empty($task['area_name']) ? ' · ' . e($task['area_name']) : '' ?></small>
                                 </div>
-                                <em>+<?= (int) $goal['xp_reward'] ?> XP</em>
+                                <em>+<?= (int) $task['xp_reward'] ?> XP</em>
                             </div>
                         <?php endforeach; ?>
                     <?php endif; ?>
 
-                    <a href="goals.php" class="center-link">Ver calendario</a>
+                    <a href="goals.php?section=tasks" class="center-link">Ver todas las misiones</a>
                 </section>
 
                 <?php if ($areaProgressionEnabled): ?>
                     <section class="lq-card area-levels-card">
                         <div class="lq-card-header">
-                            <h2>Nivel por áreas</h2>
+                            <div class="objective-title-row">
+                                <span class="objective-title-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 128 80" fill="none" xmlns="http://www.w3.org/2000/svg" focusable="false">
+                                        <path d="M14 68H68" stroke="currentColor" stroke-width="10" stroke-linecap="round"/>
+                                        <path d="M14 48H56" stroke="currentColor" stroke-width="10" stroke-linecap="round"/>
+                                        <path d="M14 28H44" stroke="currentColor" stroke-width="10" stroke-linecap="round"/>
+                                        <path d="M82 64V14" stroke="currentColor" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+                                        <path d="M62 34L82 14L102 34" stroke="currentColor" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+                                        <path d="M110 58V68" stroke="currentColor" stroke-width="10" stroke-linecap="round"/>
+                                    </svg>
+                                </span>
+                                <h2>Nivel por áreas</h2>
+                            </div>
                             <a href="areas.php">Ver áreas</a>
                         </div>
 
@@ -448,9 +1018,17 @@ function shortText(string|null $value, int $limit = 42): string
                             <p class="muted">Completa hábitos o misiones con área para empezar a subir nivel por áreas.</p>
                         <?php else: ?>
                             <div class="area-levels-list">
-                                <?php foreach ($areaLevels as $areaLevel): ?>
+                                <?php foreach (array_slice($areaLevels, 0, 3) as $areaLevel): ?>
+                                    <?php $areaLevelIcon = areaIconMaskUrl($areaLevel['icon'] ?? null); ?>
+                                    <?php $areaLevelColor = (string) ($areaLevel['color'] ?? '#16C79A'); ?>
+                                    <?php $areaLevelBg = hexToRgba($areaLevelColor, 0.15); ?>
+                                    <?php $areaLevelBorder = hexToRgba($areaLevelColor, 0.24); ?>
                                     <article class="area-level-item">
-                                        <span class="area-level-icon"><?= e($areaLevel['icon']) ?></span>
+                                        <?php if ($areaLevelIcon): ?>
+                                            <span class="area-level-icon area-level-icon-mask" aria-hidden="true" style="--area-color: <?= e($areaLevelColor) ?>; --area-bg: <?= e($areaLevelBg) ?>; --area-color-border: <?= e($areaLevelBorder) ?>; -webkit-mask-image: url('<?= e($areaLevelIcon) ?>'); mask-image: url('<?= e($areaLevelIcon) ?>');"></span>
+                                        <?php else: ?>
+                                            <span class="area-level-icon" aria-hidden="true" style="--area-bg: <?= e($areaLevelBg) ?>; --area-color-border: <?= e($areaLevelBorder) ?>; color: <?= e($areaLevelColor) ?>;"><?= e($areaLevel['icon']) ?></span>
+                                        <?php endif; ?>
                                         <div>
                                             <strong><?= e(shortText($areaLevel['name'], 20)) ?> · Lv <?= (int) $areaLevel['level'] ?></strong>
                                             <div class="mini-progress"><i style="width: <?= (int) $areaLevel['level_percent'] ?>%"></i></div>
@@ -463,7 +1041,7 @@ function shortText(string|null $value, int $limit = 42): string
                     </section>
                 <?php endif; ?>
 
-                <section class="lq-card shop-card">
+                <!--<section class="lq-card shop-card">
                     <div class="lq-card-header">
                         <h2>Tienda destacada</h2>
                         <a href="shop.php">Ver todo</a>
@@ -483,24 +1061,32 @@ function shortText(string|null $value, int $limit = 42): string
                             <span>🪙 200</span>
                         </article>
                     </div>
-                </section>
+                </section>-->
 
                 <section class="lq-card donut-card">
                     <div class="lq-card-header">
                         <h2>Distribución de misiones</h2>
                     </div>
-                    <div class="donut-wrap">
-                        <div class="donut"></div>
-                        <div class="donut-legend">
-                            <span><i class="green-dot"></i>Salud 28%</span>
-                            <span><i class="blue-dot"></i>Aprendizaje 28%</span>
-                            <span><i class="purple-dot"></i>Hábitos 22%</span>
-                            <span><i class="orange-dot"></i>Enfoque 18%</span>
+                    
+                    <?php if ($taskDistributionTotal <= 0): ?>
+                        <p class="muted">Crea misiones con áreas de vida asignadas para ver tu distribución.</p>
+                    <?php else: ?>
+                        <div class="donut-wrap">
+                            <div class="donut" style="background: radial-gradient(circle, #fff 55%, transparent 56%), <?= buildDonutGradient(array_filter($taskDistribution, static fn($area) => (float) ($area['percentage'] ?? 0) > 0)) ?>;"></div>
+                            <div class="donut-legend">
+                                <?php foreach ($taskDistribution as $area): ?>
+                                    <span>
+                                        <i style="background: <?= e($area['area_color']) ?>;"></i>
+                                        <?= e(shortText($area['area_name'], 15)) ?> <?= number_format($area['percentage'], 0) ?>%
+                                    </span>
+                                <?php endforeach; ?>
+                            </div>
                         </div>
-                    </div>
+                    <?php endif; ?>
                 </section>
             </aside>
         </div>
     </main>
+    <script src="../assets/js/app.js"></script>
 </body>
 </html>

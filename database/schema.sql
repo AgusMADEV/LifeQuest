@@ -114,6 +114,7 @@ CREATE TABLE habit_logs (
     habit_id INT NOT NULL,
     user_id INT NOT NULL,
     completed_date DATE NOT NULL,
+    status ENUM('completed', 'partial') NOT NULL DEFAULT 'completed',
     completed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY unique_habit_day (habit_id, completed_date),
     FOREIGN KEY (habit_id) REFERENCES habits(id) ON DELETE CASCADE,
@@ -141,6 +142,7 @@ CREATE TABLE rewards (
     user_id INT NOT NULL,
     name VARCHAR(150) NOT NULL,
     description TEXT,
+    image_path VARCHAR(255) NULL,
     cost_points INT NOT NULL,
     category VARCHAR(100),
     shop_type ENUM('indulgence', 'cosmetic') DEFAULT 'indulgence',
@@ -158,6 +160,19 @@ CREATE TABLE reward_redemptions (
     redeemed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (reward_id) REFERENCES rewards(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE user_reward_inventory (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    reward_id INT NOT NULL,
+    equipped BOOLEAN NOT NULL DEFAULT FALSE,
+    acquired_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    equipped_at DATETIME NULL,
+    UNIQUE KEY unique_user_reward_inventory (user_id, reward_id),
+    INDEX idx_user_reward_inventory_equipped (user_id, equipped),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (reward_id) REFERENCES rewards(id) ON DELETE CASCADE
 );
 
 CREATE TABLE danger_logs (

@@ -8,6 +8,7 @@ final class XpEvolutionChart
         array $tasks,
         array $habits,
         array $habitLogs,
+        array $dailyObjectives,
         DateTimeImmutable $periodStartDate,
         DateTimeImmutable $periodEndDate,
         string $metricPeriod,
@@ -66,6 +67,28 @@ final class XpEvolutionChart
             }
         }
 
+        foreach ($dailyObjectives as $dailyObjective) {
+            $objectiveDateRaw = (string) ($dailyObjective['objective_date'] ?? '');
+            if ($objectiveDateRaw === '') {
+                continue;
+            }
+
+            try {
+                $objectiveDate = new DateTimeImmutable($objectiveDateRaw);
+            } catch (Throwable $exception) {
+                continue;
+            }
+
+            if ($objectiveDate < $periodStartDate || $objectiveDate > $periodEndDate) {
+                continue;
+            }
+
+            $dateKey = $objectiveDate->format('Y-m-d');
+            if (isset($xpByDate[$dateKey])) {
+                $xpByDate[$dateKey] += (int) ($dailyObjective['xp_bonus_awarded'] ?? 0);
+            }
+        }
+
         $xpLinePoints = [];
         $cumulativeXp = 0;
         $periodXpGain = 0;
@@ -78,7 +101,7 @@ final class XpEvolutionChart
             $dateObj = new DateTimeImmutable($date);
             $xpLinePoints[] = [
                 'label' => $metricPeriod === 'week'
-                    ? ['L', 'M', 'X', 'J', 'V', 'S', 'D'][(int) $dateObj->format('N') - 1]
+                    ? ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'][(int) $dateObj->format('N') - 1]
                     : $dateObj->format('j'),
                 'value' => $cumulativeXp,
                 'gain' => $dailyGain,

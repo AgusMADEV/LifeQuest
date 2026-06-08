@@ -6,9 +6,16 @@ $sidebarUserDisplayName = function_exists('shortText') ? shortText($sidebarUserN
 $sidebarUserEscape = static fn(string $value): string => function_exists('e')
     ? e($value)
     : htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+$sidebarUserAvatarSrc = AvatarLibrary::getAvatarSrc($user['avatar'] ?? null);
 ?>
 <section class="lq-user-mini">
-    <div class="mini-avatar"><?= $sidebarUserInitial ?></div>
+    <div class="mini-avatar">
+        <?php if ($sidebarUserAvatarSrc !== null): ?>
+            <img src="<?= $sidebarUserEscape($sidebarUserAvatarSrc) ?>" alt="" class="mini-avatar-image">
+        <?php else: ?>
+            <?= $sidebarUserInitial ?>
+        <?php endif; ?>
+    </div>
     <div>
         <strong><?= $sidebarUserEscape($sidebarUserDisplayName) ?></strong>
         <small><?= $sidebarUserEscape($sidebarUserSubtitle) ?></small>

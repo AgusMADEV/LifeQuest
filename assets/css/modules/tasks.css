@@ -53,8 +53,3 @@
 .task-priority-high,
 .task-priority-critical { background: #ffe9e9; color: #c92a2a; }
 
-@media (max-width: 760px) {
-    .task-today-strip {
-        grid-template-columns: 1fr;
-    }
-}

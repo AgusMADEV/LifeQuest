@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../Database/connection.php';
 require_once __DIR__ . '/AreaProgression.php';
 require_once __DIR__ . '/Badge.php';
+require_once __DIR__ . '/DailyObjective.php';
 
 final class Task
 {
@@ -80,6 +81,68 @@ final class Task
         $stmt->execute();
 
         return $stmt->fetchAll();
+    }
+
+    public function getUpcomingByUser(int $userId, int $limit = 5): array
+    {
+        $sql = "SELECT tasks.*,
+                       projects.title AS project_title,
+                       goals.title AS goal_title,
+                       life_areas.name AS area_name,
+                       life_areas.color AS area_color,
+                       life_areas.icon AS area_icon
+                FROM tasks
+                LEFT JOIN projects ON tasks.project_id = projects.id
+                LEFT JOIN goals ON tasks.goal_id = goals.id
+                LEFT JOIN life_areas ON tasks.area_id = life_areas.id
+                WHERE tasks.user_id = :user_id
+                  AND tasks.status IN ('pending', 'in_progress')
+                  AND tasks.due_date IS NOT NULL
+                  AND DATE(tasks.due_date) > CURDATE()
+                ORDER BY tasks.due_date ASC, tasks.priority DESC
+                LIMIT :limit";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->bindValue('user_id', $userId, PDO::PARAM_INT);
+        $stmt->bindValue('limit', $limit, PDO::PARAM_INT);
+        $stmt->execute();
+
+        return $stmt->fetchAll();
+    }
+
+    public function getDistributionByArea(int $userId): array
+    {
+        $sql = "SELECT 
+                    life_areas.id AS area_id,
+                    life_areas.name AS area_name,
+                    life_areas.color AS area_color,
+                    life_areas.icon AS area_icon,
+                    COUNT(tasks.id) AS task_count
+                FROM tasks
+                INNER JOIN life_areas ON tasks.area_id = life_areas.id
+                WHERE tasks.user_id = :user_id
+                  AND tasks.status IN ('pending', 'in_progress', 'completed')
+                GROUP BY life_areas.id, life_areas.name, life_areas.color, life_areas.icon
+                HAVING task_count > 0
+                ORDER BY task_count DESC";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(['user_id' => $userId]);
+
+        $distribution = $stmt->fetchAll();
+        
+        // Calcular total y porcentajes
+        $total = array_sum(array_column($distribution, 'task_count'));
+        
+        if ($total === 0) {
+            return [];
+        }
+
+        foreach ($distribution as &$area) {
+            $area['percentage'] = round(((int) $area['task_count'] / $total) * 100, 1);
+        }
+
+        return $distribution;
     }
 
     public function getCompletedDatesByRange(int $userId, string $startDate, string $endDate): array
@@ -283,15 +346,25 @@ final class Task
 
             $this->refreshRelatedProgress($task['project_id'] ?? null, $task['goal_id'] ?? null);
 
+            // Verificar y completar objetivo diario (antes del commit, dentro de la transacción)
+            $objectiveBonusXp = $this->checkAndAwardDailyObjective($userId);
+
             $this->db->commit();
 
             $badgeModel = new Badge($this->db);
             $newlyUnlockedBadges = $badgeModel->syncAndCollectNewlyUnlocked($userId);
             $this->pushBadgeUnlockToast($newlyUnlockedBadges);
 
+            // Mensaje de éxito
+            $message = 'Misión completada. +' . (int) $task['xp_reward'] . ' XP y +' . (int) $task['points_reward'] . ' LifeCoins.';
+            
+            if ($objectiveBonusXp > 0) {
+                $message .= ' ¡Objetivo diario completado! +' . $objectiveBonusXp . ' XP de bonus.';
+            }
+
             return [
                 'success' => true,
-                'message' => 'Misión completada. +' . (int) $task['xp_reward'] . ' XP y +' . (int) $task['points_reward'] . ' LifeCoins.'
+                'message' => $message
             ];
         } catch (Throwable $exception) {
             $this->db->rollBack();
@@ -450,4 +523,90 @@ final class Task
             'goal_id' => $goalId,
         ]);
     }
+
+    /**
+     * Verifica si el usuario completó su objetivo diario y otorga el XP bonus
+     * Retorna el XP bonus otorgado (0 si no se completó)
+     * IMPORTANTE: Se ejecuta dentro de la transacción activa
+     */
+    private function checkAndAwardDailyObjective(int $userId): int
+    {
+        // Verificar si ya se completó hoy (usando la misma conexión/transacción)
+        $checkStmt = $this->db->prepare(
+            "SELECT id FROM daily_objectives 
+             WHERE user_id = :user_id AND objective_date = CURDATE()
+             LIMIT 1"
+        );
+        $checkStmt->execute(['user_id' => $userId]);
+
+        if ($checkStmt->fetch()) {
+            return 0; // Ya completado hoy
+        }
+
+        // Obtener todas las tareas de hoy
+        $todayTasks = $this->getTodayByUser($userId, 100);
+        
+        if (empty($todayTasks)) {
+            return 0;
+        }
+
+        // Contar tareas completadas
+        $completedCount = 0;
+        $totalXp = 0;
+
+        foreach ($todayTasks as $task) {
+            if (($task['status'] ?? '') === 'completed') {
+                $completedCount++;
+            }
+            $totalXp += (int) ($task['xp_reward'] ?? 0);
+        }
+
+        $totalCount = count($todayTasks);
+        $requiredCount = max(4, $totalCount);
+
+        // Si completó todas las tareas del día, otorgar bonus
+        if ($completedCount >= $requiredCount && $completedCount === $totalCount) {
+            // Calcular bonus (25% del XP total, mínimo 100, máximo 500)
+            $xpBonus = max(100, (int) round($totalXp * 0.25));
+            $xpBonus = min($xpBonus, 500);
+
+            // Registrar completación del objetivo
+            $insertStmt = $this->db->prepare(
+                "INSERT INTO daily_objectives (
+                    user_id, objective_date, tasks_completed, tasks_required, 
+                    xp_bonus_awarded, completed_at
+                )
+                VALUES (
+                    :user_id, CURDATE(), :tasks_completed, :tasks_required,
+                    :xp_bonus, NOW()
+                )"
+            );
+
+            $insertStmt->execute([
+                'user_id' => $userId,
+                'tasks_completed' => $completedCount,
+                'tasks_required' => $requiredCount,
+                'xp_bonus' => $xpBonus,
+            ]);
+
+            // Otorgar el XP bonus al usuario
+            $updateStmt = $this->db->prepare(
+                "UPDATE users 
+                 SET xp = xp + :xp_bonus,
+                     level = GREATEST(1, FLOOR((xp + :xp_bonus_calc) / 1000) + 1)
+                 WHERE id = :user_id"
+            );
+
+            $updateStmt->execute([
+                'user_id' => $userId,
+                'xp_bonus' => $xpBonus,
+                'xp_bonus_calc' => $xpBonus,
+            ]);
+
+            return $xpBonus;
+        }
+
+        return 0;
+    }
 }
+
