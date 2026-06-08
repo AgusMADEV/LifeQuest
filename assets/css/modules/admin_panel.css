@@ -345,6 +345,58 @@
     padding: 7px;
 }
 
+.admin-shop-thumb {
+    width: 15%;
+    display: block;
+    border: 1px solid #dbe3f2;
+    border-radius: 8px;
+    background: #f5f8ff;
+    object-fit: contain;
+    padding: 4px;
+}
+
+.limited-offer-preview {
+    display: grid;
+    grid-template-columns: 90px minmax(0, 1fr);
+    gap: 12px;
+    align-items: center;
+    padding: 10px;
+    border: 1px solid #e2e8f4;
+    border-radius: 12px;
+    background: #f8faff;
+}
+
+.limited-offer-preview-media {
+    width: 90px;
+    height: 90px;
+    overflow: hidden;
+    border-radius: 12px;
+    background: #eef4fb;
+    display: grid;
+    place-items: center;
+}
+
+.limited-offer-preview-media .shop-card-image {
+    padding: 10px;
+}
+
+.limited-offer-preview strong {
+    display: block;
+    margin-bottom: 4px;
+}
+
+.limited-offer-preview p {
+    margin: 0 0 4px;
+    color: #63729a;
+    font-size: .82rem;
+    line-height: 1.45;
+}
+
+.limited-offer-preview small {
+    color: #0ca678;
+    font-weight: 800;
+}
+
 .player-admin-table input {
     width: 92px;
     border: 1px solid #d6deef;
@@ -467,6 +519,10 @@
     border: 1px solid #dbe3f2;
     border-radius: 12px;
     box-shadow: 0 30px 80px rgba(13, 22, 44, .35);
+}
+
+.admin-modal-wide {
+    width: min(940px, 100%);
 }
 
 

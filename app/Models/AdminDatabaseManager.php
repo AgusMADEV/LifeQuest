@@ -92,7 +92,9 @@ final class AdminDatabaseManager
         }
 
         $sql = 'SELECT r.id, r.user_id, u.name AS user_name, u.email AS user_email,
-                       r.name, r.description, r.cost_points, r.category, r.shop_type,
+                       r.name, r.description,
+                       ' . ($this->hasColumn('rewards', 'image_path') ? 'r.image_path' : 'NULL') . ' AS image_path,
+                       r.cost_points, r.category, r.shop_type,
                        r.effect_hp, r.weekly_limit, r.active, r.created_at
                 FROM rewards r
                 INNER JOIN users u ON u.id = r.user_id
@@ -111,11 +113,35 @@ final class AdminDatabaseManager
         return $stmt->fetchAll();
     }
 
+    public function getShopRewardById(int $rewardId): ?array
+    {
+        if ($rewardId < 1) {
+            return null;
+        }
+
+        $sql = 'SELECT r.id, r.user_id, u.name AS user_name, u.email AS user_email,
+                       r.name, r.description,
+                       ' . ($this->hasColumn('rewards', 'image_path') ? 'r.image_path' : 'NULL') . ' AS image_path,
+                       r.cost_points, r.category, r.shop_type,
+                       r.effect_hp, r.weekly_limit, r.active, r.created_at
+                FROM rewards r
+                INNER JOIN users u ON u.id = r.user_id
+                WHERE r.id = :reward_id
+                LIMIT 1';
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(['reward_id' => $rewardId]);
+        $row = $stmt->fetch();
+
+        return $row ?: null;
+    }
+
     public function createShopReward(array $payload): int
     {
         $targetUserId = max(0, (int) ($payload['target_user_id'] ?? 0));
         $name = trim((string) ($payload['name'] ?? ''));
         $description = trim((string) ($payload['description'] ?? ''));
+        $imagePath = $this->normalizeImagePath((string) ($payload['image_path'] ?? ''));
         $shopType = in_array((string) ($payload['shop_type'] ?? ''), ['indulgence', 'cosmetic'], true)
             ? (string) $payload['shop_type']
             : 'indulgence';
@@ -142,19 +168,27 @@ final class AdminDatabaseManager
         }
 
         $inserted = 0;
+        $supportsImagePath = $this->hasColumn('rewards', 'image_path');
         $insert = $this->db->prepare(
-            'INSERT INTO rewards (user_id, name, description, cost_points, category, shop_type, effect_hp, weekly_limit, active)
-             SELECT :user_id, :name, :description, :cost_points, :category, :shop_type, :effect_hp, :weekly_limit, :active
+            'INSERT INTO rewards (user_id, name, description' . ($supportsImagePath ? ', image_path' : '') . ', cost_points, category, shop_type, effect_hp, weekly_limit, active)
+             SELECT :user_id, :name, :description' . ($supportsImagePath ? ', :image_path' : '') . ', :cost_points, :category, :shop_type, :effect_hp, :weekly_limit, :active
              WHERE NOT EXISTS (
                 SELECT 1 FROM rewards WHERE user_id = :exists_user_id AND name = :exists_name LIMIT 1
              )'
         );
 
         foreach ($users as $userId) {
-            $insert->execute([
+            $params = [
                 'user_id' => $userId,
                 'name' => $name,
                 'description' => $description,
+            ];
+
+            if ($supportsImagePath) {
+                $params['image_path'] = $imagePath;
+            }
+
+            $params += [
                 'cost_points' => $costPoints,
                 'category' => $category,
                 'shop_type' => $shopType,
@@ -163,11 +197,92 @@ final class AdminDatabaseManager
                 'active' => $active,
                 'exists_user_id' => $userId,
                 'exists_name' => $name,
-            ]);
+            ];
+
+            $insert->execute($params);
             $inserted += $insert->rowCount();
         }
 
         return $inserted;
+    }
+
+    public function updateShopReward(int $rewardId, array $payload): bool
+    {
+        if ($rewardId < 1) {
+            return false;
+        }
+
+        $current = $this->getRowByPrimaryKey('rewards', 'id', $rewardId);
+        if ($current === null) {
+            return false;
+        }
+
+        $name = trim((string) ($payload['name'] ?? ''));
+        $description = trim((string) ($payload['description'] ?? ''));
+        $imagePath = $this->normalizeImagePath((string) ($payload['image_path'] ?? ''));
+        $shopType = in_array((string) ($payload['shop_type'] ?? ''), ['indulgence', 'cosmetic'], true)
+            ? (string) $payload['shop_type']
+            : (string) ($current['shop_type'] ?? 'indulgence');
+        $category = trim((string) ($payload['category'] ?? (string) ($current['category'] ?? '')));
+        $costPoints = max(0, (int) ($payload['cost_points'] ?? 0));
+        $effectHp = $shopType === 'indulgence' ? max(0, (int) ($payload['effect_hp'] ?? 0)) : 0;
+        $weeklyLimit = max(1, (int) ($payload['weekly_limit'] ?? 1));
+        $active = !empty($payload['active']) ? 1 : 0;
+
+        if ($name === '' || $costPoints < 1) {
+            return false;
+        }
+
+        $ownerId = (int) ($current['user_id'] ?? 0);
+        if ($ownerId > 0) {
+            $duplicateStmt = $this->db->prepare(
+                'SELECT 1
+                 FROM rewards
+                 WHERE user_id = :user_id
+                   AND name = :name
+                   AND id <> :reward_id
+                 LIMIT 1'
+            );
+            $duplicateStmt->execute([
+                'user_id' => $ownerId,
+                'name' => $name,
+                'reward_id' => $rewardId,
+            ]);
+
+            if ($duplicateStmt->fetchColumn()) {
+                return false;
+            }
+        }
+
+        $supportsImagePath = $this->hasColumn('rewards', 'image_path');
+        $columns = [
+            'name' => $name,
+            'description' => $description,
+            'cost_points' => $costPoints,
+            'category' => $category,
+            'shop_type' => $shopType,
+            'effect_hp' => $effectHp,
+            'weekly_limit' => $weeklyLimit,
+            'active' => $active,
+        ];
+
+        if ($supportsImagePath) {
+            $columns['image_path'] = $imagePath;
+        }
+
+        $setParts = [];
+        $params = [];
+
+        foreach ($columns as $column => $value) {
+            $setParts[] = '`' . $column . '` = ?';
+            $params[] = $value;
+        }
+
+        $params[] = $rewardId;
+        $stmt = $this->db->prepare('UPDATE rewards SET ' . implode(', ', $setParts) . ' WHERE id = ? LIMIT 1');
+        $stmt->execute($params);
+
+        return $stmt->rowCount() >= 0;
     }
 
     public function setRewardActive(int $rewardId, bool $active): bool
@@ -766,6 +881,21 @@ final class AdminDatabaseManager
         }
 
         return implode(' · ', $parts);
+    }
+
+    private function normalizeImagePath(string $value): string
+    {
+        $value = trim($value);
+
+        if ($value === '' || preg_match('/[\x00-\x1F]/', $value) === 1) {
+            return '';
+        }
+
+        if (preg_match('/^javascript:/i', $value) === 1) {
+            return '';
+        }
+
+        return mb_substr($value, 0, 255);
     }
 
     private function sanitizeTableName(string $table): string

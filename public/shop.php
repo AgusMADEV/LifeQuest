@@ -3,6 +3,7 @@ require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../app/Controllers/AuthController.php';
 require_once __DIR__ . '/../app/Models/User.php';
 require_once __DIR__ . '/../app/Models/Reward.php';
+require_once __DIR__ . '/../app/Models/AppSettings.php';
 require_once __DIR__ . '/../app/Support/AvatarLibrary.php';
 
 AuthController::requireAuth();
@@ -10,6 +11,7 @@ AuthController::requireAuth();
 $userId = (int) $_SESSION['user_id'];
 $userModel = new User();
 $rewardModel = new Reward();
+$settingsModel = new AppSettings();
 
 $user = $userModel->findById($userId);
 
@@ -79,6 +81,9 @@ $indulgences = $shopEnabled ? $rewardModel->getShopItems($userId, 'indulgence') 
 $cosmetics = $shopEnabled ? $rewardModel->getShopItems($userId, 'cosmetic') : [];
 $inventoryCosmetics = $shopEnabled ? $rewardModel->getInventoryCosmetics($userId) : [];
 $equippedCosmetics = $shopEnabled ? $rewardModel->getInventoryCosmetics($userId, true) : [];
+$shopLimitedOfferName = $shopEnabled
+    ? trim((string) ($settingsModel->getMany(['SHOP_LIMITED_OFFER_NAME'])['SHOP_LIMITED_OFFER_NAME'] ?? ''))
+    : '';
 $user = $userModel->findById($userId) ?: $user;
 
 $points = (int) ($user['points'] ?? 0);
@@ -149,9 +154,41 @@ function shopVisualClass(array $item, string $shopType): string
     return in_array($key, $allowed, true) ? $key : 'cosmetico';
 }
 
+function findShopItemByName(array $items, string $name): ?array
+{
+    $name = trim($name);
+
+    if ($name === '') {
+        return null;
+    }
+
+    foreach ($items as $item) {
+        if ((string) ($item['name'] ?? '') === $name) {
+            return $item;
+        }
+    }
+
+    return null;
+}
+
+function shopImageSrc(string|null $value): ?string
+{
+    $value = trim((string) $value);
+
+    if ($value === '' || preg_match('/[\x00-\x1F]/', $value) === 1) {
+        return null;
+    }
+
+    if (preg_match('/^javascript:/i', $value) === 1) {
+        return null;
+    }
+
+    return $value;
+}
+
 $avatarPreviewSrc = AvatarLibrary::getAvatarSrc($user['avatar'] ?? null);
 $featuredIndulgence = $indulgences[0] ?? null;
-$featuredCosmetic = $cosmetics[0] ?? null;
+$featuredCosmetic = findShopItemByName($cosmetics, $shopLimitedOfferName) ?? ($cosmetics[0] ?? null);
 
 $spentThisWeek = array_reduce($indulgences, static function (int $carry, array $item): int {
     return $carry + ((int) ($item['weekly_used'] ?? 0) * (int) ($item['base_cost_points'] ?? $item['cost_points'] ?? 0));
@@ -210,8 +247,7 @@ $cosmeticTabs = [
             <?php else: ?>
                 <section class="shop-page-head">
                     <div>
-                        <span class="shop-kicker">Tienda</span>
-                        <h1>Indulgencias y estilo</h1>
+                        <h1>Tienda</h1>
                         <p>Prioriza permisos conscientes; los cosméticos quedan como colección visual.</p>
                     </div>
                     <div class="shop-head-stats" aria-label="Resumen de tienda">
@@ -236,6 +272,7 @@ $cosmeticTabs = [
                                 <p>Permisos de descanso con límite semanal, coste dinámico y recuperación de HP.</p>
                                 <a class="shop-hero-button" href="#indulgencias">Ver indulgencias</a>
                             </div>
+                            <?php /* Bloque temporalmente desactivado.
                             <div class="shop-hero-feature" aria-label="Destacado de indulgencias">
                                 <div class="shop-hero-card">
                                     <span class="shop-hero-badge">Prioridad</span>
@@ -247,6 +284,7 @@ $cosmeticTabs = [
                                     <span>listas</span>
                                 </div>
                             </div>
+                            */ ?>
                         </section>
 
                         <section class="shop-section" id="indulgencias">
@@ -272,10 +310,15 @@ $cosmeticTabs = [
                                     $canAfford = $points >= (int) $item['cost_points'];
                                     $canRedeem = $remaining > 0;
                                     $usagePercent = max(0, min(100, (int) round(((int) $item['weekly_used'] / max(1, (int) $item['weekly_limit'])) * 100)));
+                                    $imageSrc = shopImageSrc($item['image_path'] ?? null);
                                     ?>
                                     <article class="shop-card indulgence-card<?= $index === 0 ? ' featured' : '' ?>">
-                                        <div class="shop-card-visual indulgence" aria-hidden="true">
-                                            <span><?= $index + 1 ?></span>
+                                        <div class="shop-card-visual indulgence<?= $imageSrc !== null ? ' has-image' : '' ?>" aria-hidden="true">
+                                            <?php if ($imageSrc !== null): ?>
+                                                <img class="shop-card-image" src="<?= e($imageSrc) ?>" alt="">
+                                            <?php else: ?>
+                                                <span><?= $index + 1 ?></span>
+                                            <?php endif; ?>
                                         </div>
                                         <div class="shop-card-body">
                                             <div class="shop-card-head">
@@ -332,9 +375,16 @@ $cosmeticTabs = [
                                     $visualClass = shopVisualClass($item, 'cosmetic');
                                     $isOwned = !empty($item['owned']);
                                     $isEquipped = !empty($item['equipped']);
+                                    $imageSrc = shopImageSrc($item['image_path'] ?? null);
                                     ?>
                                     <article class="shop-card cosmetic-card<?= $isOwned ? ' owned' : '' ?><?= $isEquipped ? ' equipped' : '' ?>">
-                                        <div class="shop-card-visual <?= e($visualClass) ?>" aria-hidden="true"><span></span></div>
+                                        <div class="shop-card-visual <?= e($visualClass) ?><?= $imageSrc !== null ? ' has-image' : '' ?>" aria-hidden="true">
+                                            <?php if ($imageSrc !== null): ?>
+                                                <img class="shop-card-image" src="<?= e($imageSrc) ?>" alt="">
+                                            <?php else: ?>
+                                                <span></span>
+                                            <?php endif; ?>
+                                        </div>
                                         <div class="shop-card-body">
                                             <div class="shop-card-head compact">
                                                 <div>
@@ -403,8 +453,11 @@ $cosmeticTabs = [
                             </div>
                             <div class="equipped-row">
                                 <?php foreach (array_slice($equippedCosmetics, 0, 5) as $item): ?>
+                                    <?php $miniImageSrc = shopImageSrc($item['image_path'] ?? null); ?>
                                     <div>
-                                        <span class="mini-cosmetic <?= e(shopVisualClass($item, 'cosmetic')) ?>"></span>
+                                        <span class="mini-cosmetic <?= e(shopVisualClass($item, 'cosmetic')) ?><?= $miniImageSrc !== null ? ' has-image' : '' ?>">
+                                            <?php if ($miniImageSrc !== null): ?><img src="<?= e($miniImageSrc) ?>" alt=""><?php endif; ?>
+                                        </span>
                                         <small><?= e(shopCategoryLabel($item['category'] ?? '', 'cosmetic')) ?></small>
                                     </div>
                                 <?php endforeach; ?>
@@ -421,8 +474,11 @@ $cosmeticTabs = [
                             </div>
                             <div class="inventory-list">
                                 <?php foreach (array_slice($inventoryCosmetics, 0, 6) as $item): ?>
+                                    <?php $miniImageSrc = shopImageSrc($item['image_path'] ?? null); ?>
                                     <article>
-                                        <span class="mini-cosmetic <?= e(shopVisualClass($item, 'cosmetic')) ?>"></span>
+                                        <span class="mini-cosmetic <?= e(shopVisualClass($item, 'cosmetic')) ?><?= $miniImageSrc !== null ? ' has-image' : '' ?>">
+                                            <?php if ($miniImageSrc !== null): ?><img src="<?= e($miniImageSrc) ?>" alt=""><?php endif; ?>
+                                        </span>
                                         <div>
                                             <strong><?= e(shortText($item['name'], 24)) ?></strong>
                                             <small><?= e(shopCategoryLabel($item['category'] ?? '', 'cosmetic')) ?></small>
@@ -451,7 +507,14 @@ $cosmeticTabs = [
                                 <span>Semanal</span>
                             </div>
                             <div class="limited-offer">
-                                <div class="shop-card-visual <?= e($featuredCosmetic ? shopVisualClass($featuredCosmetic, 'cosmetic') : 'outfit') ?>" aria-hidden="true"><span></span></div>
+                                <?php $featuredImageSrc = $featuredCosmetic ? shopImageSrc($featuredCosmetic['image_path'] ?? null) : null; ?>
+                                <div class="shop-card-visual <?= e($featuredCosmetic ? shopVisualClass($featuredCosmetic, 'cosmetic') : 'outfit') ?><?= $featuredImageSrc !== null ? ' has-image' : '' ?>" aria-hidden="true">
+                                    <?php if ($featuredImageSrc !== null): ?>
+                                        <img class="shop-card-image" src="<?= e($featuredImageSrc) ?>" alt="">
+                                    <?php else: ?>
+                                        <span></span>
+                                    <?php endif; ?>
+                                </div>
                                 <div>
                                     <strong><?= e($featuredCosmetic ? shortText($featuredCosmetic['name'], 28) : 'Kit visual inicial') ?></strong>
                                     <p><?= e($featuredCosmetic ? shortText($featuredCosmetic['description'], 70) : 'Pack cosmético para empezar la colección.') ?></p>

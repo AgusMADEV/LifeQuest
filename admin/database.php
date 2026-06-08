@@ -234,10 +234,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'create_shop_reward') {
         $section = 'shop';
         try {
+            $uploadedImagePath = adminStoreRewardImageFile($_FILES['image_file'] ?? null);
+            $fallbackImagePath = adminNormalizeRewardImageReference((string) ($_POST['image_path'] ?? ''));
             $created = $manager->createShopReward([
                 'target_user_id' => (int) ($_POST['target_user_id'] ?? 0),
                 'name' => (string) ($_POST['name'] ?? ''),
                 'description' => (string) ($_POST['description'] ?? ''),
+                'image_path' => $uploadedImagePath !== '' ? $uploadedImagePath : $fallbackImagePath,
                 'cost_points' => (int) ($_POST['cost_points'] ?? 0),
                 'category' => (string) ($_POST['category'] ?? ''),
                 'shop_type' => (string) ($_POST['shop_type'] ?? 'indulgence'),
@@ -250,6 +253,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         } catch (Throwable $exception) {
             $message = 'Error creando recompensa: ' . $exception->getMessage();
+            $messageType = 'error';
+        }
+    }
+
+    if ($action === 'update_shop_reward') {
+        $section = 'shop';
+        $rewardId = (int) ($_POST['reward_id'] ?? 0);
+        try {
+            $uploadedImagePath = adminStoreRewardImageFile($_FILES['image_file'] ?? null);
+            $fallbackImagePath = adminNormalizeRewardImageReference((string) ($_POST['image_path'] ?? ''));
+
+            $ok = $manager->updateShopReward($rewardId, [
+                'name' => (string) ($_POST['name'] ?? ''),
+                'description' => (string) ($_POST['description'] ?? ''),
+                'image_path' => $uploadedImagePath !== '' ? $uploadedImagePath : $fallbackImagePath,
+                'cost_points' => (int) ($_POST['cost_points'] ?? 0),
+                'category' => (string) ($_POST['category'] ?? ''),
+                'shop_type' => (string) ($_POST['shop_type'] ?? 'indulgence'),
+                'effect_hp' => (int) ($_POST['effect_hp'] ?? 0),
+                'weekly_limit' => (int) ($_POST['weekly_limit'] ?? 1),
+                'active' => (string) ($_POST['active'] ?? '0') === '1',
+            ]);
+
+            $targetMessage = $ok ? 'Recompensa actualizada correctamente.' : 'No se pudo actualizar la recompensa.';
+            header('Location: database.php?section=shop&shop_filter=' . urlencode($shopFilter) . '&message=' . urlencode($targetMessage) . '&type=' . ($ok ? 'success' : 'error'));
+            exit;
+        } catch (Throwable $exception) {
+            $message = 'Error editando recompensa: ' . $exception->getMessage();
             $messageType = 'error';
         }
     }
@@ -428,6 +459,10 @@ $shopRewards = $section === 'shop' ? $manager->getShopRewards($shopFilter) : [];
 $shopInventory = $section === 'shop' ? $manager->getShopInventory() : [];
 $shopCosmeticRewards = $section === 'shop' ? $manager->getShopRewards('cosmetic', 200) : [];
 $playerRows = $section === 'players' ? $adminUsers : [];
+$shopEditRewardId = (int) ($_GET['shop_edit_id'] ?? 0);
+$shopEditReward = ($section === 'shop' && $shopEditRewardId > 0)
+    ? $manager->getShopRewardById($shopEditRewardId)
+    : null;
 
 function e(string|null $value): string
 {
@@ -487,6 +522,68 @@ function createPrefillValue(string $table, string $field): string
         'hp', 'max_hp' => '1000',
         default => '',
     };
+}
+
+function adminNormalizeRewardImageReference(string $value): string
+{
+    $value = trim($value);
+
+    if ($value === '' || preg_match('/[\x00-\x1F]/', $value) === 1) {
+        return '';
+    }
+
+    if (preg_match('/^javascript:/i', $value) === 1) {
+        return '';
+    }
+
+    return mb_substr($value, 0, 255);
+}
+
+function adminStoreRewardImageFile(?array $file): string
+{
+    if ($file === null || !isset($file['error']) || (int) $file['error'] === UPLOAD_ERR_NO_FILE) {
+        return '';
+    }
+
+    if ((int) $file['error'] !== UPLOAD_ERR_OK) {
+        throw new RuntimeException('No se pudo subir la imagen.');
+    }
+
+    $tmpName = (string) ($file['tmp_name'] ?? '');
+    if ($tmpName === '' || !is_uploaded_file($tmpName)) {
+        throw new RuntimeException('La imagen subida no es valida.');
+    }
+
+    $imageInfo = @getimagesize($tmpName);
+    if ($imageInfo === false || empty($imageInfo['mime'])) {
+        throw new RuntimeException('El archivo debe ser una imagen valida.');
+    }
+
+    $mimeToExtension = [
+        'image/jpeg' => 'jpg',
+        'image/png' => 'png',
+        'image/gif' => 'gif',
+        'image/webp' => 'webp',
+    ];
+
+    $mime = (string) $imageInfo['mime'];
+    if (!array_key_exists($mime, $mimeToExtension)) {
+        throw new RuntimeException('Formato de imagen no permitido. Usa JPG, PNG, GIF o WEBP.');
+    }
+
+    $uploadDir = __DIR__ . '/../assets/uploads/shop_rewards';
+    if (!is_dir($uploadDir) && !mkdir($uploadDir, 0775, true) && !is_dir($uploadDir)) {
+        throw new RuntimeException('No se pudo preparar la carpeta de subida.');
+    }
+
+    $filename = 'reward_' . date('Ymd_His') . '_' . bin2hex(random_bytes(4)) . '.' . $mimeToExtension[$mime];
+    $targetPath = $uploadDir . DIRECTORY_SEPARATOR . $filename;
+
+    if (!move_uploaded_file($tmpName, $targetPath)) {
+        throw new RuntimeException('No se pudo guardar la imagen subida.');
+    }
+
+    return '../assets/uploads/shop_rewards/' . $filename;
 }
 
 function adminSectionTitle(string $section): string
@@ -843,23 +940,23 @@ function adminSectionSubtitle(string $section): string
 
                     <section class="admin-panel-grid shop-admin-layout">
                         <article class="admin-card">
-                            <div class="admin-card-head">
-                                <h2>Nueva recompensa</h2>
-                                <span class="admin-muted">Catalogo</span>
-                            </div>
-                            <div class="admin-card-body">
-                                <form method="POST" class="admin-form admin-stack">
-                                    <input type="hidden" name="action" value="create_shop_reward">
-                                    <input type="hidden" name="section" value="shop">
+                                <div class="admin-card-head">
+                                    <h2>Nueva recompensa</h2>
+                                    <span class="admin-muted">Catalogo</span>
+                                </div>
+                                <div class="admin-card-body">
+                                    <form method="POST" enctype="multipart/form-data" class="admin-form admin-stack">
+                                        <input type="hidden" name="action" value="create_shop_reward">
+                                        <input type="hidden" name="section" value="shop">
 
-                                    <label>Usuario destino
-                                        <select name="target_user_id">
-                                            <option value="0">Todos los usuarios</option>
-                                            <?php foreach ($adminUsers as $adminUser): ?>
-                                                <option value="<?= (int) $adminUser['id'] ?>">#<?= (int) $adminUser['id'] ?> · <?= e((string) $adminUser['name']) ?> · <?= e((string) $adminUser['email']) ?></option>
-                                            <?php endforeach; ?>
-                                        </select>
-                                    </label>
+                                        <label>Usuario destino
+                                            <select name="target_user_id">
+                                                <option value="0">Todos los usuarios</option>
+                                                <?php foreach ($adminUsers as $adminUser): ?>
+                                                    <option value="<?= (int) $adminUser['id'] ?>">#<?= (int) $adminUser['id'] ?> · <?= e((string) $adminUser['name']) ?> · <?= e((string) $adminUser['email']) ?></option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        </label>
 
                                     <div class="admin-row-2">
                                         <label>Tipo
@@ -886,6 +983,14 @@ function adminSectionSubtitle(string $section): string
                                         <textarea name="description" rows="3"></textarea>
                                     </label>
 
+                                    <label>Imagen de card
+                                        <input type="file" name="image_file" accept="image/png,image/jpeg,image/webp,image/gif">
+                                    </label>
+
+                                    <label>Ruta o URL alternativa
+                                        <input type="text" name="image_path" maxlength="255" placeholder="Opcional si no subes archivo">
+                                    </label>
+
                                     <div class="admin-row-2">
                                         <label>Coste LifeCoins
                                             <input type="number" min="1" name="cost_points" value="100" required>
@@ -907,10 +1012,10 @@ function adminSectionSubtitle(string $section): string
                                         </label>
                                     </div>
 
-                                    <button type="submit" class="btn btn-primary full">Crear recompensa</button>
-                                </form>
-                            </div>
-                        </article>
+                                        <button type="submit" class="btn btn-primary full">Crear recompensa</button>
+                                    </form>
+                                </div>
+                            </article>
 
                         <article class="admin-card">
                             <div class="admin-card-head">
@@ -930,6 +1035,7 @@ function adminSectionSubtitle(string $section): string
                                         <thead>
                                             <tr>
                                                 <th>Item</th>
+                                                <th>Imagen</th>
                                                 <th>Usuario</th>
                                                 <th>Tipo</th>
                                                 <th>Categoria</th>
@@ -941,8 +1047,16 @@ function adminSectionSubtitle(string $section): string
                                         </thead>
                                         <tbody>
                                             <?php foreach ($shopRewards as $reward): ?>
+                                                <?php $editRewardParams = ['section' => 'shop', 'shop_filter' => $shopFilter, 'shop_edit_id' => (int) $reward['id']]; ?>
                                                 <tr>
                                                     <td><strong><?= e((string) $reward['name']) ?></strong><br><small><?= e((string) $reward['description']) ?></small></td>
+                                                    <td>
+                                                        <?php if (!empty($reward['image_path'])): ?>
+                                                            <img class="admin-shop-thumb" src="<?= e((string) $reward['image_path']) ?>" alt="">
+                                                        <?php else: ?>
+                                                            <span class="admin-muted">Sin imagen</span>
+                                                        <?php endif; ?>
+                                                    </td>
                                                     <td>#<?= (int) $reward['user_id'] ?><br><small><?= e((string) $reward['user_email']) ?></small></td>
                                                     <td><?= e((string) $reward['shop_type']) ?></td>
                                                     <td><?= e((string) $reward['category']) ?></td>
@@ -951,6 +1065,7 @@ function adminSectionSubtitle(string $section): string
                                                     <td><?= (int) $reward['weekly_limit'] ?></td>
                                                     <td>
                                                         <form method="POST" class="admin-row-actions">
+                                                            <a class="admin-inline-btn" href="database.php?<?= e(http_build_query($editRewardParams)) ?>">Editar</a>
                                                             <input type="hidden" name="action" value="set_reward_active">
                                                             <input type="hidden" name="section" value="shop">
                                                             <input type="hidden" name="shop_filter" value="<?= e($shopFilter) ?>">
@@ -962,7 +1077,7 @@ function adminSectionSubtitle(string $section): string
                                                 </tr>
                                             <?php endforeach; ?>
                                             <?php if (empty($shopRewards)): ?>
-                                                <tr><td colspan="8">Sin recompensas para este filtro.</td></tr>
+                                                <tr><td colspan="9">Sin recompensas para este filtro.</td></tr>
                                             <?php endif; ?>
                                         </tbody>
                                     </table>
@@ -970,6 +1085,89 @@ function adminSectionSubtitle(string $section): string
                             </div>
                         </article>
                     </section>
+
+                    <?php if ($shopEditReward !== null): ?>
+                        <div class="admin-modal-overlay">
+                            <div class="admin-modal admin-modal-wide">
+                                <div class="admin-card-head">
+                                    <h2>Editar recompensa</h2>
+                                    <a class="admin-inline-btn" href="database.php?section=shop&shop_filter=<?= e($shopFilter) ?>">Cerrar</a>
+                                </div>
+                                <div class="admin-card-body">
+                                    <form method="POST" enctype="multipart/form-data" class="admin-form admin-stack">
+                                        <input type="hidden" name="action" value="update_shop_reward">
+                                        <input type="hidden" name="section" value="shop">
+                                        <input type="hidden" name="reward_id" value="<?= (int) $shopEditReward['id'] ?>">
+
+                                        <div class="admin-row-2">
+                                            <label>Usuario dueño
+                                                <input type="text" value="#<?= (int) $shopEditReward['user_id'] ?> · <?= e((string) $shopEditReward['user_name']) ?>" disabled>
+                                            </label>
+                                            <label>Estado
+                                                <select name="active">
+                                                    <option value="1" <?= !empty($shopEditReward['active']) ? 'selected' : '' ?>>Activo</option>
+                                                    <option value="0" <?= empty($shopEditReward['active']) ? 'selected' : '' ?>>Inactivo</option>
+                                                </select>
+                                            </label>
+                                        </div>
+
+                                        <div class="admin-row-2">
+                                            <label>Tipo
+                                                <select name="shop_type">
+                                                    <option value="indulgence" <?= (($shopEditReward['shop_type'] ?? '') === 'indulgence') ? 'selected' : '' ?>>Indulgencia</option>
+                                                    <option value="cosmetic" <?= (($shopEditReward['shop_type'] ?? '') === 'cosmetic') ? 'selected' : '' ?>>Cosmetico</option>
+                                                </select>
+                                            </label>
+                                            <label>Categoria
+                                                <input type="text" name="category" value="<?= e((string) ($shopEditReward['category'] ?? '')) ?>" maxlength="100">
+                                            </label>
+                                        </div>
+
+                                        <label>Nombre
+                                            <input type="text" name="name" value="<?= e((string) ($shopEditReward['name'] ?? '')) ?>" maxlength="150" required>
+                                        </label>
+
+                                        <label>Descripcion
+                                            <textarea name="description" rows="3"><?= e((string) ($shopEditReward['description'] ?? '')) ?></textarea>
+                                        </label>
+
+                                        <div class="admin-row-2">
+                                            <label>Imagen actual / ruta
+                                                <input type="text" name="image_path" value="<?= e((string) ($shopEditReward['image_path'] ?? '')) ?>" maxlength="255" placeholder="Se puede reemplazar o vaciar">
+                                            </label>
+                                            <label>Nueva imagen
+                                                <input type="file" name="image_file" accept="image/png,image/jpeg,image/webp,image/gif">
+                                            </label>
+                                        </div>
+
+                                        <div class="admin-row-2">
+                                            <label>Coste LifeCoins
+                                                <input type="number" min="1" name="cost_points" value="<?= (int) ($shopEditReward['cost_points'] ?? 0) ?>" required>
+                                            </label>
+                                            <label>HP efecto
+                                                <input type="number" min="0" name="effect_hp" value="<?= (int) ($shopEditReward['effect_hp'] ?? 0) ?>">
+                                            </label>
+                                        </div>
+
+                                        <div class="admin-row-2">
+                                            <label>Limite semanal
+                                                <input type="number" min="1" name="weekly_limit" value="<?= (int) ($shopEditReward['weekly_limit'] ?? 1) ?>">
+                                            </label>
+                                            <label>Vista previa
+                                                <?php if (!empty($shopEditReward['image_path'])): ?>
+                                                    <img class="admin-shop-thumb" src="<?= e((string) $shopEditReward['image_path']) ?>" alt="">
+                                                <?php else: ?>
+                                                    <span class="admin-muted">Sin imagen</span>
+                                                <?php endif; ?>
+                                            </label>
+                                        </div>
+
+                                        <button type="submit" class="btn btn-primary full">Guardar cambios</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endif; ?>
 
                     <section class="admin-panel-grid shop-admin-layout">
                         <article class="admin-card">

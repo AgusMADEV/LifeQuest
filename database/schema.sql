@@ -142,6 +142,7 @@ CREATE TABLE rewards (
     user_id INT NOT NULL,
     name VARCHAR(150) NOT NULL,
     description TEXT,
+    image_path VARCHAR(255) NULL,
     cost_points INT NOT NULL,
     category VARCHAR(100),
     shop_type ENUM('indulgence', 'cosmetic') DEFAULT 'indulgence',

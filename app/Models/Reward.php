@@ -245,6 +245,7 @@ final class Reward
         $supportsShopType = $this->hasColumn('rewards', 'shop_type');
         $supportsEffectHp = $this->hasColumn('rewards', 'effect_hp');
         $supportsWeeklyLimit = $this->hasColumn('rewards', 'weekly_limit');
+        $supportsImagePath = $this->hasColumn('rewards', 'image_path');
         $supportsInventory = $this->hasTable('user_reward_inventory');
 
         $shopTypeSql = $supportsShopType
@@ -260,6 +261,7 @@ final class Reward
         $sql = 'SELECT r.id,
                        r.name,
                        r.description,
+                       ' . ($supportsImagePath ? 'r.image_path' : 'NULL') . ' AS image_path,
                        r.cost_points,
                        r.category,
                        ' . ($supportsEffectHp ? 'r.effect_hp' : '0') . ' AS effect_hp,
@@ -276,7 +278,7 @@ final class Reward
                 WHERE r.user_id = :r_user_id
                   AND r.active = 1
                   AND ' . $shopTypeSql . '
-                GROUP BY r.id, r.name, r.description, r.cost_points, r.category, effect_hp, weekly_limit
+                GROUP BY r.id, r.name, r.description, image_path, r.cost_points, r.category, effect_hp, weekly_limit
                 ORDER BY r.cost_points ASC, r.created_at DESC';
 
         $stmt = $this->db->prepare($sql);
@@ -309,6 +311,7 @@ final class Reward
                 'id' => (int) $row['id'],
                 'name' => (string) $row['name'],
                 'description' => (string) ($row['description'] ?? ''),
+                'image_path' => (string) ($row['image_path'] ?? ''),
                 'category' => (string) ($row['category'] ?? ''),
                 'cost_points' => $dynamicCost,
                 'base_cost_points' => $baseCost,
@@ -319,6 +322,22 @@ final class Reward
                 'equipped' => !empty($row['equipped']),
             ];
         }, $stmt->fetchAll());
+    }
+
+    public function getShopItemByName(int $userId, string $shopType, string $name): ?array
+    {
+        $name = trim($name);
+        if ($name === '') {
+            return null;
+        }
+
+        foreach ($this->getShopItems($userId, $shopType) as $item) {
+            if ((string) ($item['name'] ?? '') === $name) {
+                return $item;
+            }
+        }
+
+        return null;
     }
 
     public function redeemIndulgence(int $userId, int $rewardId): array
@@ -634,10 +653,12 @@ final class Reward
         }
 
         $supportsShopType = $this->hasColumn('rewards', 'shop_type');
+        $supportsImagePath = $this->hasColumn('rewards', 'image_path');
 
         $query = 'SELECT r.id,
                          r.name,
                          r.description,
+                 ' . ($supportsImagePath ? 'r.image_path' : 'NULL') . ' AS image_path,
                          r.cost_points,
                          r.category,
                          uri.equipped,
@@ -670,6 +691,7 @@ final class Reward
                 'id' => (int) $row['id'],
                 'name' => (string) $row['name'],
                 'description' => (string) ($row['description'] ?? ''),
+                'image_path' => (string) ($row['image_path'] ?? ''),
                 'category' => (string) ($row['category'] ?? ''),
                 'cost_points' => max(0, (int) ($row['cost_points'] ?? 0)),
                 'equipped' => !empty($row['equipped']),

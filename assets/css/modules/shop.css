@@ -31,7 +31,6 @@
     margin-bottom: 16px;
 }
 
-.shop-kicker,
 .shop-hero-copy span,
 .shop-hero-badge,
 .shop-type {
@@ -44,19 +43,12 @@
     text-transform: uppercase;
 }
 
-.shop-kicker {
-    min-height: 23px;
-    padding: 0 9px;
-    background: #e8fff7;
-    color: #087f5b;
-    font-size: .72rem;
-}
-
 .shop-page-head h1 {
-    margin: 8px 0 4px;
-    font-size: 2rem;
-    line-height: 1;
-    letter-spacing: -.04em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+    font-size: clamp(2rem, 2.9vw, 2.7rem);
 }
 
 .shop-page-head p,
@@ -175,8 +167,8 @@
 .shop-hero {
     min-height: 184px;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 300px;
-    gap: 18px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
     align-items: stretch;
     overflow: hidden;
     padding: 26px 30px;
@@ -243,14 +235,6 @@
 .shop-card button:hover:not(:disabled) {
     transform: translateY(-1px);
     box-shadow: 0 10px 18px rgba(22, 199, 154, .18);
-}
-
-.shop-hero-feature {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 14px;
-    align-items: center;
-    min-width: 0;
 }
 
 .shop-hero-card,
@@ -529,6 +513,24 @@
     background: #eff5ff;
 }
 
+.shop-card-visual.has-image {
+    background:
+        radial-gradient(circle at 50% 42%, rgba(255, 255, 255, .92), rgba(255, 255, 255, .55) 38%, rgba(232, 240, 252, .7) 100%),
+        #eef4fb;
+}
+
+.shop-card-image {
+    width: 100%;
+    height: 100%;
+    padding: 12px;
+    object-fit: contain;
+    filter: drop-shadow(0 14px 18px rgba(30, 44, 80, .18));
+}
+
+.indulgence-card .shop-card-image {
+    padding: 14px;
+}
+
 .shop-card-visual span,
 .mini-cosmetic {
     position: relative;
@@ -803,8 +805,22 @@
 .mini-cosmetic {
     width: 44px;
     height: 44px;
+    overflow: hidden;
     border-radius: 8px;
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .55);
+}
+
+.mini-cosmetic.has-image {
+    display: grid;
+    place-items: center;
+    background: #eef4fb;
+}
+
+.mini-cosmetic img {
+    width: 100%;
+    height: 100%;
+    padding: 4px;
+    object-fit: contain;
 }
 
 .inventory-list {
