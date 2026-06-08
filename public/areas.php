@@ -88,32 +88,40 @@ function formValue(array $formData, string $key, mixed $fallback = ''): mixed
 function areaIconOptions(): array
 {
     $iconsDirectory = __DIR__ . '/../icons/areas';
-    $labelMap = [
-        'ChatGPT Image 3 jun 2026, 00_33_59 (1).png' => 'Libro',
-        'ChatGPT Image 3 jun 2026, 00_33_59 (2).png' => 'Fitness',
-        'ChatGPT Image 3 jun 2026, 00_33_59 (3).png' => 'Salud',
-        'ChatGPT Image 3 jun 2026, 00_34_00 (4).png' => 'Estudio',
-        'ChatGPT Image 3 jun 2026, 00_34_00 (5).png' => 'Trabajo',
-        'ChatGPT Image 3 jun 2026, 00_34_00 (6).png' => 'Finanzas',
-        'ChatGPT Image 3 jun 2026, 00_34_01 (7).png' => 'Relaciones',
-        'ChatGPT Image 3 jun 2026, 00_34_01 (8).png' => 'Crecimiento',
+    $labels = [
+        'Libro',
+        'Fitness',
+        'Salud',
+        'Estudio',
+        'Trabajo',
+        'Finanzas',
+        'Relaciones',
+        'Crecimiento',
     ];
 
     $options = [];
     $iconFiles = glob($iconsDirectory . '/*.png') ?: [];
     natsort($iconFiles);
 
-    foreach ($iconFiles as $iconFile) {
+    foreach ($iconFiles as $index => $iconFile) {
         $fileName = basename($iconFile);
+        $baseName = pathinfo($fileName, PATHINFO_FILENAME);
         $svgFile = pathinfo($fileName, PATHINFO_FILENAME) . '.svg';
         $svgUrl = '../icons/areas_svg/' . rawurlencode($svgFile);
         $previewUrl = is_file(__DIR__ . '/../icons/areas_svg/' . $svgFile)
             ? $svgUrl
             : '../icons/areas/' . rawurlencode($fileName);
 
+        $labelIndex = null;
+        if (preg_match('/^a-icon(\d+)$/', $baseName, $matches)) {
+            $labelIndex = max(0, (int) $matches[1] - 1);
+        }
+
+        $label = $labels[$labelIndex ?? $index] ?? 'Icono';
+
         $options[] = [
             'value' => $fileName,
-            'label' => $labelMap[$fileName] ?? 'Icono',
+            'label' => $label,
             'preview' => $previewUrl,
             'masked' => $previewUrl,
         ];
@@ -127,7 +135,13 @@ function areaIconMaskedPath(string|null $iconValue, array $areaIconByValue): ?st
     $iconValue = trim((string) $iconValue);
 
     if ($iconValue === '' || !isset($areaIconByValue[$iconValue])) {
-        return null;
+        $normalizedIconValue = pathinfo($iconValue, PATHINFO_FILENAME);
+
+        if ($normalizedIconValue === '' || !isset($areaIconByValue[$normalizedIconValue])) {
+            return null;
+        }
+
+        $iconValue = $normalizedIconValue;
     }
 
     $baseName = pathinfo($iconValue, PATHINFO_FILENAME);
