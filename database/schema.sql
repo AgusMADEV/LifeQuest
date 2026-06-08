@@ -161,6 +161,19 @@ CREATE TABLE reward_redemptions (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+CREATE TABLE user_reward_inventory (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    reward_id INT NOT NULL,
+    equipped BOOLEAN NOT NULL DEFAULT FALSE,
+    acquired_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    equipped_at DATETIME NULL,
+    UNIQUE KEY unique_user_reward_inventory (user_id, reward_id),
+    INDEX idx_user_reward_inventory_equipped (user_id, equipped),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (reward_id) REFERENCES rewards(id) ON DELETE CASCADE
+);
+
 CREATE TABLE danger_logs (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,

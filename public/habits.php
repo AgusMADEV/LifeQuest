@@ -444,7 +444,7 @@ function hexToRgba(string $hex, float $alpha = 1.0): string
                     <header class="lq-page-hero habits-hero">
                         <div>
                             <p class="eyebrow">Rutinas cotidianas</p>
-                            <h1><span class="habit-title-icon" aria-hidden="true">♡</span> Hábitos</h1>
+                            <h1>Hábitos</h1>
                             <p>Construye rutinas positivas y transforma tu día a día.</p>
                         </div>
                         <div class="habit-hero-controls">

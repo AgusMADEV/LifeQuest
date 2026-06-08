@@ -7,6 +7,8 @@ require_once __DIR__ . '/../Database/connection.php';
 final class AdminDatabaseManager
 {
     private PDO $db;
+    private array $referenceTableCache = [];
+    private array $referenceLabelCache = [];
 
     public function __construct(?PDO $db = null)
     {
@@ -22,7 +24,210 @@ final class AdminDatabaseManager
             'habits' => $this->countTable('habits'),
             'projects' => $this->countTable('projects'),
             'rewards' => $this->countTable('rewards'),
+            'inventory' => $this->countTable('user_reward_inventory'),
         ];
+    }
+
+    public function getAdminUsers(): array
+    {
+        $stmt = $this->db->query(
+            'SELECT id, name, email, level, xp, points,
+                    ' . ($this->hasColumn('users', 'hp') ? 'hp' : '0') . ' AS hp,
+                    ' . ($this->hasColumn('users', 'max_hp') ? 'max_hp' : '0') . ' AS max_hp
+             FROM users
+             ORDER BY id ASC'
+        );
+
+        return $stmt->fetchAll();
+    }
+
+    public function updatePlayerStats(int $userId, array $payload): bool
+    {
+        if ($userId < 1) {
+            return false;
+        }
+
+        $allowed = ['points', 'xp', 'level', 'hp', 'max_hp'];
+        $setParts = [];
+        $values = [];
+
+        foreach ($allowed as $column) {
+            if (!array_key_exists($column, $payload) || !$this->hasColumn('users', $column)) {
+                continue;
+            }
+
+            $setParts[] = '`' . $column . '` = ?';
+            $values[] = max(0, (int) $payload[$column]);
+        }
+
+        if (empty($setParts)) {
+            return false;
+        }
+
+        $values[] = $userId;
+        $stmt = $this->db->prepare('UPDATE users SET ' . implode(', ', $setParts) . ' WHERE id = ? LIMIT 1');
+        $stmt->execute($values);
+
+        return $stmt->rowCount() >= 0;
+    }
+
+    public function getShopSummary(): array
+    {
+        return [
+            'indulgences' => $this->countWhere('rewards', "shop_type = 'indulgence'"),
+            'cosmetics' => $this->countWhere('rewards', "shop_type = 'cosmetic'"),
+            'inventory' => $this->countTable('user_reward_inventory'),
+            'equipped' => $this->countWhere('user_reward_inventory', 'equipped = 1'),
+            'redemptions' => $this->countTable('reward_redemptions'),
+        ];
+    }
+
+    public function getShopRewards(string $shopType = 'all', int $limit = 80): array
+    {
+        $limit = max(1, min($limit, 200));
+        $where = '';
+
+        if (in_array($shopType, ['indulgence', 'cosmetic'], true)) {
+            $where = 'WHERE r.shop_type = :shop_type';
+        }
+
+        $sql = 'SELECT r.id, r.user_id, u.name AS user_name, u.email AS user_email,
+                       r.name, r.description, r.cost_points, r.category, r.shop_type,
+                       r.effect_hp, r.weekly_limit, r.active, r.created_at
+                FROM rewards r
+                INNER JOIN users u ON u.id = r.user_id
+                ' . $where . '
+                ORDER BY r.created_at DESC, r.id DESC
+                LIMIT ' . $limit;
+
+        $stmt = $this->db->prepare($sql);
+
+        if ($where !== '') {
+            $stmt->execute(['shop_type' => $shopType]);
+        } else {
+            $stmt->execute();
+        }
+
+        return $stmt->fetchAll();
+    }
+
+    public function createShopReward(array $payload): int
+    {
+        $targetUserId = max(0, (int) ($payload['target_user_id'] ?? 0));
+        $name = trim((string) ($payload['name'] ?? ''));
+        $description = trim((string) ($payload['description'] ?? ''));
+        $shopType = in_array((string) ($payload['shop_type'] ?? ''), ['indulgence', 'cosmetic'], true)
+            ? (string) $payload['shop_type']
+            : 'indulgence';
+        $category = trim((string) ($payload['category'] ?? ($shopType === 'cosmetic' ? 'cosmetico' : 'indulgencia')));
+        $costPoints = max(0, (int) ($payload['cost_points'] ?? 0));
+        $effectHp = $shopType === 'indulgence' ? max(0, (int) ($payload['effect_hp'] ?? 0)) : 0;
+        $weeklyLimit = max(1, (int) ($payload['weekly_limit'] ?? ($shopType === 'cosmetic' ? 99 : 1)));
+        $active = !empty($payload['active']) ? 1 : 0;
+
+        if ($name === '' || $costPoints < 1) {
+            return 0;
+        }
+
+        $users = [];
+        if ($targetUserId > 0) {
+            $users[] = $targetUserId;
+        } else {
+            $stmt = $this->db->query('SELECT id FROM users ORDER BY id ASC');
+            $users = array_map(static fn(array $row): int => (int) $row['id'], $stmt->fetchAll());
+        }
+
+        if (empty($users)) {
+            return 0;
+        }
+
+        $inserted = 0;
+        $insert = $this->db->prepare(
+            'INSERT INTO rewards (user_id, name, description, cost_points, category, shop_type, effect_hp, weekly_limit, active)
+             SELECT :user_id, :name, :description, :cost_points, :category, :shop_type, :effect_hp, :weekly_limit, :active
+             WHERE NOT EXISTS (
+                SELECT 1 FROM rewards WHERE user_id = :exists_user_id AND name = :exists_name LIMIT 1
+             )'
+        );
+
+        foreach ($users as $userId) {
+            $insert->execute([
+                'user_id' => $userId,
+                'name' => $name,
+                'description' => $description,
+                'cost_points' => $costPoints,
+                'category' => $category,
+                'shop_type' => $shopType,
+                'effect_hp' => $effectHp,
+                'weekly_limit' => $weeklyLimit,
+                'active' => $active,
+                'exists_user_id' => $userId,
+                'exists_name' => $name,
+            ]);
+            $inserted += $insert->rowCount();
+        }
+
+        return $inserted;
+    }
+
+    public function setRewardActive(int $rewardId, bool $active): bool
+    {
+        if ($rewardId < 1) {
+            return false;
+        }
+
+        $stmt = $this->db->prepare('UPDATE rewards SET active = :active WHERE id = :id LIMIT 1');
+        $stmt->execute([
+            'active' => $active ? 1 : 0,
+            'id' => $rewardId,
+        ]);
+
+        return $stmt->rowCount() >= 0;
+    }
+
+    public function getShopInventory(int $limit = 80): array
+    {
+        if (!$this->tableExists('user_reward_inventory')) {
+            return [];
+        }
+
+        $limit = max(1, min($limit, 200));
+        $stmt = $this->db->query(
+            'SELECT uri.id, uri.user_id, u.name AS user_name, u.email AS user_email,
+                    uri.reward_id, r.name AS reward_name, r.category, uri.equipped,
+                    uri.acquired_at, uri.equipped_at
+             FROM user_reward_inventory uri
+             INNER JOIN users u ON u.id = uri.user_id
+             INNER JOIN rewards r ON r.id = uri.reward_id
+             ORDER BY uri.equipped DESC, uri.acquired_at DESC
+             LIMIT ' . $limit
+        );
+
+        return $stmt->fetchAll();
+    }
+
+    public function grantInventoryItem(int $userId, int $rewardId): bool
+    {
+        if (!$this->tableExists('user_reward_inventory') || $userId < 1 || $rewardId < 1) {
+            return false;
+        }
+
+        $stmt = $this->db->prepare(
+            'INSERT INTO user_reward_inventory (user_id, reward_id, equipped)
+             SELECT :user_id, r.id, 0
+             FROM rewards r
+             WHERE r.id = :reward_id
+               AND r.user_id = :reward_user_id
+               AND r.shop_type = \'cosmetic\'
+             ON DUPLICATE KEY UPDATE reward_id = reward_id'
+        );
+        $stmt->execute([
+            'user_id' => $userId,
+            'reward_id' => $rewardId,
+            'reward_user_id' => $userId,
+        ]);
+
+        return $stmt->rowCount() >= 0;
     }
 
     public function getTables(): array
@@ -302,6 +507,22 @@ final class AdminDatabaseManager
         ];
     }
 
+    public function displayValue(string $table, string $column, mixed $value): string
+    {
+        if ($value === null) {
+            return '';
+        }
+
+        $raw = trim((string) $value);
+        if ($raw === '' || !$this->isReferenceColumn($column)) {
+            return $raw;
+        }
+
+        $label = $this->resolveReferenceLabel($table, $column, $raw);
+
+        return $label !== null && $label !== '' ? $label : $raw;
+    }
+
     private function countTable(string $table): int
     {
         $table = $this->sanitizeTableName($table);
@@ -315,6 +536,236 @@ final class AdminDatabaseManager
         } catch (Throwable) {
             return 0;
         }
+    }
+
+    private function countWhere(string $table, string $where): int
+    {
+        $table = $this->sanitizeTableName($table);
+        if ($table === '' || !$this->tableExists($table)) {
+            return 0;
+        }
+
+        try {
+            $stmt = $this->db->query('SELECT COUNT(*) AS c FROM `' . $table . '` WHERE ' . $where);
+            return (int) $stmt->fetchColumn();
+        } catch (Throwable) {
+            return 0;
+        }
+    }
+
+    private function tableExists(string $table): bool
+    {
+        $table = $this->sanitizeTableName($table);
+        if ($table === '') {
+            return false;
+        }
+
+        $stmt = $this->db->prepare(
+            'SELECT 1
+             FROM INFORMATION_SCHEMA.TABLES
+             WHERE TABLE_SCHEMA = DATABASE()
+               AND TABLE_NAME = :table
+             LIMIT 1'
+        );
+        $stmt->execute(['table' => $table]);
+
+        return (bool) $stmt->fetchColumn();
+    }
+
+    private function hasColumn(string $table, string $column): bool
+    {
+        $table = $this->sanitizeTableName($table);
+        $column = $this->sanitizeColumnName($column);
+
+        if ($table === '' || $column === '') {
+            return false;
+        }
+
+        $stmt = $this->db->prepare(
+            'SELECT 1
+             FROM INFORMATION_SCHEMA.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE()
+               AND TABLE_NAME = :table
+               AND COLUMN_NAME = :column
+             LIMIT 1'
+        );
+        $stmt->execute([
+            'table' => $table,
+            'column' => $column,
+        ]);
+
+        return (bool) $stmt->fetchColumn();
+    }
+
+    private function isReferenceColumn(string $column): bool
+    {
+        return $column !== 'id' && str_ends_with($column, '_id');
+    }
+
+    private function resolveReferenceLabel(string $sourceTable, string $column, string $value): ?string
+    {
+        $target = $this->resolveReferenceTarget($sourceTable, $column);
+        if ($target === null) {
+            return null;
+        }
+
+        $cacheKey = $target['table'] . '.' . $target['column'] . ':' . $value;
+        if (array_key_exists($cacheKey, $this->referenceLabelCache)) {
+            return $this->referenceLabelCache[$cacheKey];
+        }
+
+        $labelColumns = $this->getReferenceLabelColumns($target['table']);
+        $selectParts = array_merge([$target['column']], $labelColumns);
+        $selectSql = implode(', ', array_map(static fn(string $col): string => '`' . $col . '`', array_unique($selectParts)));
+
+        try {
+            $stmt = $this->db->prepare(
+                'SELECT ' . $selectSql . '
+                 FROM `' . $target['table'] . '`
+                 WHERE `' . $target['column'] . '` = ?
+                 LIMIT 1'
+            );
+            $stmt->execute([$value]);
+            $row = $stmt->fetch();
+
+            if (!$row) {
+                $this->referenceLabelCache[$cacheKey] = null;
+                return null;
+            }
+
+            $label = $this->buildReferenceLabel($row, $labelColumns);
+            $this->referenceLabelCache[$cacheKey] = $label;
+
+            return $label;
+        } catch (Throwable) {
+            $this->referenceLabelCache[$cacheKey] = null;
+            return null;
+        }
+    }
+
+    private function resolveReferenceTarget(string $sourceTable, string $column): ?array
+    {
+        $sourceTable = $this->sanitizeTableName($sourceTable);
+        $column = $this->sanitizeColumnName($column);
+
+        if ($sourceTable === '' || $column === '' || !$this->isReferenceColumn($column)) {
+            return null;
+        }
+
+        $cacheKey = $sourceTable . '.' . $column;
+        if (array_key_exists($cacheKey, $this->referenceTableCache)) {
+            return $this->referenceTableCache[$cacheKey];
+        }
+
+        $fkTarget = $this->getForeignKeyTarget($sourceTable, $column);
+        if ($fkTarget !== null) {
+            $this->referenceTableCache[$cacheKey] = $fkTarget;
+            return $fkTarget;
+        }
+
+        $baseName = substr($column, 0, -3);
+        $manualMap = [
+            'user' => 'users',
+            'admin_portal_user' => 'admin_portal_users',
+            'area' => 'life_areas',
+            'life_area' => 'life_areas',
+            'goal' => 'goals',
+            'project' => 'projects',
+            'task' => 'tasks',
+            'habit' => 'habits',
+            'reward' => 'rewards',
+            'badge' => 'badges',
+            'daily_objective' => 'daily_objectives',
+        ];
+
+        $candidates = [];
+        if (isset($manualMap[$baseName])) {
+            $candidates[] = $manualMap[$baseName];
+        }
+        $candidates[] = $baseName . 's';
+        $candidates[] = $baseName . 'es';
+
+        foreach (array_unique($candidates) as $candidate) {
+            if ($this->tableExists($candidate) && $this->hasColumn($candidate, 'id')) {
+                $this->referenceTableCache[$cacheKey] = ['table' => $candidate, 'column' => 'id'];
+                return $this->referenceTableCache[$cacheKey];
+            }
+        }
+
+        $this->referenceTableCache[$cacheKey] = null;
+        return null;
+    }
+
+    private function getForeignKeyTarget(string $sourceTable, string $column): ?array
+    {
+        try {
+            $stmt = $this->db->prepare(
+                'SELECT REFERENCED_TABLE_NAME AS referenced_table, REFERENCED_COLUMN_NAME AS referenced_column
+                 FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+                 WHERE TABLE_SCHEMA = DATABASE()
+                   AND TABLE_NAME = :table
+                   AND COLUMN_NAME = :column
+                   AND REFERENCED_TABLE_NAME IS NOT NULL
+                 LIMIT 1'
+            );
+            $stmt->execute([
+                'table' => $sourceTable,
+                'column' => $column,
+            ]);
+            $row = $stmt->fetch();
+
+            if (!$row) {
+                return null;
+            }
+
+            $table = $this->sanitizeTableName((string) ($row['referenced_table'] ?? ''));
+            $referencedColumn = $this->sanitizeColumnName((string) ($row['referenced_column'] ?? ''));
+
+            if ($table === '' || $referencedColumn === '' || !$this->tableExists($table) || !$this->hasColumn($table, $referencedColumn)) {
+                return null;
+            }
+
+            return ['table' => $table, 'column' => $referencedColumn];
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    private function getReferenceLabelColumns(string $table): array
+    {
+        $priority = match ($table) {
+            'users' => ['name', 'email'],
+            'admin_portal_users' => ['username'],
+            'app_settings' => ['setting_key', 'setting_value'],
+            default => ['name', 'title', 'label', 'email', 'username', 'slug', 'description'],
+        };
+
+        $columns = [];
+        foreach ($priority as $column) {
+            if ($this->hasColumn($table, $column)) {
+                $columns[] = $column;
+            }
+
+            if (count($columns) >= 2) {
+                break;
+            }
+        }
+
+        return $columns;
+    }
+
+    private function buildReferenceLabel(array $row, array $labelColumns): string
+    {
+        $parts = [];
+
+        foreach ($labelColumns as $column) {
+            $value = trim((string) ($row[$column] ?? ''));
+            if ($value !== '') {
+                $parts[] = $value;
+            }
+        }
+
+        return implode(' · ', $parts);
     }
 
     private function sanitizeTableName(string $table): string

@@ -227,12 +227,15 @@ a {
 
 /* Main app */
 
+@media (max-width: 768px) {
     .badge-toast {
         left: 12px;
         right: 12px;
         top: 12px;
+        min-width: 0;
         max-width: none;
     }
+}
 .lifequest-app {
     min-height: 100vh;
     display: grid;

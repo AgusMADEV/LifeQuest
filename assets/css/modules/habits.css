@@ -931,12 +931,6 @@ body.lq-modal-lock {
     font-size: clamp(2rem, 2.9vw, 2.7rem);
 }
 
-.habit-title-icon {
-    color: #243860;
-    font-size: .92em;
-    line-height: 1;
-}
-
 .habit-hero-controls {
     display: flex;
     align-items: center;
